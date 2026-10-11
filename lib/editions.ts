@@ -114,7 +114,7 @@ export function plainCopy(picks: Pick[]): CoverCopy {
     if (t !== "unsorted") count.set(t, (count.get(t) ?? 0) + 1);
   }
   const top = [...count.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
-  const names = top.slice(0, 3).map((k, i) => (k === "ai" || i === 0 ? TOPIC[k].name : TOPIC[k].name.toLowerCase()));
+  const names = top.slice(0, 3).map((k) => (k === "ai" ? TOPIC[k].name : TOPIC[k].name.toLowerCase()));
   const theme = names.length > 1 ? `On ${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names.length ? `On ${names[0]}` : "";
   const lines = picks
     .slice()
