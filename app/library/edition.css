@@ -1072,11 +1072,275 @@
   color: var(--ink-3);
 }
 
+/* ---------- the podcast: the month, talked through ---------- */
+
+.ed-pod {
+  --pod: var(--rubric);
+  padding: 14px 20px 15px 24px;
+  border-bottom: 1px solid var(--rule);
+}
+.ed-pod.is-empty,
+.ed-pod.is-making {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 13px;
+  align-items: start;
+}
+.ed-pod-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ed-pod-btn {
+  position: relative;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pod) 14%, var(--bg-raised));
+  color: var(--pod);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--pod) 34%, transparent) inset;
+  transition: transform 0.16s var(--ease-out), background 0.2s ease;
+}
+button.ed-pod-btn:hover {
+  background: color-mix(in srgb, var(--pod) 22%, var(--bg-raised));
+}
+button.ed-pod-btn:active {
+  transform: scale(0.94);
+}
+.ed-pod-btn.is-quiet,
+.ed-pod-btn.is-busy {
+  background: var(--bg-sunk);
+  color: var(--ink-3);
+  box-shadow: none;
+}
+.ed-pod-btn::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: inherit;
+  border: 1px solid color-mix(in srgb, var(--pod) 30%, transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+.ed-pod[data-playing] .ed-pod-btn::after {
+  animation: ed-pod-halo 2.4s var(--ease-out) infinite;
+}
+@keyframes ed-pod-halo {
+  from {
+    opacity: 0.9;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+.ed-pod-title {
+  overflow: hidden;
+  font-family: var(--font-serif);
+  font-size: 16.5px;
+  line-height: 1.25;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ed-pod-sub {
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ink-3);
+  text-wrap: pretty;
+}
+.ed-pod-make {
+  display: inline-flex;
+  height: 32px;
+  margin-top: 10px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px 0 12px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 13px;
+  font-weight: 500;
+  transition: transform 0.16s var(--ease-out), opacity 0.2s ease;
+}
+.ed-pod-make:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.ed-pod-make:disabled {
+  opacity: 0.4;
+}
+.ed-pod-tools {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 1px;
+}
+.ed-pod-tool {
+  display: grid;
+  min-width: 28px;
+  height: 28px;
+  place-items: center;
+  padding: 0 4px;
+  border-radius: 8px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ed-pod-tool:hover {
+  background: var(--bg-sunk);
+  color: var(--ink);
+}
+
+/* Unheard, the episode is a dotted line; as it plays, each bar rises to its loudness, in its piece's ink. */
+.ed-pod-wave {
+  position: relative;
+  display: flex;
+  height: 46px;
+  margin-top: 13px;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+}
+.ed-pod-wave:focus-visible {
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px var(--bg-raised), 0 0 0 4px var(--pod);
+}
+.ed-pod-wave > span {
+  flex: 1;
+  min-width: 0;
+  max-height: 3px;
+  border-radius: 1.5px;
+  opacity: 0.4;
+  transition: max-height 0.45s var(--ease-out), opacity 0.3s ease;
+}
+.ed-pod-wave > span[data-done] {
+  max-height: 100%;
+  opacity: 1;
+}
+.ed-pod-wave:hover > span:not([data-done]) {
+  opacity: 0.6;
+}
+.ed-pod-head {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--ink);
+  opacity: 0.75;
+  pointer-events: none;
+}
+.ed-pod-meta {
+  display: flex;
+  margin-top: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.ed-pod-time {
+  flex-shrink: 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.ed-pod-time span {
+  color: var(--ink-4);
+}
+.ed-pod-chapter {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ed-pod-line {
+  display: -webkit-box;
+  margin-top: 9px;
+  overflow: hidden;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-style: italic;
+  line-height: 1.42;
+  color: var(--ink-2);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  animation: ed-pod-line 0.4s var(--ease-out) both;
+}
+.ed-pod-line b {
+  margin-right: 3px;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+@keyframes ed-pod-line {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+.ed-pod-progress {
+  display: flex;
+  height: 4px;
+  margin-top: 11px;
+  gap: 1.5px;
+}
+.ed-pod-progress > span {
+  flex: 1;
+  border-radius: 1px;
+  transition: opacity 0.3s ease;
+}
+.ed-pod-progress > .is-writing {
+  background: linear-gradient(90deg, transparent, var(--ink-4), transparent) 0 0 / 40% 100% no-repeat var(--bg-sunk);
+  animation: ed-pod-writing 1.4s ease-in-out infinite;
+}
+@keyframes ed-pod-writing {
+  from {
+    background-position: -40% 0;
+  }
+  to {
+    background-position: 140% 0;
+  }
+}
+.ed-pod-fine {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--ink-4);
+}
+.ed-link.is-inline {
+  display: inline;
+  font-size: inherit;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ed-row[data-talking] {
+  background: color-mix(in srgb, var(--rubric) 9%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ed-held-book,
   .ed-held-shadow,
-  .ed-painting {
+  .ed-painting,
+  .ed-pod-line,
+  .ed-pod[data-playing] .ed-pod-btn::after,
+  .ed-pod-progress > .is-writing {
     animation: none;
+  }
+  .ed-pod-wave > span {
+    transition: none;
   }
 }
 

@@ -7,11 +7,12 @@
  * this browser.
  */
 
-import { tidyTitle } from "./article";
+import { blockText, tidyTitle } from "./article";
 import { readApiKey } from "./ask";
 import { paintedUrl } from "./covers";
-import { monthOf, sizeOf, type CoverCopy, type EditionInput, type EditionOrder, type PrintText, type TextSize } from "./edition";
+import { monthOf, sizeOf, type CoverCopy, type EditionInput, type EditionOrder, type PrintMark, type PrintText, type TextSize } from "./edition";
 import { TOPIC, topicOf, type TopicKey } from "./library";
+import type { PodEvent, PodPiece, PodScript } from "./podcast";
 import { loadDoc, useStore, type LibraryItem } from "./store";
 import { fetchText } from "./sync";
 
@@ -80,21 +81,29 @@ export async function gather(month: string): Promise<Pick[]> {
 /** A cover kept for a month: its words, and the painting as a base64 JPEG. */
 export type KeptCover = { copy: CoverCopy; art: string | null; at: number };
 
-const DB = "gloss-editions";
-let opening: Promise<IDBDatabase> | null = null;
-function idb(): Promise<IDBDatabase> {
-  return (opening ??= new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore("covers");
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  }));
+/** Covers and podcasts each in a database of their own, so adding one never waits on a tab holding the other open. */
+type Store = "covers" | "podcasts";
+const DBS: Record<Store, string> = { covers: "gloss-editions", podcasts: "gloss-podcasts" };
+const opening = new Map<Store, Promise<IDBDatabase>>();
+function idb(store: Store): Promise<IDBDatabase> {
+  let p = opening.get(store);
+  if (!p) {
+    p = new Promise((resolve, reject) => {
+      // No version asked for: whatever is there opens as it is, and a new database starts at 1 with its store.
+      const req = indexedDB.open(DBS[store]);
+      req.onupgradeneeded = () => req.result.createObjectStore(store);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    opening.set(store, p);
+  }
+  return p;
 }
-async function tx<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T | null> {
+async function tx<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>, store: Store = "covers"): Promise<T | null> {
   try {
-    const db = await idb();
+    const db = await idb(store);
     return await new Promise<T>((resolve, reject) => {
-      const r = fn(db.transaction("covers", mode).objectStore("covers"));
+      const r = fn(db.transaction(store, mode).objectStore(store));
       r.onsuccess = () => resolve(r.result);
       r.onerror = () => reject(r.error);
     });
@@ -148,6 +157,156 @@ export async function paintCover(month: string, picks: Pick[], copy?: CoverCopy)
   } catch {
     return { ok: false, error: "Could not reach Gloss. Check your connection." };
   }
+}
+
+/* ---------- the podcast ---------- */
+
+/** A month's episode, kept on this device: the script, where each line starts, the audio, and its shape for the waveform. */
+export type KeptPodcast = {
+  script: PodScript;
+  /** Seconds from the start, one for each line. */
+  starts: number[];
+  seconds: number;
+  audio: Blob;
+  /** Loudness across the episode, 0 to 1, for the waveform. */
+  peaks: number[];
+  /** The pieces it talks about, to tell when the book has changed since. */
+  ids: string[];
+  at: number;
+};
+
+export const keptPodcast = (month: string) => tx<KeptPodcast | undefined>("readonly", (s) => s.get(month), "podcasts").then((c) => c ?? null);
+export const keepPodcast = (month: string, p: KeptPodcast) => tx("readwrite", (s) => s.put(p, month), "podcasts");
+
+/** The words a highlight covers, across blocks if it runs over more than one. */
+function quoteOf(blocks: PrintText["blocks"], m: PrintMark): string {
+  const a = blocks.findIndex((b) => b.id === m.start.b);
+  const z = blocks.findIndex((b) => b.id === m.end.b);
+  if (a < 0 || z < a) return "";
+  const parts = blocks.slice(a, z + 1).map((b, i, all) => {
+    const t = blockText(b);
+    return t.slice(i === 0 ? m.start.o : 0, i === all.length - 1 ? m.end.o : t.length);
+  });
+  return parts.join(" ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * What the hosts read of each piece, in the book's order: its opening, as much
+ * as a month this size leaves room for, and every highlight and note on it.
+ */
+export function podPieces(texts: PrintText[]): PodPiece[] {
+  const budget = Math.max(70, Math.min(320, Math.floor(6000 / Math.max(1, texts.length))));
+  return texts.map((t, i) => {
+    const words: string[] = [];
+    for (const b of t.blocks) {
+      if (words.length >= budget) break;
+      if (b.type === "p" || b.type === "quote" || b.type === "li" || b.type === "h2" || b.type === "h3") words.push(...blockText(b).split(/\s+/).filter(Boolean));
+    }
+    const opening = words.slice(0, budget).join(" ") + (words.length > budget ? " …" : "");
+    const marks = t.marks
+      .map((m) => ({ quote: quoteOf(t.blocks, m).slice(0, 400), note: m.note?.trim() || undefined }))
+      .filter((m) => m.quote)
+      .slice(0, 8);
+    return { n: i + 1, title: t.title, author: t.author, source: t.source, topic: t.topic, words: sizeOf(t.blocks).words, opening, marks };
+  });
+}
+
+/** Loudness in `n` buckets, from the audio itself: decoded once, at a low rate, so a phone can manage it. */
+async function peaksOf(audio: Blob, n = 160): Promise<number[]> {
+  try {
+    const ctx = new OfflineAudioContext(1, 1, 8000);
+    const buf = await ctx.decodeAudioData(await audio.arrayBuffer());
+    const data = buf.getChannelData(0);
+    const size = Math.max(1, Math.floor(data.length / n));
+    const out: number[] = [];
+    for (let k = 0; k < n; k++) {
+      let sum = 0;
+      for (let j = k * size, end = Math.min(data.length, j + size); j < end; j++) sum += data[j] * data[j];
+      out.push(Math.sqrt(sum / size));
+    }
+    const top = Math.max(...out) || 1;
+    return out.map((v) => Math.min(1, Math.sqrt(v / top)));
+  } catch {
+    return [];
+  }
+}
+
+export type PodProgress = { stage: "writing" } | { stage: "recording"; done: number; of: number; script: PodScript };
+export type Made = { ok: true; podcast: KeptPodcast } | { ok: false; error: string; needKey?: boolean };
+
+/**
+ * Have the month's episode made: the script arrives first, then the lines'
+ * audio in order, which are joined into one MP3 and kept here.
+ */
+export async function makePodcast(
+  req: { month: string; name: string; texts: PrintText[]; order?: string },
+  onProgress: (p: PodProgress) => void,
+  signal?: AbortSignal
+): Promise<Made> {
+  onProgress({ stage: "writing" });
+  let res: Response;
+  try {
+    res = await fetch("/api/editions/podcast", {
+      method: "POST",
+      signal,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ month: req.month, name: req.name, pieces: podPieces(req.texts), order: req.order, apiKey: readApiKey() || undefined }),
+    });
+  } catch {
+    return { ok: false, error: signal?.aborted ? "Stopped." : "Could not reach Gloss. Check your connection." };
+  }
+  if (!res.ok || !res.body) {
+    const j = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+    return { ok: false, error: j.error ?? "The podcast could not be made.", needKey: j.code === "need_key" };
+  }
+
+  let script: PodScript | null = null;
+  const clips: Uint8Array<ArrayBuffer>[] = [];
+  const lengths: number[] = [];
+  let failed: string | null = null;
+  let finished = false;
+  const handle = (e: PodEvent) => {
+    if (e.type === "script") {
+      script = e.script;
+      onProgress({ stage: "recording", done: 0, of: e.script.lines.length, script: e.script });
+    } else if (e.type === "clip" && script) {
+      clips[e.i] = Uint8Array.from(atob(e.b64), (c) => c.charCodeAt(0));
+      lengths[e.i] = e.seconds;
+      onProgress({ stage: "recording", done: e.i + 1, of: script.lines.length, script });
+    } else if (e.type === "error") failed = e.error;
+    else if (e.type === "done") finished = true;
+  };
+
+  try {
+    const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += value;
+      let nl: number;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (line) handle(JSON.parse(line) as PodEvent);
+      }
+    }
+  } catch {
+    return { ok: false, error: signal?.aborted ? "Stopped." : "The connection dropped while it was recording. Try again." };
+  }
+  const s = script as PodScript | null;
+  if (failed || !finished || !s || clips.length < s.lines.length) return { ok: false, error: failed ?? "The podcast stopped before the end. Try again." };
+
+  const audio = new Blob(clips, { type: "audio/mpeg" });
+  const starts: number[] = [];
+  let t = 0;
+  for (const l of lengths) {
+    starts.push(t);
+    t += l;
+  }
+  const podcast: KeptPodcast = { script: s, starts, seconds: t, audio, peaks: await peaksOf(audio), ids: req.texts.map((x) => x.id), at: Date.now() };
+  await keepPodcast(req.month, podcast);
+  return { ok: true, podcast };
 }
 
 /* ---------- orders ---------- */

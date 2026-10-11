@@ -19,12 +19,13 @@ import {
   type EditionStatus,
   type PrintText,
 } from "@/lib/edition";
-import { fetchOrder, gather, keptCover, monthsOf, paintCover, placeOrder, plainCopy, type KeptCover, type Pick } from "@/lib/editions";
+import { fetchOrder, fetchOrders, gather, keptCover, monthsOf, paintCover, placeOrder, plainCopy, type KeptCover, type Pick } from "@/lib/editions";
 import { TOPIC, topicArtSrc, topicOf } from "@/lib/library";
 import { BOOK_CSS, COVER_CSS, MATTER_CSS, bodyHTML, frontHTML, MARK_SVG, minutesOf, openerHTML } from "@/lib/print/html";
 import { useStore } from "@/lib/store";
 import { Glyph } from "./Book";
 import { EditionBook, type Spread } from "./EditionBook";
+import { EditionPodcast } from "./EditionPodcast";
 
 /** At least this many pieces make an edition worth binding. */
 const MIN_PIECES = 3;
@@ -138,6 +139,8 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
   const [at, setAt] = useState(-1);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<{ text: string; soon?: boolean } | null>(null);
+  const [printed, setPrinted] = useState<string | undefined>(undefined);
+  const [talking, setTalking] = useState<string[]>([]);
   const live = useRef(month);
 
   const paint = useCallback(async (m: string, ps: Pick[], copy?: CoverCopy) => {
@@ -161,7 +164,11 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
     setCoverNote(null);
     setPainting(false);
     setAt(-1);
+    setTalking([]);
+    setPrinted(undefined);
     let gone = false;
+    // An edition of this month already printed pays for its podcast.
+    void fetchOrders().then((os) => !gone && setPrinted(os.find((o) => o.month === month && !["draft", "failed", "canceled"].includes(o.status))?.id));
     void (async () => {
       const ps = await gather(month);
       if (gone) return;
@@ -188,6 +195,16 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
   const chosen = useMemo(() => (picks ?? []).filter((p) => p.text && !out.has(p.item.id)), [picks, out]);
   const ordered = useMemo(() => arrange(chosen.map((p) => ({ ...p.text!, pick: p }))), [chosen]);
   const pages = useMemo(() => estimatePages(chosen.map((p) => p.size)), [chosen]);
+  const podTexts = useMemo(() => (picks ? ordered.map(({ pick: _p, ...t }) => t) : null), [picks, ordered]);
+  // The podcast reaches a piece: the book turns to it, and its row in the list lights.
+  const onChapter = useCallback(
+    (ns: number[]) => {
+      const ids = ns.map((n) => ordered[n - 1]?.id).filter(Boolean);
+      setTalking(ids);
+      if (ns[0]) setAt(ns[0] + 1);
+    },
+    [ordered]
+  );
   const marks = chosen.reduce((n, p) => n + p.marks, 0);
   const copy = cover?.copy ?? plainCopy(chosen.length ? chosen : (picks ?? []));
   const view = { name, month, theme: copy.theme, lines: copy.lines, topic: copy.topic, art: cover?.art ? `data:image/jpeg;base64,${cover.art}` : null, count: chosen.length };
@@ -424,6 +441,16 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
           </p>
         </header>
 
+        <EditionPodcast
+          key={month}
+          month={month}
+          name={name}
+          texts={podTexts}
+          order={printed}
+          art={cover?.art ? `data:image/jpeg;base64,${cover.art}` : null}
+          onChapter={onChapter}
+        />
+
         <div className="ed-list scroll-thin">
           {picks === null ? (
             <p className="ed-empty">
@@ -445,7 +472,7 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
                     const on = Boolean(p.text) && !out.has(p.item.id);
                     const n = ordered.findIndex((t) => t.id === p.item.id);
                     return (
-                      <div key={p.item.id} className="ed-row" data-off={!on || undefined}>
+                      <div key={p.item.id} className="ed-row" data-off={!on || undefined} data-talking={(on && talking.includes(p.item.id)) || undefined}>
                         <label className="ed-check">
                           <input type="checkbox" checked={on} disabled={!p.text} onChange={() => toggle(p.item.id)} aria-label={`Include ${p.item.title}`} />
                           <span aria-hidden>
@@ -522,6 +549,18 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
 
 function Order({ id, session, onClose }: { id: string; session?: string | null; onClose: () => void }) {
   const [state, setState] = useState<{ order: EditionOrder; art: boolean; copy?: CoverCopy } | null | "missing">(null);
+  const [texts, setTexts] = useState<PrintText[] | null>(null);
+  const month = state && state !== "missing" ? state.order.month : null;
+
+  // The month's pieces on this device, in the book's order, for the podcast that comes with it.
+  useEffect(() => {
+    if (!month) return;
+    let gone = false;
+    void gather(month).then((ps) => !gone && setTexts(arrange(ps.flatMap((p) => (p.text ? [p.text] : [])))));
+    return () => {
+      gone = true;
+    };
+  }, [month]);
 
   useEffect(() => {
     let gone = false;
@@ -608,6 +647,9 @@ function Order({ id, session, onClose }: { id: string; session?: string | null; 
             </p>
           )}
         </header>
+        {texts && texts.length > 0 && !["failed", "canceled", "draft"].includes(order.status) && (
+          <EditionPodcast key={order.month} month={order.month} name={order.name} texts={texts} order={order.id} art={view.art} fixed />
+        )}
         <ol className="ed-steps">
           {STEPS.map((s, n) => {
             const ok = done(s.key);
