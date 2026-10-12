@@ -71,8 +71,8 @@ export async function createCheckout(o: { id: string; title: string; description
         shipping_address: { message: "Printed on demand and posted to this address. US only, for now." },
         submit: { message: "Shipping is included. Arrives in about three weeks." },
       },
-      success_url: `${o.origin}/library?edition=${o.id}&session={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${o.origin}/library?edition=${o.id}&canceled=1`,
+      success_url: `${o.origin}/print?edition=${o.id}&session={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${o.origin}/print?edition=${o.id}&canceled=1`,
     },
     `checkout-${o.id}`
   );

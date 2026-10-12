@@ -144,6 +144,18 @@ export function shiftMonth(month: string, by: number): string {
   return monthOf(new Date(y, m - 1 + by, 15).getTime());
 }
 
+/** The month with enough in it for an edition: this one, or the last that had three things saved. */
+export function editionMonth(items: { addedAt: number; origin?: string }[]): string {
+  const now = monthOf(Date.now());
+  const n = new Map<string, number>();
+  for (const x of items) if (x.origin !== "sample") n.set(monthOf(x.addedAt), (n.get(monthOf(x.addedAt)) ?? 0) + 1);
+  if ((n.get(now) ?? 0) >= 3) return now;
+  return [...n.entries()].filter(([, c]) => c >= 3).map(([m]) => m).sort().reverse()[0] ?? now;
+}
+
+/** Printed editions are on wherever they're being built, and in production once NEXT_PUBLIC_EDITIONS=1. */
+export const EDITIONS_ON = process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_EDITIONS === "1";
+
 /* ---------- names ---------- */
 
 /** A first name fit for a cover: letters, a hyphen or an apostrophe, and not too long. */

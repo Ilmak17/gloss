@@ -116,7 +116,7 @@ export const keptCover = (month: string) => tx<KeptCover | undefined>("readonly"
 export const keepCover = (month: string, c: KeptCover) => tx("readwrite", (s) => s.put(c, month));
 
 /** The cover's words without the model: the month's subjects, and three of its titles. */
-export function plainCopy(picks: Pick[]): CoverCopy {
+export function plainCopy(picks: { item: LibraryItem; marks: number; size: { words: number } }[]): CoverCopy {
   const count = new Map<TopicKey, number>();
   for (const p of picks) {
     const t = topicOf(p.item.topic);
@@ -307,6 +307,25 @@ export async function makePodcast(
   const podcast: KeptPodcast = { script: s, starts, seconds: t, audio, peaks: await peaksOf(audio), ids: req.texts.map((x) => x.id), at: Date.now() };
   await keepPodcast(req.month, podcast);
   return { ok: true, podcast };
+}
+
+/* ---------- the name on the cover ---------- */
+
+const NAME = "gloss:edition-name";
+
+/** The name last put on an edition on this device, so the next one (and the print page) starts with it. */
+export function savedName(): string | null {
+  try {
+    return localStorage.getItem(NAME);
+  } catch {
+    return null;
+  }
+}
+
+export function saveName(name: string) {
+  try {
+    localStorage.setItem(NAME, name);
+  } catch {}
 }
 
 /* ---------- orders ---------- */

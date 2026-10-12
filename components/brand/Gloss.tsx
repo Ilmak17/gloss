@@ -30,7 +30,7 @@ export function GlossWordmark() {
 /** The app's mark, a hairline, then Together as the maker. */
 export function Lockup({ href = "/" }: { href?: string }) {
   return (
-    <div className="flex h-9 items-center gap-3.5">
+    <div className="flex h-9 items-center gap-3.5 max-sm:gap-2.5">
       <Link href={href} aria-label="Gloss, back to your library" className="rounded-md">
         <GlossWordmark />
       </Link>

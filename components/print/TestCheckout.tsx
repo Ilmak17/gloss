@@ -43,7 +43,7 @@ export function TestCheckout() {
       setError(((await res?.json().catch(() => null)) as { error?: string } | null)?.error ?? "That did not go through.");
       return;
     }
-    window.location.href = `/library?edition=${encodeURIComponent(id)}`;
+    window.location.href = `/print?edition=${encodeURIComponent(id)}`;
   };
 
   const o = info?.order;

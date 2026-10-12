@@ -1,80 +1,8 @@
 /* ==========================================================================
-   A month as a printed book: the card on the library, the sheet it opens,
-   the book you leaf through, and the order as it goes from press to door.
+   A month as a printed book: the sheet the print page opens, the book you
+   leaf through, and the order as it goes from press to door.
    The pages themselves are the press's own CSS (lib/print/html.ts).
    ========================================================================== */
-
-/* ---------- on the library: beside "Add articles" ---------- */
-
-.lib-hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-@media (max-width: 639px) {
-  .lib-hero-actions {
-    width: 100%;
-  }
-  .lib-hero-actions > * {
-    width: 100%;
-  }
-}
-.lib-edition {
-  display: inline-flex;
-  align-items: center;
-  gap: 13px;
-  padding: 6px 18px 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--rule-strong);
-  background: var(--bg-raised);
-  box-shadow: 0 1px 0 rgb(0 0 0 / 0.03), 0 6px 18px -10px rgb(0 0 0 / 0.25);
-  color: var(--ink);
-  animation: rise 0.6s 0.1s var(--ease-out) both;
-  transition: transform 0.16s var(--ease-out), border-color 0.2s ease, box-shadow 0.2s ease;
-}
-.lib-edition:active {
-  transform: scale(0.97);
-}
-.lib-edition-book {
-  position: relative;
-  flex-shrink: 0;
-  width: 27px;
-  height: 40px;
-  overflow: hidden;
-  border-radius: 1.5px 3px 3px 1.5px;
-  background: var(--c);
-  box-shadow: inset 2.5px 0 0 color-mix(in oklab, var(--c) 70%, black), 0 1px 1px rgb(0 0 0 / 0.12), 0 6px 10px -5px rgb(0 0 0 / 0.45);
-  transform: rotate(-5deg);
-  transition: transform 0.35s var(--ease-spring);
-}
-.lib-edition-book img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: 50% 100%;
-}
-.lib-edition-mast {
-  position: absolute;
-  inset: 0 0 auto;
-  padding: 3px 0 5px 3px;
-  background: linear-gradient(#f3ead8 62%, rgb(243 234 216 / 0));
-  font-family: var(--font-serif);
-  font-size: 8px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  color: var(--c);
-}
-@media (hover: hover) and (pointer: fine) {
-  .lib-edition:hover {
-    border-color: color-mix(in oklab, var(--ink) 30%, var(--rule-strong));
-    box-shadow: 0 1px 0 rgb(0 0 0 / 0.03), 0 10px 24px -12px rgb(0 0 0 / 0.35);
-  }
-  .lib-edition:hover .lib-edition-book {
-    transform: rotate(0deg) translateY(-2px) scale(1.06);
-  }
-}
 
 /* ---------- the sheet ---------- */
 

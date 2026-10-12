@@ -19,7 +19,7 @@ import {
   type EditionStatus,
   type PrintText,
 } from "@/lib/edition";
-import { fetchOrder, fetchOrders, gather, keptCover, monthsOf, paintCover, placeOrder, plainCopy, type KeptCover, type Pick } from "@/lib/editions";
+import { fetchOrder, fetchOrders, gather, keptCover, monthsOf, paintCover, placeOrder, plainCopy, savedName, saveName, type KeptCover, type Pick } from "@/lib/editions";
 import { TOPIC, topicArtSrc, topicOf } from "@/lib/library";
 import { BOOK_CSS, COVER_CSS, MATTER_CSS, bodyHTML, frontHTML, MARK_SVG, minutesOf, openerHTML } from "@/lib/print/html";
 import { useStore } from "@/lib/store";
@@ -132,7 +132,7 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
   const [picks, setPicks] = useState<Pick[] | null>(null);
   const [out, setOut] = useState<Set<string>>(() => new Set());
   const [fit, setFit] = useState<Set<string>>(() => new Set());
-  const [name, setName] = useState(owner);
+  const [name, setName] = useState(() => savedName() ?? owner);
   const [cover, setCover] = useState<KeptCover | null>(null);
   const [painting, setPainting] = useState(false);
   const [coverNote, setCoverNote] = useState<string | null>(null);
@@ -405,7 +405,11 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
             <input
               className="ed-name"
               value={name}
-              onChange={(e) => setName(e.target.value.replace(/[^\p{L}\p{M}' -]/gu, "").slice(0, 22))}
+              onChange={(e) => {
+                const v = e.target.value.replace(/[^\p{L}\p{M}' -]/gu, "").slice(0, 22);
+                setName(v);
+                saveName(v);
+              }}
               size={Math.max(3, name.length + 1)}
               placeholder="Name"
               aria-label="Whose edition"
