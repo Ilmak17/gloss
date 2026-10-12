@@ -140,7 +140,8 @@ export function EditionBook({
                   marginTop: -H / 2,
                   ["--d" as string]: `${D}px`,
                   ["--fs" as string]: `${fontSize}px`,
-                  transform: open ? "rotateX(10deg)" : `rotateX(${6 + tilt.x}deg) rotateY(${26 + tilt.y}deg)`,
+                  // Open, it lies flat to the eye: tilted in perspective, the pages are drawn soft.
+                  transform: open ? "none" : `rotateX(${6 + tilt.x}deg) rotateY(${26 + tilt.y}deg)`,
                 }}
               >
                 {/* Back board, spine and the edges of the pages. */}

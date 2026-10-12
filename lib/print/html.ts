@@ -140,6 +140,9 @@ export type BodyOptions = {
 };
 
 /** A text's blocks as HTML: paragraphs, headings, lists, quotes, code, pictures and tables, with the reader's marks and notes. */
+/** What a page's chrome leaves at the top of a text: "9 min readNov 11, 2017", a lone "--", "Share". */
+const FURNITURE = /^(?:\d+\s*[Mm]in(?:ute)?s?\s*[Rr]ead(?![a-z])[\s\S]*|[-–—_·•*\s]{1,6}|[Ll]isten|[Ss]hare|[Ff]ollow|[Oo]pen in app|[Ss]ign up|[Mm]ember-only story)$/;
+
 export function bodyHTML(t: Pick<PrintText, "blocks" | "marks">, opts: BodyOptions = {}): string {
   const { ranges, notes } = placeMarks(t.blocks, t.marks);
   const hy = opts.hyphenate ?? same;
@@ -160,6 +163,8 @@ export function bodyHTML(t: Pick<PrintText, "blocks" | "marks">, opts: BodyOptio
     switch (b.type) {
       case "p":
         if (!text.trim()) continue;
+        // Before the text proper starts, a site's furniture is left out, unless you marked it.
+        if (first && FURNITURE.test(text.trim()) && !ranges.get(b.id)?.length) continue;
         // A drop cap opens a real paragraph, not a dateline or a one-line preface.
         out.push(first ? `<p class="${text.trim().length >= 160 && /^[A-Za-z]/.test(text.trim()) ? "lede" : "first"}">${html}</p>` : `<p>${html}</p>`);
         first = false;
