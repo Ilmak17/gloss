@@ -853,14 +853,28 @@
     background-position: -30% 0;
   }
 }
-.eb-front .gc-art img {
+/* The painting develops once, when it arrives. The animation runs on the element that
+   lasts, so a re-render of the cover (a letter typed in the name) doesn't start it again. */
+@property --develop {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+.ed-front-host > div,
+.ed-held-front {
   animation: ed-develop 1.9s var(--ease-out) both;
+}
+.eb-front .gc-art img {
+  opacity: var(--develop);
+  filter: blur(calc((1 - var(--develop)) * 16px)) saturate(calc(0.3 + 0.7 * var(--develop))) contrast(calc(0.85 + 0.15 * var(--develop)));
+  transform: scale(calc(1.05 - 0.05 * var(--develop)));
 }
 @keyframes ed-develop {
   from {
-    opacity: 0;
-    filter: blur(16px) saturate(0.3) contrast(0.85);
-    transform: scale(1.05);
+    --develop: 0;
+  }
+  to {
+    --develop: 1;
   }
 }
 

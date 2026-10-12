@@ -61,13 +61,13 @@ export function EditionCard({ onOpen }: { onOpen: (month: string, order?: string
         <span className="lib-edition-mast">Gloss</span>
       </span>
       <span className="min-w-0 text-left">
-        <span className="lib-add-title">Your {when} edition</span>
+        <span className="lib-add-title">{order ? `Your ${when} edition` : "Print and ship your book"}</span>
         <span className="lib-add-sub">
           {order
             ? `${order.test ? "Test order, " : ""}${STATUS[order.status]}`
             : items.length
-              ? `${items.length} ${items.length === 1 ? "piece" : "pieces"} as a printed book, ${price()} posted`
-              : "What you save this month, as a printed book"}
+              ? `Your ${when} edition, ${items.length} ${items.length === 1 ? "piece" : "pieces"}, ${price()} posted`
+              : `Your ${when} edition, as a printed book`}
         </span>
       </span>
     </button>
