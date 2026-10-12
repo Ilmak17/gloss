@@ -6,7 +6,6 @@
 
 import { hyphenateSync } from "hyphen/en";
 import { arrange, evenPages, PRINT, type EditionInput } from "@/lib/edition";
-import { topicArtSrc } from "@/lib/library";
 import { coverSize } from "@/lib/lulu";
 import { coverHTML, interiorHTML, type Press } from "./book";
 import { fontFaces } from "./fonts";
@@ -32,8 +31,6 @@ export async function setBook(ed: EditionInput): Promise<SetBook> {
       if (p) plates.set(t.id, dataUri(p));
     }
   }
-  const plate = await bundled(topicArtSrc(ed.copy.topic));
-  const art = ed.art ? `data:image/jpeg;base64,${ed.art}` : plate ? dataUri(plate) : null;
 
   const press: Press = {
     engine: kind,
@@ -43,7 +40,6 @@ export async function setBook(ed: EditionInput): Promise<SetBook> {
       return p ? dataUri(p) : null;
     },
     plate: (t) => plates.get(t.id) ?? null,
-    art,
     hyphenate: (s) => hyphenateSync(s, { minWordLength: 7 }),
   };
 

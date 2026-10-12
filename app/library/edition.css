@@ -209,10 +209,6 @@
   color: var(--ink-2);
   text-wrap: pretty;
 }
-.ed-cover-row {
-  margin-top: 10px;
-  min-height: 20px;
-}
 .ed-link {
   display: inline-flex;
   align-items: center;
@@ -226,13 +222,6 @@
 }
 .ed-link:disabled {
   opacity: 0.5;
-}
-.ed-busy {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12.5px;
-  color: var(--rubric-text);
 }
 .ed-note {
   margin-top: 6px;
@@ -560,15 +549,16 @@
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
+/* The book is white, back and spine as well as front. */
 .eb-back {
   border-radius: 5px 2px 2px 5px;
-  background: var(--eb-ink, #3f3d39);
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.2);
+  background: #fbfaf7;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.07);
 }
 .eb-spine {
   overflow: hidden;
-  background: var(--eb-ink, #3f3d39);
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.16), inset 3px 0 6px rgb(255 255 255 / 0.08);
+  background: #f4f2ec;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08), inset -4px 0 8px rgb(0 0 0 / 0.04);
   transition: width 0.5s var(--ease-out), left 0.5s var(--ease-out), transform 0.5s var(--ease-out);
 }
 .eb-spine-in {
@@ -584,7 +574,7 @@
   display: flex;
   align-items: center;
   white-space: nowrap;
-  color: #f3ead8;
+  color: #151412;
   font-size: var(--sp);
   line-height: 1;
 }
@@ -646,6 +636,11 @@
   inset: 0;
   transform-origin: left center;
   transform-style: preserve-3d;
+  transition: transform 1s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+/* When the book thickens (the month's pages counted, a piece put back), the
+   pages move out with the cover, so they never come through it. */
+.eb-book > .eb-page {
   transition: transform 1s cubic-bezier(0.645, 0.045, 0.355, 1);
 }
 .eb-front {
@@ -745,65 +740,11 @@
   border-radius: 6px;
 }
 
-/* The cover while it paints, and the painting arriving. */
+/* The cover, set as the press sets it. */
 .ed-front-host {
   position: relative;
   width: 100%;
   height: 100%;
-}
-.ed-painting {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: end center;
-  padding-bottom: 12em;
-  background: linear-gradient(105deg, rgb(255 255 255 / 0) 35%, rgb(255 255 255 / 0.4) 50%, rgb(255 255 255 / 0) 65%);
-  background-size: 260% 100%;
-  animation: ed-sheen 1.8s linear infinite;
-}
-.ed-painting span {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5em;
-  padding: 0.65em 1.1em;
-  border-radius: 999px;
-  background: rgb(29 27 24 / 0.82);
-  color: #f3ead8;
-  font-family: var(--font-sans);
-  font-size: 1.15em;
-  font-weight: 500;
-}
-@keyframes ed-sheen {
-  from {
-    background-position: 130% 0;
-  }
-  to {
-    background-position: -30% 0;
-  }
-}
-/* The painting develops once, when it arrives. The animation runs on the element that
-   lasts, so a re-render of the cover (a letter typed in the name) doesn't start it again. */
-@property --develop {
-  syntax: "<number>";
-  inherits: true;
-  initial-value: 1;
-}
-.ed-front-host > div,
-.ed-held-front {
-  animation: ed-develop 1.9s var(--ease-out) both;
-}
-.eb-front .gc-art img {
-  opacity: var(--develop);
-  filter: blur(calc((1 - var(--develop)) * 16px)) saturate(calc(0.3 + 0.7 * var(--develop))) contrast(calc(0.85 + 0.15 * var(--develop)));
-  transform: scale(calc(1.05 - 0.05 * var(--develop)));
-}
-@keyframes ed-develop {
-  from {
-    --develop: 0;
-  }
-  to {
-    --develop: 1;
-  }
 }
 
 /* The inside of the front board: endpaper and a bookplate. */
@@ -885,7 +826,7 @@
   overflow: hidden;
   border-radius: 2px 5px 5px 2px;
   font-size: calc(100cqw / 36);
-  box-shadow: 0 40px 70px -32px rgb(0 0 0 / 0.55), inset 3px 0 0 rgb(0 0 0 / 0.18);
+  box-shadow: 0 40px 70px -32px rgb(0 0 0 / 0.45), inset 3px 0 0 rgb(0 0 0 / 0.06), inset 0 0 0 1px rgb(0 0 0 / 0.05);
 }
 .ed-held-spine {
   position: absolute;
@@ -893,7 +834,8 @@
   bottom: 0;
   left: 0;
   width: 7cqw;
-  background: var(--c);
+  background: #f4f2ec;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
   transform: rotateY(-90deg);
   transform-origin: left center;
 }
@@ -1275,7 +1217,6 @@ button.ed-pod-btn:active {
 @media (prefers-reduced-motion: reduce) {
   .ed-held-book,
   .ed-held-shadow,
-  .ed-painting,
   .ed-pod-line,
   .ed-pod[data-playing] .ed-pod-btn::after,
   .ed-pod-progress > .is-writing {
@@ -1361,7 +1302,7 @@ button.ed-pod-btn:active {
   overflow: hidden;
   border-radius: 2px 4px 4px 2px;
   font-size: calc(100cqw / 36);
-  box-shadow: inset 3px 0 0 rgb(0 0 0 / 0.18), 0 30px 50px -26px rgb(0 0 0 / 0.55);
+  box-shadow: inset 3px 0 0 rgb(0 0 0 / 0.06), inset 0 0 0 1px rgb(0 0 0 / 0.05), 0 30px 50px -26px rgb(0 0 0 / 0.45);
 }
 .tc-name {
   font-family: var(--font-serif);

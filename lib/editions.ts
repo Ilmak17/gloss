@@ -3,7 +3,7 @@
 /**
  * A month's edition in the browser: which texts it gathers, with their words
  * and your marks from this device (or the account, for a text never opened
- * here), the cover painted for it and kept here, and the orders placed from
+ * here), the words written for its cover and kept here, and the orders placed from
  * this browser.
  */
 
@@ -78,8 +78,8 @@ export async function gather(month: string): Promise<Pick[]> {
 
 /* ---------- the cover ---------- */
 
-/** A cover kept for a month: its words, and the painting as a base64 JPEG. */
-export type KeptCover = { copy: CoverCopy; art: string | null; at: number };
+/** A cover kept for a month: its words, as the model wrote them. */
+export type KeptCover = { copy: CoverCopy; at: number };
 
 /** Covers and podcasts each in a database of their own, so adding one never waits on a tab holding the other open. */
 type Store = "covers" | "podcasts";
@@ -115,8 +115,8 @@ async function tx<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBReq
 export const keptCover = (month: string) => tx<KeptCover | undefined>("readonly", (s) => s.get(month)).then((c) => c ?? null);
 export const keepCover = (month: string, c: KeptCover) => tx("readwrite", (s) => s.put(c, month));
 
-/** The cover's words without the model: the month's subjects, and three of its titles. */
-export function plainCopy(picks: { item: LibraryItem; marks: number; size: { words: number } }[]): CoverCopy {
+/** The cover's words without the model: the month's subjects. */
+export function plainCopy(picks: { item: LibraryItem }[]): CoverCopy {
   const count = new Map<TopicKey, number>();
   for (const p of picks) {
     const t = topicOf(p.item.topic);
@@ -125,19 +125,13 @@ export function plainCopy(picks: { item: LibraryItem; marks: number; size: { wor
   const top = [...count.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
   const names = top.slice(0, 3).map((k) => (k === "ai" ? TOPIC[k].name : TOPIC[k].name.toLowerCase()));
   const theme = names.length > 1 ? `On ${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names.length ? `On ${names[0]}` : "";
-  const lines = picks
-    .slice()
-    .sort((a, b) => b.marks - a.marks || b.size.words - a.size.words)
-    .slice(0, 3)
-    .map((p) => tidyTitle(p.item.title))
-    .map((t) => (t.length > 44 ? `${t.slice(0, 43).replace(/\s+\S*$/, "")}…` : t));
-  return { theme, lines, scene: "", topic: top[0] ?? "living" };
+  return { theme, topic: top[0] ?? "living" };
 }
 
-export type Painted = { ok: true; cover: KeptCover; error?: string } | { ok: false; error: string; needKey?: boolean };
+export type Written = { ok: true; cover: KeptCover } | { ok: false; error: string; needKey?: boolean };
 
-/** Ask for a cover: written from the month's titles and painted. With `copy`, the same words painted again. */
-export async function paintCover(month: string, picks: Pick[], copy?: CoverCopy): Promise<Painted> {
+/** Ask for the cover's words, written from the month's titles, and keep them for the month. */
+export async function writeCoverCopy(month: string, picks: Pick[]): Promise<Written> {
   try {
     const res = await fetch("/api/editions/cover", {
       method: "POST",
@@ -145,15 +139,14 @@ export async function paintCover(month: string, picks: Pick[], copy?: CoverCopy)
       body: JSON.stringify({
         month,
         titles: picks.map((p) => ({ title: tidyTitle(p.item.title), topic: topicOf(p.item.topic), tags: p.item.tags })),
-        copy,
         apiKey: readApiKey() || undefined,
       }),
     });
-    const j = (await res.json().catch(() => ({}))) as { copy?: CoverCopy; art?: string | null; error?: string; code?: string };
-    if (!res.ok || !j.copy) return { ok: false, error: j.error ?? "The cover could not be painted.", needKey: j.code === "need_key" };
-    const cover: KeptCover = { copy: j.copy, art: j.art ?? null, at: Date.now() };
+    const j = (await res.json().catch(() => ({}))) as { copy?: CoverCopy; error?: string; code?: string };
+    if (!res.ok || !j.copy) return { ok: false, error: j.error ?? "The cover could not be written.", needKey: j.code === "need_key" };
+    const cover: KeptCover = { copy: j.copy, at: Date.now() };
     await keepCover(month, cover);
-    return { ok: true, cover, error: j.art ? undefined : j.error };
+    return { ok: true, cover };
   } catch {
     return { ok: false, error: "Could not reach Gloss. Check your connection." };
   }
@@ -356,12 +349,12 @@ export async function fetchOrders(): Promise<EditionOrder[]> {
   }
 }
 
-export async function fetchOrder(id: string, session?: string | null): Promise<{ order: EditionOrder; art: boolean; copy?: CoverCopy } | null> {
+export async function fetchOrder(id: string, session?: string | null): Promise<{ order: EditionOrder; copy?: CoverCopy } | null> {
   try {
     const res = await fetch(`/api/editions/${encodeURIComponent(id)}${session ? `?session=${encodeURIComponent(session)}` : ""}`);
     if (!res.ok) return null;
     rememberOrder(id);
-    return (await res.json()) as { order: EditionOrder; art: boolean; copy?: CoverCopy };
+    return (await res.json()) as { order: EditionOrder; copy?: CoverCopy };
   } catch {
     return null;
   }

@@ -1,17 +1,14 @@
-import { isMonth, type CoverCopy } from "@/lib/edition";
-import { EDITION_COVER_USD, paintEditionCover, writeCover, type CoverTitle } from "@/lib/edition-cover";
+import { isMonth } from "@/lib/edition";
+import { writeCover, type CoverTitle } from "@/lib/edition-cover";
 import { isTopic } from "@/lib/library";
 import { chargeFree, checkFree, needKey } from "@/lib/quota";
 
 export const runtime = "nodejs";
-export const maxDuration = 90;
+export const maxDuration = 30;
 
-/**
- * A cover for a month's edition: the words, written from the month's titles,
- * and the painting. With `copy`, the same words are painted again.
- */
+/** The words on a month's edition: its subtitle and its main subject, written from the month's titles. */
 export async function POST(req: Request) {
-  let body: { month?: unknown; titles?: unknown; copy?: CoverCopy; apiKey?: string };
+  let body: { month?: unknown; titles?: unknown; apiKey?: string };
   try {
     body = await req.json();
   } catch {
@@ -31,21 +28,13 @@ export async function POST(req: Request) {
   const apiKey = body.apiKey?.trim() || undefined;
   let free: Awaited<ReturnType<typeof checkFree>> | null = null;
   if (!apiKey) {
-    if (!process.env.TOGETHER_API_KEY) return needKey(null, "Painted covers need a Together API key. Add yours, and the cover paints itself.");
+    if (!process.env.TOGETHER_API_KEY) return needKey(null, "The cover's subtitle is written with a Together API key. Add yours, and it writes itself.");
     free = await checkFree(req, 6);
     if (!free.ok) return needKey(free);
   }
 
-  let copy = body.copy && typeof body.copy.scene === "string" && isTopic(body.copy.topic) ? body.copy : null;
-  let usd = 0;
-  if (!copy) {
-    const w = await writeCover({ month: body.month, titles }, { apiKey, signal: req.signal });
-    if (!w.ok) return Response.json({ error: w.error }, { status: 502 });
-    copy = w.copy;
-    usd += w.usd;
-  }
-  const p = await paintEditionCover(copy, { apiKey, signal: req.signal });
-  if (p.ok) usd += EDITION_COVER_USD;
-  if (free) await chargeFree(free.subject, usd);
-  return Response.json({ copy, art: p.ok ? Buffer.from(p.jpeg).toString("base64") : null, error: p.ok ? undefined : p.error });
+  const w = await writeCover({ month: body.month, titles }, { apiKey, signal: req.signal });
+  if (!w.ok) return Response.json({ error: w.error }, { status: 502 });
+  if (free) await chargeFree(free.subject, w.usd);
+  return Response.json({ copy: w.copy });
 }

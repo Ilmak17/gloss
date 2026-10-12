@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowRight, ArrowUpRight, Check, ChevronLeft, ChevronRight, FileText, Loader2, RefreshCw, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, ChevronLeft, ChevronRight, FileText, Loader2, X } from "lucide-react";
 import { tidyTitle } from "@/lib/article";
 import {
   arrange,
@@ -19,9 +19,9 @@ import {
   type EditionStatus,
   type PrintText,
 } from "@/lib/edition";
-import { fetchOrder, fetchOrders, gather, keptCover, monthsOf, paintCover, placeOrder, plainCopy, savedName, saveName, type KeptCover, type Pick } from "@/lib/editions";
+import { fetchOrder, fetchOrders, gather, keptCover, monthsOf, placeOrder, plainCopy, savedName, saveName, writeCoverCopy, type KeptCover, type Pick } from "@/lib/editions";
 import { TOPIC, topicArtSrc, topicOf } from "@/lib/library";
-import { BOOK_CSS, COVER_CSS, MATTER_CSS, bodyHTML, frontHTML, MARK_SVG, minutesOf, openerHTML } from "@/lib/print/html";
+import { BOOK_CSS, COVER_CSS, MATTER_CSS, bodyHTML, coverRows, frontHTML, MARK_SVG, minutesOf, openerHTML } from "@/lib/print/html";
 import { useStore } from "@/lib/store";
 import { Glyph } from "./Book";
 import { EditionBook, type Spread } from "./EditionBook";
@@ -86,7 +86,7 @@ const HEADLINE: Record<EditionStatus, string> = {
 
 /**
  * Your month, as a book: the texts you saved, your highlights and notes in
- * them, under a cover painted for the month. Leaf through it, leave out what
+ * them, under a cover drawn from the month. Leaf through it, leave out what
  * you'd rather not keep, and have it printed and posted. Coming back from
  * checkout, the same sheet follows the order from the press to your door.
  */
@@ -134,8 +134,6 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
   const [fit, setFit] = useState<Set<string>>(() => new Set());
   const [name, setName] = useState(() => savedName() ?? owner);
   const [cover, setCover] = useState<KeptCover | null>(null);
-  const [painting, setPainting] = useState(false);
-  const [coverNote, setCoverNote] = useState<string | null>(null);
   const [at, setAt] = useState(-1);
   const [placing, setPlacing] = useState(false);
   const [error, setError] = useState<{ text: string; soon?: boolean } | null>(null);
@@ -143,26 +141,18 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
   const [talking, setTalking] = useState<string[]>([]);
   const live = useRef(month);
 
-  const paint = useCallback(async (m: string, ps: Pick[], copy?: CoverCopy) => {
+  // The subtitle, written once a month and kept. Without a key, the month's subjects stand in.
+  const write = useCallback(async (m: string, ps: Pick[]) => {
     if (!ps.length) return;
-    setPainting(true);
-    setCoverNote(null);
-    const r = await paintCover(m, ps, copy);
-    if (live.current !== m) return;
-    setPainting(false);
-    if (r.ok) {
-      setCover(r.cover);
-      if (r.error) setCoverNote("The painter is resting. The cover uses this month's plate for now.");
-    } else setCoverNote(r.needKey ? "Painted covers need a Together key (the key icon, top right). For now, the month's plate." : r.error);
+    const r = await writeCoverCopy(m, ps);
+    if (live.current === m && r.ok) setCover(r.cover);
   }, []);
 
-  // A month opens: gather its texts, keep it under the page limit, find or paint its cover.
+  // A month opens: gather its texts, keep it under the page limit, find or write its cover's words.
   useEffect(() => {
     live.current = month;
     setPicks(null);
     setCover(null);
-    setCoverNote(null);
-    setPainting(false);
     setAt(-1);
     setTalking([]);
     setPrinted(undefined);
@@ -185,12 +175,12 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
       const kept = await keptCover(month);
       if (gone) return;
       if (kept) setCover(kept);
-      else void paint(month, ok);
+      else void write(month, ok);
     })();
     return () => {
       gone = true;
     };
-  }, [month, paint]);
+  }, [month, write]);
 
   const chosen = useMemo(() => (picks ?? []).filter((p) => p.text && !out.has(p.item.id)), [picks, out]);
   const ordered = useMemo(() => arrange(chosen.map((p) => ({ ...p.text!, pick: p }))), [chosen]);
@@ -207,7 +197,8 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
   );
   const marks = chosen.reduce((n, p) => n + p.marks, 0);
   const copy = cover?.copy ?? plainCopy(chosen.length ? chosen : (picks ?? []));
-  const view = { name, month, theme: copy.theme, lines: copy.lines, topic: copy.topic, art: cover?.art ? `data:image/jpeg;base64,${cover.art}` : null, count: chosen.length };
+  const rows = useMemo(() => coverRows(ordered), [ordered]);
+  const view = { name, month, theme: copy.theme, topic: copy.topic, count: chosen.length, rows };
   const over = pages > PRINT.maxPages;
   const few = chosen.length < MIN_PIECES;
 
@@ -223,7 +214,7 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
     if (!chosen.length || over || few) return;
     setPlacing(true);
     setError(null);
-    const r = await placeOrder({ month, name, copy: { ...copy }, art: cover?.art ?? undefined, texts: ordered.map(({ pick: _p, ...t }) => t) });
+    const r = await placeOrder({ month, name, copy: { theme: copy.theme, topic: copy.topic }, texts: ordered.map(({ pick: _p, ...t }) => t) });
     if (!r.ok) {
       setPlacing(false);
       setError({ text: r.error, soon: r.soon });
@@ -347,22 +338,13 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
 
   return (
     <div className="ed-sheet">
-      <div className="ed-book-col" style={{ ["--eb-ink" as string]: T.shades[2] }}>
+      <div className="ed-book-col">
         <EditionBook
           front={
-            <div className="ed-front-host">
-              <div dangerouslySetInnerHTML={{ __html: frontHTML(view, { plate: painting ? undefined : topicArtSrc(copy.topic) }) }} key={cover?.at ?? "plain"} />
-              {painting && (
-                <div className="ed-painting">
-                  <span>
-                    <Loader2 size={13} className="animate-spin" /> Painting your cover
-                  </span>
-                </div>
-              )}
-            </div>
+            <div className="ed-front-host" dangerouslySetInnerHTML={{ __html: frontHTML(view) }} />
           }
           spine={
-            <div className="eb-spine-text" style={{ ["--ink" as string]: T.shades[2] }}>
+            <div className="eb-spine-text">
               <span className="sp-word">Gloss</span>
               <span className="sp-sep" />
               <span className="sp-ed">{editionTitle(name)}</span>
@@ -418,18 +400,6 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
             Edition
           </h2>
           {copy.theme && <p className="ed-theme">{copy.theme}</p>}
-          <div className="ed-cover-row">
-            {painting ? (
-              <span className="ed-busy">
-                <Loader2 size={13} className="animate-spin" /> Painting the cover from this month&rsquo;s reading
-              </span>
-            ) : (
-              <button type="button" className="ed-link" disabled={!chosen.length} onClick={() => void paint(month, chosen)}>
-                <RefreshCw size={13} /> Paint another cover
-              </button>
-            )}
-          </div>
-          {coverNote && <p className="ed-note">{coverNote}</p>}
           <p className="ed-stats">
             <span>
               <b>{chosen.length}</b> {chosen.length === 1 ? "piece" : "pieces"}
@@ -451,7 +421,6 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
           name={name}
           texts={podTexts}
           order={printed}
-          art={cover?.art ? `data:image/jpeg;base64,${cover.art}` : null}
           onChapter={onChapter}
         />
 
@@ -552,7 +521,7 @@ function Draft({ initialMonth, owner }: { initialMonth: string; owner: string })
 /* ---------- an order, from the press to your door ---------- */
 
 function Order({ id, session, onClose }: { id: string; session?: string | null; onClose: () => void }) {
-  const [state, setState] = useState<{ order: EditionOrder; art: boolean; copy?: CoverCopy } | null | "missing">(null);
+  const [state, setState] = useState<{ order: EditionOrder; copy?: CoverCopy } | null | "missing">(null);
   const [texts, setTexts] = useState<PrintText[] | null>(null);
   const month = state && state !== "missing" ? state.order.month : null;
 
@@ -606,17 +575,17 @@ function Order({ id, session, onClose }: { id: string; session?: string | null; 
       </div>
     );
 
-  const { order, art, copy } = state;
+  const { order, copy } = state;
   // A test order is set and kept here: its journey ends at the printer's door.
   const ready = order.test && order.status === "sent";
   const view = {
     name: order.name,
     month: order.month,
     theme: copy?.theme ?? "",
-    lines: copy?.lines ?? [],
     topic: copy?.topic ?? "living",
-    art: art ? `/api/editions/${order.id}/art` : null,
     count: order.texts,
+    // Drawn from the month's pieces on this device, which is what was ordered unless some were left out.
+    rows: texts ? coverRows(texts) : [],
   };
   const done = (s: EditionStatus[]) => s.includes(order.status) || (ready && s === STEPS[2].key);
   const active = ready ? -1 : STEPS.findIndex((s) => !done(s.key));
@@ -626,7 +595,7 @@ function Order({ id, session, onClose }: { id: string; session?: string | null; 
       <div className="ed-book-col">
         <div className="ed-held" style={{ ["--fs" as string]: "1px" }}>
           <div className="ed-held-book" style={{ ["--c" as string]: TOPIC[view.topic].shades[2] }}>
-            <div className="ed-held-front" dangerouslySetInnerHTML={{ __html: frontHTML(view, { plate: topicArtSrc(view.topic) }) }} />
+            <div className="ed-held-front" dangerouslySetInnerHTML={{ __html: frontHTML(view) }} />
             <span className="ed-held-spine" />
           </div>
           <span className="ed-held-shadow" />
@@ -652,7 +621,7 @@ function Order({ id, session, onClose }: { id: string; session?: string | null; 
           )}
         </header>
         {texts && texts.length > 0 && !["failed", "canceled", "draft"].includes(order.status) && (
-          <EditionPodcast key={order.month} month={order.month} name={order.name} texts={texts} order={order.id} art={view.art} fixed />
+          <EditionPodcast key={order.month} month={order.month} name={order.name} texts={texts} order={order.id} fixed />
         )}
         <ol className="ed-steps">
           {STEPS.map((s, n) => {

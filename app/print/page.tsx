@@ -7,7 +7,7 @@ import "./print.css";
 
 export const metadata: Metadata = {
   title: "Print your book",
-  description: "Everything you saved in a month, with your highlights and notes, as a 6 × 9 paperback under a cover painted for it. Printed and posted for $25.",
+  description: "Everything you saved in a month, with your highlights and notes, as a 6 × 9 paperback under a cover drawn from it. Printed and posted for $25.",
   alternates: { canonical: "/print" },
 };
 

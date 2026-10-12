@@ -22,7 +22,7 @@ export async function fulfil(id: string): Promise<void> {
   // This attempt's number: every later step is taken only while the order is still this attempt's.
   const run = row.attempts;
   try {
-    const book = await setBook({ ...(row.input as EditionInput), art: row.art ?? undefined });
+    const book = await setBook(row.input as EditionInput);
     const files = { interior: await putFile(`${id}-interior.pdf`, book.interior), cover: await putFile(`${id}-cover.pdf`, book.cover) };
     if (!(await moveEdition(id, ["setting"], "setting", { pages: book.pages, files }, { run }))) return;
     if (row.test) {

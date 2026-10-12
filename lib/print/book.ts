@@ -1,6 +1,6 @@
 /**
  * The edition as the press sets it: two whole documents, the interior and the
- * cover spread. The interior runs half title, frontispiece, title page,
+ * cover spread. The interior runs half title, the month drawn, title page,
  * colophon and contents, then each piece opening on a right-hand page (facing
  * its plate, when it has one), then where the pieces came from, then ruled
  * pages for notes when the book needs to reach Lulu's thirty-two. Page size,
@@ -11,7 +11,7 @@
 import { blockText } from "@/lib/article";
 import { arrange, editionTitle, monthName, PRINT, SPINE_TEXT_PAGES, type EditionInput, type PrintText } from "@/lib/edition";
 import { TOPIC } from "@/lib/library";
-import { BOOK_CSS, COVER_CSS, MATTER_CSS, bodyHTML, coverVars, esc, frontHTML, MARK_SVG, openerHTML, PAPER, sourceLine, type Hyphenate } from "./html";
+import { BOOK_CSS, COVER_CSS, MATTER_CSS, bodyHTML, coverRows, coverVars, drawRows, esc, frontHTML, INK, MARK_SVG, markHTML, MOST_ROWS, openerHTML, sourceLine, type Hyphenate } from "./html";
 
 export type Press = {
   engine: "chrome" | "prince";
@@ -21,8 +21,6 @@ export type Press = {
   picture: (src: string) => string | null;
   /** A piece's plate, embedded; null when it has none. */
   plate: (t: PrintText) => string | null;
-  /** The painted cover (or the topic's plate in its place), embedded. */
-  art: string | null;
   hyphenate: Hyphenate;
 };
 
@@ -83,14 +81,13 @@ export function interiorHTML(ed: EditionInput, press: Press, opts: { notes: numb
   const month = monthName(ed.month);
   const marks = texts.reduce((n, t) => n + t.marks.length, 0);
   const notes = texts.reduce((n, t) => n + t.marks.filter((m) => m.note?.trim()).length, 0);
-  const ink = TOPIC[ed.copy.topic].shades[2];
+  // The front matter in black, like the cover; each piece keeps its subject's ink.
+  const ink = INK;
   const hy = press.hyphenate;
 
   const front = [
     `<section class="fm half"><p class="half-word">Gloss</p><p class="half-ed">${esc(title)}</p></section>`,
-    press.art
-      ? `<section class="fm frontis"><img src="${press.art}" alt=""><p class="frontis-cap">The cover, painted for this edition from a month of reading${ed.copy.scene ? `: ${esc(ed.copy.scene.replace(/\.$/, ""))}.` : "."}</p></section>`
-      : `<section class="fm frontis"></section>`,
+    frontisHTML(texts),
     `<section class="fm titlepage">
   <p class="tp-month">${esc(month)}</p>
   <p class="tp-word">Gloss</p>
@@ -101,7 +98,7 @@ export function interiorHTML(ed: EditionInput, press: Press, opts: { notes: numb
     `<section class="fm colophon">
   <span class="mark">${MARK_SVG("#1d1b18", "#c1401b")}</span>
   <p>This edition gathers what ${ed.name ? esc(ed.name) : "you"} saved to Gloss in ${esc(month)}, arranged by subject, with every highlight and note left where it was made.</p>
-  <p>Set in Newsreader and Schibsted Grotesk. The cover was painted for this edition from the month's reading. Printed and bound on demand by Lulu.</p>
+  <p>Set in Newsreader and Schibsted Grotesk. The cover is drawn from the month: a line for each piece, a mark for each highlight. Printed and bound on demand by Lulu.</p>
   <p>usegloss.io</p>
 </section>`,
   ];
@@ -155,10 +152,10 @@ ${ruled.join("\n")}
 /* ---------- the cover ---------- */
 
 const BACK_CSS = `
-.spread { position: relative; overflow: hidden; background: var(--ink); color: ${PAPER}; }
+.spread { position: relative; overflow: hidden; background: var(--paper); color: var(--ink); }
 .back { position: absolute; left: 0; top: 0; }
 .bk { position: absolute; font-family: var(--gp-serif, "Newsreader"), serif; }
-.bk-kicker { margin: 0 0 1.1em; padding-bottom: 0.65em; border-bottom: 0.06em solid rgba(243, 234, 216, 0.45); font-family: var(--gp-sans, "Schibsted Grotesk"), sans-serif; font-size: 0.72em; font-weight: 700; letter-spacing: 0.17em; text-transform: uppercase; }
+.bk-kicker { margin: 0 0 1.1em; padding-bottom: 0.65em; border-bottom: 0.06em solid var(--rule); font-family: var(--gp-sans, "Schibsted Grotesk"), sans-serif; font-size: 0.72em; font-weight: 700; letter-spacing: 0.17em; text-transform: uppercase; }
 .bk-list { margin: 0; padding: 0; list-style: none; column-gap: 1.6em; }
 .bk-list li { margin: 0 0 0.7em; break-inside: avoid; page-break-inside: avoid; line-height: 1.2; }
 .bk-no { display: inline-block; width: 1.9em; font-family: var(--gp-sans, "Schibsted Grotesk"), sans-serif; font-size: 0.72em; font-weight: 600; opacity: 0.6; }
@@ -171,7 +168,7 @@ const BACK_CSS = `
 .bk-foot svg { float: left; width: 2.6em; height: 2.6em; margin: -0.1em 0.8em 0 0; }
 .bk-foot p { margin: 0; }
 .bk-foot .bk-site { float: right; text-align: right; opacity: 0.7; }
-.spine { position: absolute; top: 0; background: var(--ink); }
+.spine { position: absolute; top: 0; background: var(--paper); box-shadow: inset 0.06em 0 0 var(--rule), inset -0.06em 0 0 var(--rule); }
 .sp-in { position: absolute; left: 50%; top: 50%; white-space: nowrap; text-align: center; }
 .sp-word { font-family: var(--gp-serif, "Newsreader"), serif; font-weight: 600; letter-spacing: -0.01em; }
 .sp-sep { display: inline-block; width: 0.32em; height: 0.32em; margin: 0 0.9em 0.18em; border-radius: 50%; background: var(--rubric); }
@@ -199,6 +196,24 @@ function quoteOf(texts: PrintText[]): { text: string; from: PrintText } | null {
 }
 
 /**
+ * Facing the title page, the month drawn as the cover draws it, with each line
+ * named: a key to the cover.
+ */
+function frontisHTML(texts: PrintText[]): string {
+  const shown = texts.slice(0, MOST_ROWS);
+  const step = Math.min(2.7, 42 / Math.max(1, shown.length));
+  const pct = (f: number) => `${(f * 100).toFixed(2)}%`;
+  const rows = drawRows(coverRows(shown))
+    .map((r, i) => `<div class="fx-row" style="height:${step.toFixed(2)}em"><span class="fx-t"><b>${String(i + 1).padStart(2, "0")}</b>${esc(shown[i].title)}</span><div class="fx-line" style="width:${pct(r.len)}">${r.marks.map((m) => markHTML(m, pct)).join("")}</div></div>`)
+    .join("");
+  return `<section class="fm frontis">
+  <p class="fx-kicker">This month, drawn</p>
+  ${rows}
+  <p class="frontis-cap">Each line is a piece, as long as it runs. Each mark is one of your highlights, in its colour, and each red dot a note. The same drawing is on the cover.</p>
+</section>`;
+}
+
+/**
  * The cover spread: back, spine and front, with the bleed around all of it.
  * `width` and `height` are the whole sheet in inches, as Lulu asks for it.
  */
@@ -216,7 +231,7 @@ export function coverHTML(ed: EditionInput, press: Press, opts: { pages: number;
   const many = texts.length > 8;
   const listSize = texts.length > 16 ? 0.74 : texts.length > 12 ? 0.82 : many ? 0.9 : 1.05;
   const spineSize = Math.min(10.5, spine * 72 * 0.42);
-  const front = frontHTML({ name: ed.name, month: ed.month, theme: ed.copy.theme, lines: ed.copy.lines, topic: ed.copy.topic, art: press.art, count: texts.length });
+  const front = frontHTML({ name: ed.name, month: ed.month, theme: ed.copy.theme, topic: ed.copy.topic, count: texts.length, rows: coverRows(texts) });
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>${esc(`Gloss, ${title}, cover`)}</title>
@@ -235,15 +250,13 @@ ${BACK_CSS}
 .sp-in { font-size: ${spineSize}pt; transform: translate(-50%, -50%) rotate(90deg); }
 .front { left: ${panel + spine}in; width: ${panel}in; height: ${opts.height}in; }
 .front .gc-front { position: absolute; left: 0; top: ${b}in; font-size: ${em}pt; overflow: visible; background: transparent; }
-.front .gc-art:not(.is-plate) { top: -${bleedEm}em; bottom: -${bleedEm}em; right: -${bleedEm}em; }
-.front .gc-fade { top: -${bleedEm}em; right: -${bleedEm}em; }
 </style></head>
-<body><div class="spread" style="${coverVars(ed.copy.topic)}">
+<body><div class="spread" style="${coverVars()}">
 <div class="back"><div class="bk">
   <p class="bk-kicker">In this edition</p>
   <ol class="bk-list">${texts.map((t, i) => `<li><span class="bk-no">${String(i + 1).padStart(2, "0")}</span><span class="bk-t">${esc(t.title)}</span>${t.author ? `<span class="bk-a">${esc(t.author)}</span>` : ""}</li>`).join("")}</ol>
   ${quote ? `<blockquote class="bk-quote"><p>&ldquo;${esc(quote.text)}&rdquo;</p><cite>Highlighted${ed.name ? ` by ${esc(ed.name)}` : ""} in &ldquo;${esc(quote.from.title)}&rdquo;</cite></blockquote>` : ""}
-  <div class="bk-foot">${MARK_SVG(PAPER, "#e8794f")}<p class="bk-site">usegloss.io<br>${esc(month)}</p><p>Printed for ${ed.name ? esc(ed.name) : "you"}<br>by Gloss</p></div>
+  <div class="bk-foot">${MARK_SVG(INK, "#c1401b")}<p class="bk-site">usegloss.io<br>${esc(month)}</p><p>Printed for ${ed.name ? esc(ed.name) : "you"}<br>by Gloss</p></div>
 </div></div>
 <div class="spine">${opts.pages >= SPINE_TEXT_PAGES ? `<div class="sp-in"><span class="sp-word">Gloss</span><span class="sp-sep"></span><span class="sp-ed">${esc(title)}</span><span class="sp-sep"></span><span class="sp-month">${esc(month)}</span></div>` : ""}</div>
 <div class="front">${front}</div>

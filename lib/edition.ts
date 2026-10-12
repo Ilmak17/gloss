@@ -67,22 +67,17 @@ export type PrintText = {
 
 /** What the cover says: written by the model from the month's titles. */
 export type CoverCopy = {
-  /** The edition's subtitle, under the masthead: "On attention, machines and the deep sea". */
+  /** The edition's subtitle, under its name: "On attention, machines and the deep sea". */
   theme: string;
-  /** Two or three cover lines, each pointing at a text inside. */
-  lines: string[];
-  /** The painting, in words, for the painter. */
-  scene: string;
-  /** The topic whose inks the cover is printed in. */
+  /** The month's main subject. */
   topic: TopicKey;
 };
 
-/** Everything the press needs for one edition. `art` is the painted cover, a base64 JPEG. */
+/** Everything the press needs for one edition. */
 export type EditionInput = {
   month: string;
   name: string;
   copy: CoverCopy;
-  art?: string;
   texts: PrintText[];
 };
 

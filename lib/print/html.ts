@@ -24,8 +24,11 @@ export const MARK_WASH: Record<Marker, string> = {
 };
 export const markerColor = (m?: Marker) => MARKERS.find((x) => x.key === m)?.color ?? MARKERS[0].color;
 
-/** The paper the cover is printed on, and the topic's inks for the type. */
-export const PAPER = "#f3ead8";
+/** The cover's paper and ink: white, and nearly black. */
+export const PAPER = "#fbfaf7";
+export const INK = "#151412";
+
+/** A piece's inks: its topic's shades, for the type inside. */
 export function inksOf(topic: TopicKey) {
   const [base, light, deep, pale] = TOPIC[topic].shades;
   return { base, light, deep, pale };
@@ -232,16 +235,26 @@ export function openerHTML(t: PrintText, opts: { no: number; words: number }): s
 
 /* ---------- the front cover ---------- */
 
+/** A piece as the cover draws it: a line as long as the piece, and a mark on it for each of your highlights. */
+export type CoverRow = { id: string; words: number; marks: { color?: Marker; note?: boolean }[] };
+
 export type CoverView = {
   name: string;
   month: string;
   theme: string;
-  lines: string[];
   topic: TopicKey;
-  /** The painting: a URL or a data URI. Without one, the topic's plate. */
-  art?: string | null;
   count: number;
+  rows: CoverRow[];
 };
+
+/** The cover's rows for texts as they go to press, in the book's order. */
+export function coverRows(texts: Pick<PrintText, "id" | "blocks" | "marks">[]): CoverRow[] {
+  return texts.map((t) => ({
+    id: t.id,
+    words: t.blocks.reduce((n, b) => n + blockText(b).split(/\s+/).filter(Boolean).length, 0),
+    marks: t.marks.map((m) => ({ color: m.color, note: Boolean(m.note?.trim()) })),
+  }));
+}
 
 /** The Gloss mark: lines of text with a note in the margin. */
 export const MARK_SVG = (ink: string, dot: string) =>
@@ -249,48 +262,102 @@ export const MARK_SVG = (ink: string, dot: string) =>
 
 const RUBRIC = "#c1401b";
 
-export function coverVars(topic: TopicKey): string {
-  const k = inksOf(topic);
-  return `--ink:${k.deep};--ink-2:${k.base};--wash:${k.pale};--paper:${PAPER};--rubric:${RUBRIC}`;
+export function coverVars(): string {
+  return `--paper:${PAPER};--ink:${INK};--ink-2:#55514a;--ink-3:#8d877c;--rule:rgba(21,20,18,0.16);--rubric:${RUBRIC}`;
 }
 
-/** The front: the painting full bleed, fading into paper at the top under the masthead. */
-export function frontHTML(c: CoverView, opts: { plate?: string } = {}): string {
-  const art = c.art || opts.plate || "";
-  const lines = c.lines.filter(Boolean).slice(0, 3);
-  return `<div class="gc-front" style="${coverVars(c.topic)}">
-  ${art ? `<div class="gc-art${c.art ? "" : " is-plate"}"><img src="${esc(art)}" alt=""></div>` : ""}
-  <div class="gc-fade"></div>
-  <header class="gc-mast">
-    <p class="gc-dateline"><span>${esc(monthName(c.month))}</span><span>${c.count} ${c.count === 1 ? "piece" : "pieces"}</span></p>
-    <p class="gc-word">Gloss</p>
-    <p class="gc-ed">${esc(editionTitle(c.name))}</p>
+/** A number in [0, 1) that a string always gives: where a mark sits, the same on every screen and on paper. */
+function unit(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return (h >>> 0) / 4294967296;
+}
+
+/** The width the cover's rows are drawn in, in em, and the most rows that fit. */
+const MEASURE = 30;
+export const MOST_ROWS = 24;
+
+export type DrawnMark = { x: number; w: number; color: Marker; note: boolean };
+
+/**
+ * Where each row's line ends and its marks sit, as fractions of the measure:
+ * a line as long as its piece on a log scale, a mark placed along it for each
+ * highlight (up to eight), the same wherever it's drawn.
+ */
+export function drawRows(rows: CoverRow[]): { len: number; marks: DrawnMark[] }[] {
+  const logs = rows.map((r) => Math.log(Math.max(150, r.words)));
+  const lo = Math.min(...logs), hi = Math.max(...logs);
+  return rows.map((r, i) => {
+    const len = hi > lo ? 0.3 + 0.7 * ((logs[i] - lo) / (hi - lo)) : 0.72;
+    const marks = r.marks.slice(0, 8).map((m, k) => {
+      const w = Math.min(len * 0.5, 0.04 + 0.08 * unit(`${r.id}:w${k}`));
+      return { x: (len - w) * (0.02 + 0.96 * unit(`${r.id}:x${k}`)), w, color: m.color ?? "yellow", note: Boolean(m.note) };
+    });
+    return { len, marks };
+  });
+}
+
+/** One drawn mark, in whatever unit the drawing is set in. */
+export const markHTML = (m: DrawnMark, at: (f: number) => string) =>
+  `<i class="gc-hl hl-${m.color}" style="left:${at(m.x)};width:${at(m.w)}"></i>${m.note ? `<b class="gc-note" style="left:${at(m.x + m.w)}"></b>` : ""}`;
+
+/** Marker inks for the drawing: stronger than the wash on a page, since nothing is read through them. */
+const DRAWN_CSS = `
+.gc-hl { position: absolute; top: -0.48em; height: 1.03em; border-radius: 0.1em; }
+.gc-hl.hl-yellow { background: rgba(244, 192, 38, 0.82); }
+.gc-hl.hl-green { background: rgba(108, 190, 96, 0.72); }
+.gc-hl.hl-blue { background: rgba(92, 152, 236, 0.68); }
+.gc-hl.hl-pink { background: rgba(240, 118, 166, 0.7); }
+.gc-note { position: absolute; top: -1.02em; width: 0.46em; height: 0.46em; margin-left: -0.23em; border-radius: 50%; background: ${RUBRIC}; }
+`;
+
+/**
+ * The front: white, and drawn from the month itself. Each piece is a fine line
+ * as long as it is, each of your highlights a mark on it in its marker's
+ * colour, each note a dot of red pen above its mark. Under that, whose edition
+ * it is and what the month was about.
+ */
+export function frontHTML(c: CoverView): string {
+  const head = editionTitle(c.name).replace(/ Edition$/, "");
+  const size = Math.min(4.6, MEASURE / Math.max(6, head.length * 0.5));
+  const rows = c.rows.slice(0, MOST_ROWS);
+  const gap = rows.length > 1 ? Math.min(1.9, 21.5 / (rows.length - 1)) : 0;
+  const top = (21.5 - gap * Math.max(0, rows.length - 1)) / 2;
+  const em = (f: number) => `${(f * MEASURE).toFixed(2)}em`;
+  const lines = drawRows(rows)
+    .map((r, i) => `<div class="gc-row" style="top:${(top + i * gap).toFixed(2)}em;width:${em(r.len)}">${r.marks.map((m) => markHTML(m, em)).join("")}</div>`)
+    .join("");
+  const marks = c.rows.reduce((n, r) => n + r.marks.length, 0);
+  const notes = c.rows.reduce((n, r) => n + r.marks.filter((m) => m.note).length, 0);
+  const tally = [`${c.count} ${c.count === 1 ? "piece" : "pieces"}`, marks && `${marks} ${marks === 1 ? "highlight" : "highlights"}`, notes && `${notes} ${notes === 1 ? "note" : "notes"}`].filter(Boolean);
+  return `<div class="gc-front" style="${coverVars()}">
+  <header class="gc-top"><p class="gc-brand">${MARK_SVG(INK, RUBRIC)}Gloss</p><p class="gc-date">${esc(monthName(c.month))}</p></header>
+  <div class="gc-rows">${lines}</div>
+  <div class="gc-title">
+    <p class="gc-name" style="font-size:${size.toFixed(2)}em">${esc(head)}<em>Edition</em></p>
     ${c.theme ? `<p class="gc-theme">${esc(c.theme)}</p>` : ""}
-  </header>
-  ${lines.length ? `<ul class="gc-lines">${lines.map((l) => `<li><span>${esc(l)}</span></li>`).join("")}</ul>` : ""}
+  </div>
+  <footer class="gc-foot"><p>${tally.join(" · ")}</p></footer>
 </div>`;
 }
 
-/**
- * The cover's type, in em of a 36em-wide front. Shared by the preview and the
- * press; colours come in as variables so each month prints in its own inks.
- */
+/** The cover's type, in em of a 36em-wide front. Shared by the preview and the press. */
 export const COVER_CSS = `
-.gc-front { position: relative; width: 36em; height: 54em; overflow: hidden; background: var(--paper); color: var(--ink); }
-.gc-art { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
-.gc-art img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 100%; }
-.gc-art.is-plate { top: 19em; left: 3em; right: 3em; bottom: 9em; }
-.gc-fade { position: absolute; left: 0; right: 0; top: 0; height: 27em; background: linear-gradient(to bottom, var(--paper) 0%, var(--paper) 46%, rgba(243, 234, 216, 0.82) 70%, rgba(243, 234, 216, 0) 100%); }
-.gc-mast { position: absolute; left: 2.6em; right: 2.6em; top: 2.5em; }
-.gc-dateline { display: block; margin: 0; padding-bottom: 0.7em; border-bottom: 0.08em solid var(--ink); font-family: var(--gp-sans, "Schibsted Grotesk"), sans-serif; font-size: 0.95em; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; line-height: 1; overflow: hidden; }
-.gc-dateline span:last-child { float: right; }
-.gc-word { margin: 0.02em 0 0 -0.05em; font-family: var(--gp-serif, "Newsreader"), serif; font-weight: 500; font-size: 10.6em; line-height: 0.98; letter-spacing: -0.035em; }
-.gc-ed { margin: 0.05em 0 0; font-family: var(--gp-serif, "Newsreader"), serif; font-style: italic; font-weight: 400; font-size: 2.35em; line-height: 1.05; letter-spacing: -0.01em; }
-.gc-theme { margin: 0.55em 0 0; max-width: 17em; font-family: var(--gp-serif, "Newsreader"), serif; font-size: 1.45em; line-height: 1.22; color: var(--ink-2); }
-.gc-lines { position: absolute; left: 2.6em; right: 6em; bottom: 2.8em; margin: 0; padding: 0; list-style: none; }
-.gc-lines li { margin-top: 0.42em; font-family: var(--gp-sans, "Schibsted Grotesk"), sans-serif; font-weight: 600; font-size: 1.12em; line-height: 1.55; }
-.gc-lines li span { background: var(--paper); color: var(--ink); padding: 0.18em 0.5em 0.2em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
-`;
+.gc-front { position: relative; width: 36em; height: 54em; overflow: hidden; background: var(--paper); color: var(--ink); text-align: left; }
+.gc-front p { margin: 0; }
+.gc-top { position: absolute; left: 3em; right: 3em; top: 2.9em; height: 2em; }
+.gc-brand { position: absolute; left: 0; top: 0; font-family: var(--gp-serif, "Newsreader"), serif; font-size: 1.7em; font-weight: 500; line-height: 1; letter-spacing: -0.02em; }
+.gc-brand svg { display: inline-block; width: 0.95em; height: 0.95em; margin-right: 0.32em; vertical-align: -0.1em; }
+.gc-date { position: absolute; right: 0; top: 0.62em; font-family: var(--gp-sans, "Schibsted Grotesk"), sans-serif; font-size: 0.74em; font-weight: 600; line-height: 1; letter-spacing: 0.24em; text-transform: uppercase; color: var(--ink-3); }
+.gc-rows { position: absolute; left: 3em; right: 3em; top: 9em; height: 21.5em; }
+.gc-row { position: absolute; left: 0; height: 0.07em; background: var(--ink); }
+.gc-title { position: absolute; left: 3em; right: 3em; bottom: 6.4em; }
+.gc-name { font-family: var(--gp-serif, "Newsreader"), serif; font-weight: 400; line-height: 0.95; letter-spacing: -0.035em; }
+.gc-name em { display: block; font-style: italic; letter-spacing: -0.03em; }
+.gc-theme { max-width: 21em; margin-top: 0.85em !important; font-family: var(--gp-serif, "Newsreader"), serif; font-size: 1.3em; line-height: 1.28; color: var(--ink-2); }
+.gc-foot { position: absolute; left: 3em; right: 3em; bottom: 2.8em; padding-top: 1em; border-top: 0.06em solid var(--rule); }
+.gc-foot p { font-family: var(--gp-sans, "Schibsted Grotesk"), sans-serif; font-size: 0.72em; font-weight: 600; line-height: 1; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3); }
+${DRAWN_CSS}`;
 
 /**
  * The interior's type, in em of the body size (10.5 point at the press). The
@@ -339,9 +406,14 @@ export const MATTER_CSS = `
 .gb .half { padding-top: 15.086em; text-align: center; }
 .gb .half-word { margin: 0; font-size: 2.3em; font-weight: 500; letter-spacing: -0.02em; text-indent: 0; text-align: center; }
 .gb .half-ed { margin: 0.35em 0 0; font-size: 1.15em; font-style: italic; text-indent: 0; text-align: center; color: #4b463f; }
-.gb .frontis { padding-top: 3.771em; text-align: center; }
-.gb .frontis img { display: block; width: 24.686em; height: 37.029em; margin: 0 auto; object-fit: cover; }
-.gb .frontis-cap { margin: 1.3em auto 0; max-width: 36.303em; font-family: var(--gp-sans, "Schibsted Grotesk"), sans-serif; font-size: 0.68em; line-height: 1.45; color: #6b655b; text-align: left; text-indent: 0; }
+.gb .frontis { padding-top: 1.6em; }
+.gb .fx-kicker { margin: 0 0 1.4em; padding-top: 0.8em; border-top: 0.14em solid #1d1b18; font-family: var(--gp-sans, "Schibsted Grotesk"), sans-serif; font-size: 0.72em; font-weight: 700; line-height: 1; letter-spacing: 0.16em; text-transform: uppercase; text-align: left; text-indent: 0; }
+.gb .fx-row { position: relative; }
+.gb .fx-t { display: block; overflow: hidden; font-family: var(--gp-sans, "Schibsted Grotesk"), sans-serif; font-size: 0.64em; line-height: 1.2; color: #6b655b; white-space: nowrap; text-overflow: ellipsis; text-align: left; text-indent: 0; }
+.gb .fx-t b { margin-right: 0.7em; font-weight: 600; color: #1d1b18; }
+.gb .fx-line { position: relative; height: 0.07em; margin-top: 1.3em; background: #1d1b18; }
+.gb .frontis-cap { margin: 1.6em 0 0; font-family: var(--gp-sans, "Schibsted Grotesk"), sans-serif; font-size: 0.68em; line-height: 1.45; color: #6b655b; text-align: left; text-indent: 0; }
+${DRAWN_CSS.replace(/^\./gm, ".gb .")}
 .gb .titlepage { padding-top: 7.886em; }
 .gb .tp-month { margin: 0; padding-bottom: 0.7em; border-bottom: 0.08em solid var(--ink); font-family: var(--gp-sans, "Schibsted Grotesk"), sans-serif; font-size: 0.72em; font-weight: 700; letter-spacing: 0.17em; text-transform: uppercase; color: var(--ink); text-indent: 0; text-align: left; }
 .gb .tp-word { margin: 0.12em 0 0 -0.04em; font-size: 6.2em; font-weight: 500; line-height: 1; letter-spacing: -0.035em; color: var(--ink); text-indent: 0; text-align: left; }

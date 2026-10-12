@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Loader2, Lock } from "lucide-react";
 import { Lockup } from "@/components/brand/Gloss";
-import { editionTitle, monthName, price, PRINT, type CoverCopy, type EditionOrder } from "@/lib/edition";
-import { fetchOrder } from "@/lib/editions";
-import { TOPIC, topicArtSrc } from "@/lib/library";
-import { COVER_CSS, frontHTML } from "@/lib/print/html";
+import { arrange, editionTitle, monthName, price, PRINT, type CoverCopy, type EditionOrder } from "@/lib/edition";
+import { fetchOrder, gather } from "@/lib/editions";
+import { COVER_CSS, coverRows, frontHTML, type CoverRow } from "@/lib/print/html";
 
 const STATES = "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split(" ");
 
@@ -19,7 +18,8 @@ type Fields = { email: string; name: string; line1: string; line2: string; city:
  */
 export function TestCheckout() {
   const [id, setId] = useState<string | null>(null);
-  const [info, setInfo] = useState<{ order: EditionOrder; art: boolean; copy?: CoverCopy } | null>(null);
+  const [info, setInfo] = useState<{ order: EditionOrder; copy?: CoverCopy } | null>(null);
+  const [rows, setRows] = useState<CoverRow[]>([]);
   const [f, setF] = useState<Fields>({ email: "", name: "", line1: "", line2: "", city: "", state: "", postcode: "", phone: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +29,12 @@ export function TestCheckout() {
     setId(e);
     if (e) void fetchOrder(e).then(setInfo);
   }, []);
+
+  // The cover is drawn from the month's pieces on this device.
+  const month = info?.order.month;
+  useEffect(() => {
+    if (month) void gather(month).then((ps) => setRows(coverRows(arrange(ps.flatMap((p) => (p.text ? [p.text] : []))))));
+  }, [month]);
 
   const set = (k: keyof Fields) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF((x) => ({ ...x, [k]: e.target.value }));
 
@@ -48,7 +54,7 @@ export function TestCheckout() {
 
   const o = info?.order;
   const topic = info?.copy?.topic ?? "living";
-  const view = o && { name: o.name, month: o.month, theme: info?.copy?.theme ?? "", lines: info?.copy?.lines ?? [], topic, art: info?.art ? `/api/editions/${o.id}/art` : null, count: o.texts };
+  const view = o && { name: o.name, month: o.month, theme: info?.copy?.theme ?? "", topic, count: o.texts, rows };
 
   return (
     <div className="tc">
@@ -62,8 +68,8 @@ export function TestCheckout() {
         <section className="tc-summary">
           {view ? (
             <>
-              <div className="tc-book" style={{ ["--c" as string]: TOPIC[topic].shades[2] }}>
-                <div className="tc-front" dangerouslySetInnerHTML={{ __html: frontHTML(view, { plate: topicArtSrc(topic) }) }} />
+              <div className="tc-book">
+                <div className="tc-front" dangerouslySetInnerHTML={{ __html: frontHTML(view) }} />
               </div>
               <div>
                 <p className="tc-name">Gloss, {editionTitle(o!.name)}</p>

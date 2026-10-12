@@ -143,7 +143,6 @@ export type EditionRow = {
   month: string;
   name: string;
   input: unknown;
-  art: string | null;
   status: string;
   test: boolean;
   attempts: number;
@@ -162,13 +161,13 @@ export type EditionRow = {
   updated_at: string;
 };
 
-/** Everything but the texts and the painting, for the reader's list of orders. */
+/** Everything but the texts, for the reader's list of orders. */
 const SUMMARY = "id, user_id, month, name, status, test, attempts, pages, price_cents, email, stripe_session, lulu_job, files, tracking, arrival, error, created_at, updated_at, jsonb_array_length(input->'texts') as texts";
 
-export async function createEdition(e: { id: string; userId: string | null; month: string; name: string; input: unknown; art: string | null; priceCents: number; test: boolean; email: string | null }): Promise<void> {
+export async function createEdition(e: { id: string; userId: string | null; month: string; name: string; input: unknown; priceCents: number; test: boolean; email: string | null }): Promise<void> {
   await db().query(
-    "insert into editions (id, user_id, month, name, input, art, price_cents, test, email) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-    [e.id, e.userId, e.month, e.name, JSON.stringify(e.input), e.art, e.priceCents, e.test, e.email]
+    "insert into editions (id, user_id, month, name, input, price_cents, test, email) values ($1, $2, $3, $4, $5, $6, $7, $8)",
+    [e.id, e.userId, e.month, e.name, JSON.stringify(e.input), e.priceCents, e.test, e.email]
   );
 }
 

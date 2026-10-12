@@ -42,12 +42,12 @@ export async function POST(req: Request) {
   }
   const parsed = parseEdition(body);
   if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
-  const { art, ...input } = parsed.input;
+  const input = parsed.input;
 
   const { userId } = await auth();
   const email = userId ? ((await currentUser().catch(() => null))?.primaryEmailAddress?.emailAddress ?? null) : null;
   const id = `ed_${randomBytes(15).toString("base64url")}`;
-  await createEdition({ id, userId, month: input.month, name: input.name, input, art: art ?? null, priceCents: PRINT.priceCents, test, email });
+  await createEdition({ id, userId, month: input.month, name: input.name, input, priceCents: PRINT.priceCents, test, email });
 
   const origin = new URL(req.url).origin;
   if (test) return Response.json({ id, url: `/print/checkout?edition=${id}`, test: true });

@@ -106,7 +106,6 @@ create table if not exists editions (
   month text not null,          -- "2026-10"
   name text not null default '',
   input jsonb not null,         -- what goes to press: the texts with their marks, and the cover's words
-  art text,                     -- the painted cover, a JPEG in base64
   status text not null default 'draft',
   test boolean not null default false,
   attempts integer not null default 0,

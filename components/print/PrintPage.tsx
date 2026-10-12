@@ -7,10 +7,10 @@ import { ArrowRight, ArrowUpRight, Play } from "lucide-react";
 import { Edition } from "@/components/library/Edition";
 import { TopBar } from "@/components/ui/TopBar";
 import { tidyTitle } from "@/lib/article";
-import { editionMonth, editionTitle, estimatePages, monthName, monthOf, price, spineInches, SPINE_TEXT_PAGES, type EditionOrder } from "@/lib/edition";
+import { arrange, editionMonth, editionTitle, estimatePages, monthName, monthOf, price, spineInches, SPINE_TEXT_PAGES, type EditionOrder } from "@/lib/edition";
 import { fetchOrders, keptCover, monthsOf, plainCopy, savedName, type KeptCover } from "@/lib/editions";
-import { TOPIC, topicArtSrc, topicOf, type TopicKey } from "@/lib/library";
-import { COVER_CSS, frontHTML, MARK_WASH } from "@/lib/print/html";
+import { TOPIC, topicOf, type TopicKey } from "@/lib/library";
+import { COVER_CSS, frontHTML, MARK_WASH, type CoverView } from "@/lib/print/html";
 import { applySettings } from "@/lib/settings";
 import { useStore, type LibraryItem } from "@/lib/store";
 
@@ -86,8 +86,18 @@ export function PrintPage() {
   const marks = items.reduce((n, x) => n + marksOf(x).length, 0);
   const notes = items.reduce((n, x) => n + marksOf(x).filter((h) => h.note?.trim()).length, 0);
   const pages = estimatePages(items.map((x) => ({ words: x.words, figures: 0, tables: 0, code: 0, plate: true })));
-  const copy = kept?.copy ?? plainCopy(items.map((item) => ({ item, marks: marksOf(item).length, size: { words: item.words } })));
-  const view = { name, month, theme: copy.theme, lines: copy.lines, topic: copy.topic, art: kept?.art ? `data:image/jpeg;base64,${kept.art}` : null, count: items.length };
+  const copy = kept?.copy ?? plainCopy(items.map((item) => ({ item })));
+  // Drawn as the sheet draws it: the pieces in the book's order, each with its marks.
+  const rows = useMemo(
+    () =>
+      arrange(items.map((x) => ({ ...x, topic: topicOf(x.topic) }))).map((x) => ({
+        id: x.id,
+        words: x.words,
+        marks: (highlights[x.id] ?? []).map((h) => ({ color: h.color, note: Boolean(h.note?.trim()) })),
+      })),
+    [items, highlights]
+  );
+  const view: CoverView = { name, month, theme: copy.theme, topic: copy.topic, count: items.length, rows };
   const ready = items.length >= MIN_PIECES;
   const when = monthName(month, { year: false });
 
@@ -122,7 +132,7 @@ export function PrintPage() {
             </h1>
             <p className="pp-lede">
               {ready ? `Everything you saved in ${when}` : "Everything you save in a month"}, with your highlights and notes, set as a 6 × 9 paperback under a
-              cover painted for the month. Printed and posted to you.
+              cover drawn from the month. Printed and posted to you.
             </p>
             <div className="pp-actions">
               {ready || !hydrated ? (
@@ -167,7 +177,7 @@ export function PrintPage() {
           </div>
 
           <div className="pp-stage">
-            {hydrated && <HeroBook view={view} pages={pages} plate={topicArtSrc(copy.topic)} onOpen={ready ? open : undefined} />}
+            {hydrated && <HeroBook view={view} pages={pages} onOpen={ready ? open : undefined} />}
             {hydrated && (
               <p className="pp-caption">
                 {editionTitle(name)} <span>·</span> {monthName(month)}
@@ -189,13 +199,9 @@ export function PrintPage() {
               </figcaption>
             </figure>
             <figure className="pp-tile">
-              <div className="pp-painting" style={{ ["--c" as string]: TOPIC[copy.topic].shades[2] }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={view.art ?? topicArtSrc(copy.topic)} alt="" className={view.art ? "" : "is-plate"} />
-                {copy.theme && <p>{copy.theme}</p>}
-              </div>
+              <div className="pp-flat">{hydrated && <span className="pp-flat-cover" dangerouslySetInnerHTML={{ __html: frontHTML(view) }} />}</div>
               <figcaption>
-                <b>A cover painted for the month.</b> Written and painted from what you read, so no two editions look alike.
+                <b>A cover drawn from your month.</b> Each line is a piece you saved, each mark one of your highlights. No two editions look alike.
               </figcaption>
             </figure>
             <figure className="pp-tile">
@@ -291,9 +297,8 @@ export function PrintPage() {
  * The month's book, held up: the cover as the press sets it, a spine as thick
  * as the page count, page edges, and a tilt that follows the pointer.
  */
-function HeroBook({ view, pages, plate, onOpen }: { view: Parameters<typeof frontHTML>[0]; pages: number; plate: string; onOpen?: () => void }) {
+function HeroBook({ view, pages, onOpen }: { view: CoverView; pages: number; onOpen?: () => void }) {
   const ref = useRef<HTMLButtonElement>(null);
-  const ink = TOPIC[view.topic].shades[2];
   // Thickness in units of the cover's width (6 inches), so it scales with the book.
   const depth = Math.max(0.04, spineInches(pages) / 6);
 
@@ -319,7 +324,7 @@ function HeroBook({ view, pages, plate, onOpen }: { view: Parameters<typeof fron
       onClick={onOpen}
       disabled={!onOpen}
       aria-label={`Open ${editionTitle(view.name)}`}
-      style={{ ["--d" as string]: depth, ["--ink" as string]: ink }}
+      style={{ ["--d" as string]: depth }}
     >
       <span className="hb-shadow" aria-hidden />
       <span className="hb-float" aria-hidden>
@@ -337,7 +342,7 @@ function HeroBook({ view, pages, plate, onOpen }: { view: Parameters<typeof fron
             )}
           </span>
           <span className="hb-face hb-front">
-            <span className="hb-cover" dangerouslySetInnerHTML={{ __html: frontHTML(view, { plate }) }} />
+            <span className="hb-cover" dangerouslySetInnerHTML={{ __html: frontHTML(view) }} />
             <span className="hb-gloss" />
           </span>
         </span>

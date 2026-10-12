@@ -80,8 +80,6 @@ function copy(v: unknown, fallback: PrintText[]): CoverCopy {
   const c = obj(v);
   return {
     theme: str(c.theme, 120)?.trim() ?? "",
-    lines: arr(c.lines, 3).map((l) => str(l, 60)?.trim() ?? "").filter(Boolean),
-    scene: str(c.scene, 400)?.trim() ?? "",
     topic: isTopic(c.topic) ? c.topic : (fallback[0]?.topic ?? "living"),
   };
 }
@@ -94,6 +92,5 @@ export function parseEdition(body: unknown): { ok: true; input: EditionInput } |
   const pages = estimatePages(texts.map((t) => sizeOf(t.blocks, Boolean(t.plate))));
   // A little room over the cap: the estimate is an estimate, and the reader saw it in the same terms.
   if (pages > PRINT.maxPages + 12) return { ok: false, error: `That runs to about ${pages} pages. An edition prints up to ${PRINT.maxPages}: leave a long one out.` };
-  const art = typeof b.art === "string" && /^\/9j\/[A-Za-z0-9+/=]+$/.test(b.art) && b.art.length < 4_000_000 ? b.art : undefined;
-  return { ok: true, input: { month: b.month, name: cleanName(b.name), copy: copy(b.copy, texts), art, texts } };
+  return { ok: true, input: { month: b.month, name: cleanName(b.name), copy: copy(b.copy, texts), texts } };
 }

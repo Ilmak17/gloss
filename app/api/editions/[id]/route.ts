@@ -28,5 +28,5 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const r = await refresh(row);
   if (r.press) after(() => fulfil(id));
-  return Response.json({ order: orderOf(r.row), art: Boolean(r.row.art), copy: (r.row.input as EditionInput).copy });
+  return Response.json({ order: orderOf(r.row), copy: (r.row.input as EditionInput).copy });
 }
