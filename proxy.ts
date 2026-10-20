@@ -1,7 +1,9 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { AUTH_ENABLED } from "@/lib/auth-config";
 
 // Signing in is optional: nothing is protected here. Routes that need a user check auth() themselves.
-export default clerkMiddleware();
+export default AUTH_ENABLED ? clerkMiddleware() : () => NextResponse.next();
 
 export const config = {
   matcher: [

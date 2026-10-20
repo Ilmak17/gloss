@@ -7,6 +7,7 @@ import { Tooltips } from "@/components/ui/Tooltips";
 import { ClerkProvider } from "@clerk/nextjs";
 import { SyncAgent } from "@/components/account/SyncAgent";
 import { OG_IMAGE, SITE_URL } from "@/lib/brand";
+import { AUTH_ENABLED } from "@/lib/auth-config";
 
 const serif = Newsreader({
   subsets: ["latin", "latin-ext"],
@@ -82,10 +83,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: BOOT_SCRIPT }} />
       </head>
       <body>
-        <ClerkProvider appearance={CLERK_APPEARANCE}>
+        {AUTH_ENABLED ? <ClerkProvider appearance={CLERK_APPEARANCE}>
           {children}
           <SyncAgent />
-        </ClerkProvider>
+        </ClerkProvider> : children}
         <Tooltips />
         {/* Plausible: cookieless page views, from the production site only, so previews and local runs never count. */}
         {process.env.VERCEL_ENV === "production" && <Script defer data-domain="usegloss.io" src="https://plausible.io/js/script.js" strategy="afterInteractive" />}

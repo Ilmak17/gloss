@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth-server";
 import { saveCover } from "@/lib/db";
 import { isTopic } from "@/lib/library";
 import { COVER_USD, paintCover } from "@/lib/paint";

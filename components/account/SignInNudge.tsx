@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SignInButton, useAuth } from "@clerk/nextjs";
+import { SignInButton, useAuth } from "@/components/account/auth";
 import { Toast } from "@/components/reader/Overlays";
 import { useStore } from "@/lib/store";
+
+import { AUTH_ENABLED } from "@/lib/auth-config";
 
 const KEY = "gloss:nudge";
 const DAY = 86_400_000;
@@ -29,7 +31,7 @@ export function SignInNudge() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!hydrated || !isLoaded) return;
+    if (!AUTH_ENABLED || !hydrated || !isLoaded) return;
     const before = prev.current;
     prev.current = count;
     // Only a mark made just now counts, not what was already there on load.

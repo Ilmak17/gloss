@@ -1,6 +1,6 @@
 "use client";
 
-import { Show, SignInButton, UserButton } from "@clerk/nextjs";
+import { Show, SignInButton, UserButton } from "@/components/account/auth";
 import { barBtn } from "@/components/ui/Popover";
 
 /** Signed out: a quiet "Sign in". Signed in: the avatar, with Clerk's account menu. */

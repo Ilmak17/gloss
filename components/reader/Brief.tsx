@@ -1,6 +1,6 @@
 "use client";
 
-import { Show, SignInButton } from "@clerk/nextjs";
+import { Show, SignInButton } from "@/components/account/auth";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ChevronDown, RotateCcw } from "lucide-react";
 import { fetchBrief, openKeyMenu } from "@/lib/ask";
