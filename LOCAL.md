@@ -23,6 +23,8 @@ ELEVENLABS_API_KEY=your-key
 ELEVENLABS_VOICE_ID=your-voice-id
 ```
 
+For a new free ElevenLabs account, library voices can be blocked by the API even when they work on the website. Create a personal voice with Voice Design and use its voice ID, or choose an eligible paid plan. The local setup uses a personal voice named **Gloss Reader**; its ID and key are in the ignored `.env.local`.
+
 Restart the local server after changing environment settings. A key entered in Voice settings overrides the server key and remains in this browser's local storage. The server sends it only to ElevenLabs. The Together provider continues using its separate key from AI settings.
 
 Use **Read aloud from here** to begin at the current paragraph. The player offers pause, resume, stop, speed, and a button to return to the spoken paragraph. ElevenLabs word timestamps drive word highlighting in browsers with the CSS Custom Highlight API; otherwise paragraph tracking remains available. Mismatched/missing timestamps fall back to paragraph tracking.

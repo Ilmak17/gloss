@@ -14,7 +14,14 @@ export function GET() {
 
 export async function POST(req: Request) {
   const origin = req.headers.get("Origin");
-  if (origin && origin !== new URL(req.url).origin) return error("Cross-origin voice requests are not allowed.", 403);
+  if (origin) {
+    try {
+      // Next can normalize req.url to localhost even when the browser uses 127.0.0.1.
+      const source = new URL(origin);
+      const host = req.headers.get("host") || new URL(req.url).host;
+      if (!/^https?:$/.test(source.protocol) || source.host !== host) return error("Cross-origin voice requests are not allowed.", 403);
+    } catch { return error("Invalid request origin.", 403); }
+  }
   let body: { text?: unknown; apiKey?: unknown; provider?: unknown; voiceId?: unknown };
   try { body = await req.json(); } catch { return error("Body must be JSON.", 400); }
   if (!body || typeof body.text !== "string") return error("Text must be a string.", 400);
@@ -41,6 +48,11 @@ export async function POST(req: Request) {
     // Provider responses may echo request details; return only our own safe messages.
     const provider = eleven ? "ElevenLabs" : "Together";
     if (res.status === 401 || res.status === 403) return error(`${provider} rejected the key or access to this voice. Check Voice settings.`, 401, "need_key");
+    if (eleven && res.status === 402) {
+      const data = await res.json().catch(() => null) as { detail?: { code?: string } } | null;
+      if (data?.detail?.code === "paid_plan_required") return error("This library voice requires a paid ElevenLabs plan. Choose your own Voice Design voice in Voice settings, or check your ElevenLabs plan.", 402, "voice_plan_required");
+      return error("ElevenLabs needs available credits or a different plan for this request. Check your account.", 402, "billing_required");
+    }
     if (res.status === 429) return error(`${provider} rate or credit limit reached. Try later or check your account.`, 429);
     return error(`${provider} could not generate this passage (${res.status}). Check the voice ID and try again.`, 502);
   }

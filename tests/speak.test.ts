@@ -49,3 +49,19 @@ test("another website cannot use the local server voice key", async () => {
   const request = new Request("http://localhost/api/speak", { method: "POST", headers: { Origin: "https://unrelated.example", "Content-Type": "text/plain" }, body: JSON.stringify({ text: "Hi", provider: "elevenlabs" }) });
   assert.equal((await POST(request)).status, 403);
 });
+
+test("a library voice plan restriction remains actionable instead of becoming a server error", async t => {
+  t.mock.method(globalThis, "fetch", async () => Response.json({ detail: { code: "paid_plan_required", message: "private provider details" } }, { status: 402 }));
+  const response = await POST(req({ provider: "elevenlabs", apiKey: "fixture-key", text: "Hi" }));
+  assert.equal(response.status, 402);
+  const data = await response.json();
+  assert.equal(data.code, "voice_plan_required");
+  assert.match(data.error, /Voice Design/);
+  assert.ok(!data.error.includes("private provider details"));
+});
+
+test("local browser origins are checked against the incoming Host when Next rewrites the request URL", async t => {
+  t.mock.method(globalThis, "fetch", async () => new Response("audio"));
+  const request = new Request("http://localhost:3100/api/speak", { method: "POST", headers: { Host: "127.0.0.1:3100", Origin: "http://127.0.0.1:3100", "Content-Type": "application/json" }, body: JSON.stringify({ text: "Hi", provider: "together", apiKey: "fixture-key" }) });
+  assert.equal((await POST(request)).status, 200);
+});
