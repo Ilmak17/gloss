@@ -33,6 +33,10 @@ Audio is generated in short passages, with up to two passages prefetched. It use
 
 ## Read and discuss
 
+The compact player keeps playback, passage progress and **Разбор** visible.
+Open **⋯** for speed, repeat, follow-voice, voice settings and stop. The menu
+opens upward and closes on Escape or an outside click.
+
 The desktop reader has contents on the left and a discussion panel on the right.
 Select text and choose **Explain**, or use **Разобрать абзац** in the player.
 Selecting text, opening a discussion or opening the notebook pauses narration.

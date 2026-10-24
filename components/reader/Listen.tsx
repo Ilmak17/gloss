@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Headphones, LoaderCircle, Pause, Play, Square, RotateCcw, MessageCircle, Locate } from "lucide-react";
+import { Headphones, LoaderCircle, Pause, Play, Square, RotateCcw, MessageCircle, Locate, Ellipsis, SlidersHorizontal } from "lucide-react";
 import { blockEl } from "@/lib/anchor";
 import { useStore } from "@/lib/store";
 import { openVoiceSettings } from "@/lib/voice-settings";
 import { useListen, startListening, stopListening, toggleListening, cycleRate, pauseListening, seekListening } from "@/lib/listening";
 import { startGloss } from "@/lib/ask";
-import { barBtn } from "@/components/ui/Popover";
+import { barBtn, Popover } from "@/components/ui/Popover";
 import { useReader } from "./context";
 export { startListening, stopListening } from "@/lib/listening";
 
@@ -78,25 +78,35 @@ export function ListenBar({ from }: { from: () => string | null }) {
   const active = status !== "idle";
   const n = block ? ix.numbers.get(block) : undefined;
 
-  return <section className="study-player" aria-label="Плеер чтения">
+  return <section className={`study-player ${active ? "is-active" : "is-idle"}`} aria-label="Плеер чтения">
+    {error && <div role="alert" className="study-player-error"><p>{error}</p><button type="button" onClick={openVoiceSettings}>{needKey ? "Подключить голос" : "Настройки голоса"}</button></div>}
     <div className="study-player-main">
       {on && <button type="button" className="study-play" aria-label={status === "playing" ? "Пауза" : status === "error" ? "Повторить озвучку" : active ? "Продолжить озвучку" : "Читать вслух"} disabled={status === "loading"} onClick={() => {
         setUI({ activeGloss: null, notebookOpen: false });
         if (status === "idle") startListening(ix, from()); else toggleListening();
-      }}>{status === "loading" ? <LoaderCircle size={18} className="animate-spin" /> : status === "playing" ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}</button>}
-      {active && !error && <button type="button" className="study-icon" onClick={() => seekListening(0)} aria-label="Повторить текущий фрагмент"><RotateCcw size={16} /></button>}
-      <div className="study-track">
-        <div><span>{error ? "Не удалось включить голос" : studyPaused ? "Пауза · разбираем мысль" : active ? `Текущий фрагмент${n ? ` · ¶${n}` : ""}` : "Читай в своём темпе"}</span>{active && duration > 0 && <span>{clock(elapsed)} / {clock(duration)}</span>}</div>
-        {active && !error ? <input aria-label="Позиция в текущем аудиофрагменте" type="range" min={0} max={duration || 1} step={.1} value={elapsed} disabled={!duration} onChange={e => seekListening(Number(e.target.value))} /> : <p>{error || "Выдели мысль или начни слушать с этого места"}</p>}
+      }}>{status === "loading" ? <LoaderCircle size={15} className="animate-spin" /> : status === "playing" ? <Pause size={13} fill="currentColor" strokeWidth={0} /> : <Play size={13} fill="currentColor" strokeWidth={0} />}</button>}
+      <div className="study-timeline">
+        {active && !error && duration > 0 ? <>
+          <input aria-label="Позиция в текущем аудиофрагменте" aria-valuetext={`${clock(elapsed)} из ${clock(duration)}`} type="range" min={0} max={duration} step={.1} value={elapsed} onChange={e => seekListening(Number(e.target.value))} style={{ backgroundImage: `linear-gradient(to right, var(--study-accent) ${Math.min(100, elapsed / duration * 100)}%, var(--rule-strong) 0%)` }} />
+          <span className="study-time" title={`Текущий фрагмент${n ? ` · ¶${n}` : ""}${studyPaused ? " · пауза для разбора" : ""}`}>{clock(elapsed)}<span> / {clock(duration)}</span></span>
+        </> : <span className="study-idle-label">{error ? "Голос недоступен" : status === "loading" ? "Готовим голос…" : on ? "Слушать текст" : "Читаем"}</span>}
       </div>
-      {active && <button type="button" className="study-speed" aria-label={`Скорость ${rate}×`} onClick={cycleRate}>{rate}×</button>}
-      {active && <button type="button" className="study-icon" onClick={stopListening} aria-label="Остановить озвучку"><Square size={14} /></button>}
-      <button type="button" className="study-discuss" aria-label="Разобрать абзац" onClick={explain}><MessageCircle size={16} /><span>Разобрать абзац</span></button>
-    </div>
-    <div className="study-player-options">
-      {on && <label><input type="checkbox" checked={follow} onChange={e => useListen.setState({ follow: e.target.checked })} /> Следовать за голосом</label>}
-      {block && <button type="button" onClick={() => jumpToBlock(block, { flash: false })}><Locate size={13} /> К голосу</button>}
-      <button type="button" onClick={openVoiceSettings}>{needKey ? "Подключить голос" : "Настройки голоса"}</button>
+      <span className="study-player-divider" aria-hidden />
+      <button type="button" className="study-discuss" aria-label="Разобрать абзац" data-tip="Разобрать текущий абзац" onClick={explain}><MessageCircle size={15} strokeWidth={1.6} /><span>Разбор</span></button>
+      <div className="study-player-menu">
+        <Popover label="Управление озвучкой" trigger={<Ellipsis size={18} />} triggerClass="study-icon" width={244}>
+          {close => <div className="study-audio-options">
+            <p className="study-audio-heading">Озвучка{n ? ` · ¶${n}` : ""}</p>
+            <button type="button" onClick={cycleRate}><span>Скорость</span><strong>{rate}×</strong></button>
+            {active && <button type="button" onClick={() => { seekListening(0); close(); }}><RotateCcw size={15} /> Повторить фрагмент</button>}
+            {block && <button type="button" onClick={() => { jumpToBlock(block, { flash: false }); close(); }}><Locate size={15} /> Вернуться к голосу</button>}
+            {on && <label><input type="checkbox" checked={follow} onChange={e => useListen.setState({ follow: e.target.checked })} /> Следовать за голосом</label>}
+            <div className="study-audio-rule" />
+            <button type="button" onClick={() => { close(); openVoiceSettings(); }}><SlidersHorizontal size={15} /> Настройки голоса</button>
+            {active && <button type="button" onClick={() => { stopListening(); close(); }}><Square size={14} /> Остановить озвучку</button>}
+          </div>}
+        </Popover>
+      </div>
     </div>
   </section>;
 }
