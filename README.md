@@ -1,4 +1,6 @@
 <a href="https://usegloss.io">
+
+**Personal local fork:** see [LOCAL.md](LOCAL.md) for local startup, EPUB books and ElevenLabs reading.
   <img alt="Gloss" src="./public/og.png">
   <h1 align="center">Gloss</h1>
 </a>

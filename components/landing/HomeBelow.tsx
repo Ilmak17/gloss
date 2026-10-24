@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AUTH_ENABLED } from "@/lib/auth-config";
 import { useMemo } from "react";
 import { ArrowRight } from "lucide-react";
 import { SignInButton } from "@/components/account/auth";
@@ -61,7 +62,7 @@ export function HomeBelow({ signedIn }: { signedIn: boolean }) {
   // Held open at its full size until the shelf is read, so nothing shifts when it fills.
   if (!hydrated) return <div className="desk is-holding" aria-hidden />;
 
-  const foot = signedIn ? null : <SignInLine>{all.length ? "These live in this browser only." : "Keep your highlights on every device."}</SignInLine>;
+  const foot = !AUTH_ENABLED ? "Books and highlights are saved in this browser." : signedIn ? null : <SignInLine>{all.length ? "These live in this browser only." : "Keep your highlights on every device."}</SignInLine>;
 
   // Before any highlights: Hassan's three steps, for first-timers and anyone signed out.
   if (!all.length)
