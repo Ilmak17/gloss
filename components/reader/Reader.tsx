@@ -302,11 +302,11 @@ function ReaderInner({ article }: { article: Article }) {
     }
     const p = useStore.getState().progress[articleId];
     const n = p ? ix.numbers.get(p.block) : undefined;
-    if (p && n && n > 2 && p.pct < 0.98) {
+    if (p && (ix.article.chapters ? ix.article.blocks.some(b => b.id === p.block) : n && n > 2 && p.pct < 0.98)) {
       requestAnimationFrame(() => {
         const el = blockEl(p.block);
         if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.28, behavior: "instant" });
-        setToast({ kind: "resume", n });
+        if (n) setToast({ kind: "resume", n });
       });
     } else {
       try {

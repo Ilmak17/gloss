@@ -27,6 +27,10 @@ export async function importFromUrl(raw: string, onProgress?: (p: number, label?
 export async function importFromFile(file: File, onProgress?: (p: number, label?: string) => void): Promise<ImportResult> {
   const name = file.name.toLowerCase();
   try {
+    if (name.endsWith(".epub") || file.type === "application/epub+zip") {
+      const { epubToArticle } = await import("./epub");
+      return { ok: true, article: await epubToArticle(file) };
+    }
     if (name.endsWith(".pdf") || file.type === "application/pdf") {
       const { pdfToArticle, PdfError } = await import("./pdf");
       try {
@@ -42,7 +46,7 @@ export async function importFromFile(file: File, onProgress?: (p: number, label?
       a.source = file.name;
       return { ok: true, article: a };
     }
-    return { ok: false, error: "Gloss reads PDF, .txt and .md files." };
+    return { ok: false, error: "Gloss reads EPUB, PDF, .txt and .md files." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not read that file." };
   }

@@ -195,12 +195,13 @@ export function sameImage(src: string): string {
   }
 }
 
-export function htmlToBlocks(root: El, base?: string): Block[] {
+export function htmlToBlocks(root: El, base?: string, options?: { preserveBookContent?: boolean; resolveImage?: (src: string) => string | undefined }): Block[] {
   const blocks: Block[] = [];
   let i = 0;
   const seen = new Set<string>();
   const figure = (img: El, caption: Run[] = []) => {
-    const im = imageOf(img, base);
+    const embedded = options?.resolveImage?.(img.getAttribute?.("src") ?? "");
+    const im = options?.resolveImage ? (embedded && /^data:image\/(png|jpeg|gif|webp);base64,/.test(embedded) ? { src: embedded, alt: img.getAttribute?.("alt") ?? undefined } : null) : imageOf(img, base);
     if (!im || seen.has(sameImage(im.src))) return;
     seen.add(sameImage(im.src));
     blocks.push({ id: `b${++i}`, type: "figure", runs: caption, src: im.src, ...(im.alt ? { alt: im.alt } : {}) });
@@ -277,6 +278,7 @@ export function htmlToBlocks(root: El, base?: string): Block[] {
   };
 
   visit(root);
+  if (options?.preserveBookContent) return blocks;
   // Reference apparatus at the end (Wikipedia and friends) is not reading matter.
   const TAIL = /^(references|notes|footnotes|citations|sources|bibliography|see also|external links|further reading)$/i;
   const tailAt = blocks.findIndex((b, idx) => idx > 3 && (b.type === "h2" || b.type === "h3") && TAIL.test(b.runs.map((r) => r.text).join("").trim()));

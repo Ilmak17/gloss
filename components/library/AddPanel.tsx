@@ -4,13 +4,13 @@ import { SignInButton } from "@/components/account/auth";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { BookOpen, BookmarkPlus, Check, Copy, Loader2, Plus, Trash2, X } from "lucide-react";
-import { importFromUrl, keep, looksLikeUrl } from "@/lib/import";
+import { importFromFile, importFromUrl, keep, looksLikeUrl } from "@/lib/import";
 import { normalizeUrl } from "@/lib/links";
 import { useStore } from "@/lib/store";
 import { Mark, MarkStack, type AgentMark } from "./AgentMarks";
 import { Glyph } from "./Book";
 
-export type AddTab = "links" | "agent";
+export type AddTab = "links" | "agent" | "files";
 
 /**
  * Adding to the library: paste links (one or many), or connect an agent that
@@ -38,7 +38,8 @@ export function AddPanel({ tab, onTab, onClose, signedIn }: { tab: AddTab; onTab
       <div className="absolute inset-0 bg-ink/20 backdrop-blur-[2px]" style={{ animation: "fade 0.2s both" }} onClick={onClose} />
       <section role="dialog" aria-modal aria-label="Add to the library" className="add-panel">
         <header className="flex items-center justify-between gap-3">
-          <div className="lib-sort !ml-0" role="tablist" aria-label="Add">
+          <div className="lib-sort !ml-0 flex-wrap" role="tablist" aria-label="Add">
+            <button type="button" role="tab" aria-selected={tab === "files"} aria-checked={tab === "files"} onClick={() => onTab("files")}>Books & files</button>
             <button type="button" role="tab" aria-selected={tab === "agent"} aria-checked={tab === "agent"} onClick={() => onTab("agent")}>
               Connect an agent
             </button>
@@ -50,7 +51,7 @@ export function AddPanel({ tab, onTab, onClose, signedIn }: { tab: AddTab; onTab
             <X size={17} />
           </button>
         </header>
-        {tab === "links" ? <Links /> : <Agent signedIn={signedIn} />}
+        {tab === "files" ? <Files /> : tab === "links" ? <Links /> : <Agent signedIn={signedIn} />}
       </section>
     </div>,
     document.body
@@ -67,8 +68,8 @@ export function AddButton({ onClick, compact }: { onClick: () => void; compact?:
     <button type="button" onClick={onClick} className={`lib-add${compact ? " is-compact" : ""}`}>
       <MarkStack size={compact ? 22 : 26} />
       <span className="min-w-0 text-left">
-        <span className="lib-add-title">Add articles</span>
-        {!compact && <span className="lib-add-sub">Connect an agent, or paste links</span>}
+        <span className="lib-add-title">Add books & articles</span>
+        {!compact && <span className="lib-add-sub">Import books, save links, or connect an agent</span>}
       </span>
       {!compact && (
         <span className="lib-add-plus" aria-hidden>
@@ -432,4 +433,33 @@ function CopyBlock({ title, body, text }: { title: string; body: string; text: s
       <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-all rounded-lg bg-sunk px-2.5 py-2 text-[11.5px] leading-relaxed text-ink-2">{text}</pre>
     </div>
   );
+}
+
+function Files() {
+  const [busy, setBusy] = useState(false);
+  const [results, setResults] = useState<{ name: string; error: string | null }[]>([]);
+  const [status, setStatus] = useState("");
+  async function add(files: FileList | null) {
+    if (!files || busy) return;
+    setBusy(true);
+    setResults([]);
+    try {
+      for (const file of Array.from(files)) {
+        setStatus(`Reading ${file.name}…`);
+        const result = await importFromFile(file, (_, label) => label && setStatus(label));
+        const error = result.ok ? await keep(result.article, result.file) : result.error;
+        setResults(previous => [...previous, { name: result.ok ? result.article.title : file.name, error }]);
+      }
+    } finally { setBusy(false); setStatus(""); }
+  }
+  return <div className="mt-5">
+    <h2 className="font-serif text-xl">Your books, on your shelf</h2>
+    <p className="mt-2 text-sm text-ink-3">Import EPUB, PDF, Markdown or plain text. EPUB books keep their chapter order and reading position. Files stay in this browser.</p>
+    <label className="mt-5 block rounded-xl border border-dashed border-rule-strong p-6 text-sm">
+      Choose books or documents
+      <input aria-label="Choose books or documents" type="file" multiple disabled={busy} accept=".epub,.pdf,.txt,.md,.markdown" className="mt-3 block w-full text-sm" onChange={e => { const files = e.target.files; void add(files); e.target.value = ""; }} />
+    </label>
+    <p role="status" className="mt-3 text-sm text-ink-3">{status}</p>
+    <ul className="mt-2 max-h-64 overflow-y-auto">{results.map((r, i) => <li key={i} className="py-2 text-sm"><span>{r.name}</span><span className="block text-ink-3">{r.error || "Saved to your library"}</span></li>)}</ul>
+  </div>;
 }

@@ -5,6 +5,7 @@ import { Keyboard, NotebookPen } from "lucide-react";
 import { Account } from "@/components/account/Account";
 import { Lockup } from "@/components/brand/Gloss";
 import { KeyMenu } from "@/components/ui/KeyMenu";
+import { ContentsMenu } from "./ContentsMenu";
 import { ListenButton } from "./Listen";
 import { SettingsMenu } from "@/components/ui/SettingsMenu";
 import { barBtn } from "@/components/ui/Popover";
@@ -121,6 +122,7 @@ export function TopBar({ currentN, pastTitle, listenFrom }: { currentN: number |
               <Keyboard size={17} strokeWidth={1.8} />
             </button>
           </span>
+          <ContentsMenu />
           <ListenButton from={listenFrom} />
           <SettingsMenu />
           <KeyMenu />

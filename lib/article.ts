@@ -32,6 +32,7 @@ export type Article = {
   source?: string;
   sourceUrl?: string;
   blocks: Block[];
+  chapters?: { title: string; block: string }[];
   /** The page's own lead picture (og:image), by its original URL: the library shows it on the cover. */
   image?: string;
   /** Where it came from: the bundled shelf, a link, pasted text, or a file. */
