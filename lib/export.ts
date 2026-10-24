@@ -117,7 +117,7 @@ export async function exportAll(): Promise<number> {
       url: doc?.sourceUrl,
     };
     const place = doc ? { numbers: numberBlocks(doc.blocks), order: new Map(doc.blocks.map((b, i) => [b.id, i])) } : undefined;
-    const glosses = (st.glosses[id] ?? []).filter((g) => g.turns.some((t) => t.content));
+    const glosses = (st.glosses[id] ?? []).filter((g) => g.destination === "codex" || g.turns.some((t) => t.content));
     let base = slugify(title);
     for (let k = 2; taken.has(base); k++) base = `${slugify(title)}-${k}`;
     taken.add(base);

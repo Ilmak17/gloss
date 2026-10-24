@@ -6,7 +6,8 @@ import { blockEl } from "@/lib/anchor";
 import { useStore } from "@/lib/store";
 import { openVoiceSettings } from "@/lib/voice-settings";
 import { useListen, startListening, stopListening, toggleListening, cycleRate, pauseListening, seekListening } from "@/lib/listening";
-import { startGloss } from "@/lib/ask";
+import { startStudy } from "@/lib/study-draft";
+import { studyBlock } from "@/lib/study";
 import { barBtn, Popover } from "@/components/ui/Popover";
 import { useReader } from "./context";
 export { startListening, stopListening } from "@/lib/listening";
@@ -68,12 +69,12 @@ export function ListenBar({ from }: { from: () => string | null }) {
   }, [block, status, follow, jumpToBlock, setUI]);
 
   const explain = () => {
-    const id = block ?? from() ?? ix.byNumber.get(1);
+    const id = studyBlock(ix, block ?? from());
     if (!id) return;
     const quote = (ix.texts.get(id) ?? "").slice(0, 12000);
     if (!quote.trim()) return;
     pauseListening(true);
-    startGloss(ix, { action: "explain", anchor: { start: { b: id, o: 0 }, end: { b: id, o: quote.length }, quote } });
+    startStudy(ix, { action: "explain", anchor: { start: { b: id, o: 0 }, end: { b: id, o: quote.length }, quote } });
   };
   const active = status !== "idle";
   const n = block ? ix.numbers.get(block) : undefined;

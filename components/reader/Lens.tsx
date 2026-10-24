@@ -5,11 +5,10 @@ import { ArrowUp, BadgeCheck, BookA, Check, Copy, Ellipsis, Eraser, Feather, Hig
 import { ACTIONS, isShortSelection, type Action } from "@/lib/actions";
 import { MARKERS, type Marker } from "@/lib/settings";
 import { anchorToRange, selectionToAnchor } from "@/lib/anchor";
-import { startGloss } from "@/lib/ask";
+import { startStudy } from "@/lib/study-draft";
 import { pauseListening } from "@/lib/listening";
 import { uid, useStore, type Anchor } from "@/lib/store";
 import { useReader } from "./context";
-import { WebSwitch } from "./WebSwitch";
 
 type LensState = {
   anchor: Anchor;
@@ -279,7 +278,7 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
   if (!lens) return null;
 
   const run = (action: Action, question?: string) => {
-    startGloss(ix, { anchor: lens.anchor, action, question });
+    startStudy(ix, { anchor: lens.anchor, action, question });
     close();
   };
 
@@ -509,7 +508,6 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
                 aria-label="Your question about the selected passage"
                 className="h-8 min-w-0 flex-1 bg-transparent text-[14px] text-lens-fg outline-none focus-visible:outline-none placeholder:text-lens-mute"
               />
-              <WebSwitch tone="lens" />
               <button
                 type="submit"
                 disabled={!draft.trim()}

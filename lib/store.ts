@@ -28,6 +28,8 @@ export type Turn = {
 
 export type Gloss = {
   id: string;
+  /** Local question prepared for a manual conversation in Codex. */
+  destination?: "codex";
   articleId: string;
   /** Anchored to a selection... */
   anchor?: Anchor;

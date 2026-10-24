@@ -207,9 +207,9 @@ function GlossEntry({ g }: { g: Gloss }) {
   const removeGloss = useStore((s) => s.removeGloss);
   const blockId = g.anchor?.start.b ?? g.at;
   const n = blockId ? ix.numbers.get(blockId) : undefined;
-  const label = !g.anchor ? "Whole text" : g.action === "ask" ? undefined : ACTIONS[g.action].label;
+  const label = g.destination === "codex" ? "Для Codex" : !g.anchor ? "Whole text" : g.action === "ask" ? undefined : ACTIONS[g.action].label;
   const go = () => {
-    setUI({ activeGloss: g.id, ...(covers() ? { notebookOpen: false } : {}) });
+    setUI({ activeGloss: g.id, notebookOpen: false });
     if (blockId) jumpToBlock(blockId);
   };
 
@@ -231,12 +231,12 @@ function GlossEntry({ g }: { g: Gloss }) {
               <span aria-hidden className="text-[11.5px] font-semibold leading-none text-rubric-text">Q</span>
               <p className="font-serif text-[16.5px] leading-[1.35] text-ink [font-variation-settings:'opsz'_24]">{p.q}</p>
             </div>
-            <div className="mt-2 grid grid-cols-[16px_minmax(0,1fr)] items-baseline gap-x-2">
+            {(g.destination === "codex" && !p.a?.content) || p.a?.needKey ? <p className="mt-2 pl-6 text-[12px] text-ink-3">Вопрос для обсуждения в Codex</p> : <div className="mt-2 grid grid-cols-[16px_minmax(0,1fr)] items-baseline gap-x-2">
               <span aria-hidden className="text-[11.5px] font-semibold leading-none text-ink-4">A</span>
               <div className="min-w-0">
                 <AnswerBody t={p.a} />
               </div>
-            </div>
+            </div>}
           </div>
         ))}
       </div>

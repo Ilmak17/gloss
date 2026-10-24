@@ -3,9 +3,8 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { ArrowUp } from "lucide-react";
 import { ARTICLE_QUESTIONS } from "@/lib/actions";
-import { startGloss } from "@/lib/ask";
+import { startStudy } from "@/lib/study-draft";
 import { useReader } from "./context";
-import { WebSwitch } from "./WebSwitch";
 
 export type ComposerHandle = { focus: () => void };
 
@@ -26,7 +25,7 @@ export const Composer = forwardRef<ComposerHandle, { currentBlock: () => string 
   const ask = (question: string) => {
     const text = question.trim();
     if (!text) return;
-    startGloss(ix, { at: currentBlock() ?? undefined, action: "ask", question: text });
+    startStudy(ix, { at: currentBlock() ?? undefined, action: "ask", question: text });
     setQ("");
     inputRef.current?.blur();
   };
@@ -74,7 +73,7 @@ export const Composer = forwardRef<ComposerHandle, { currentBlock: () => string 
           className="h-9 min-w-0 flex-1 bg-transparent text-[14.5px] text-ink outline-none focus-visible:outline-none placeholder:text-ink-3"
         />
         {!focused && !q && <kbd className="hidden sm:inline">/</kbd>}
-        <WebSwitch />
+
         <button
           type="submit"
           disabled={!q.trim()}

@@ -47,3 +47,13 @@ verified but a real AI answer is not. Mobile CSS is included, but no mobile
 viewport was available for visual verification. Clipboard write resolves in the
 page, but the browser tool's clipboard read-back did not match; the complete
 context is therefore also available in a selectable text field.
+
+## Revised direction: discussion in Codex
+
+The user chose manual transfer of the passage and question into this Codex chat.
+The reader now prepares local drafts instead of calling Together for explanations.
+The new panel contains a collapsible quote, editable question, suggestions and a
+single copy action. The header no longer advertises Together; reader key/model
+controls and AI brief generation were removed. Legacy APIs remain for unrelated
+features. Tests cover no provider calls, draft reuse, context and note export.
+Browser verification confirmed the edited question survives a page reload.

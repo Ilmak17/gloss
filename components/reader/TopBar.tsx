@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { Focus, Keyboard, NotebookPen } from "lucide-react";
 import { Account } from "@/components/account/Account";
 import { Lockup } from "@/components/brand/Gloss";
-import { KeyMenu } from "@/components/ui/KeyMenu";
 import { ContentsMenu } from "./ContentsMenu";
 import { VoiceMenu } from "./VoiceMenu";
 import { SettingsMenu } from "@/components/ui/SettingsMenu";
@@ -130,8 +129,7 @@ export function TopBar({ currentN, pastTitle }: { currentN: number | null; pastT
           </span>
           <ContentsMenu />
           <VoiceMenu />
-          <SettingsMenu />
-          <KeyMenu />
+          <SettingsMenu readingOnly />
           <button
             type="button"
             className={`${barBtn} !px-3 ${notebookOpen ? "bg-sunk text-ink" : ""}`}

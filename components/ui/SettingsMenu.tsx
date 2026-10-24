@@ -121,7 +121,7 @@ let swap: { finished: Promise<void> } | null = null;
  * Type, colour and answers in one small panel. Every change applies to the
  * page underneath immediately, so the page itself is the preview.
  */
-export function SettingsMenu({ compact = false }: { compact?: boolean }) {
+export function SettingsMenu({ compact = false, readingOnly = false }: { compact?: boolean; readingOnly?: boolean }) {
   const settings = useStore((s) => s.settings);
   const setSettings = useStore((s) => s.setSettings);
   const focusMode = useStore((s) => s.focusMode);
@@ -182,7 +182,7 @@ export function SettingsMenu({ compact = false }: { compact?: boolean }) {
   };
 
   return (
-    <Popover label="Appearance and answers" tip="Appearance" width={compact ? 316 : 348} triggerClass={barBtn} trigger={<span className="block translate-y-[0.5px] font-serif text-[18px] leading-none">Aa</span>}>
+    <Popover label={readingOnly ? "Appearance" : "Appearance and answers"} tip="Appearance" width={compact ? 316 : 348} triggerClass={barBtn} trigger={<span className="block translate-y-[0.5px] font-serif text-[18px] leading-none">Aa</span>}>
       {() => (
         <div>
           {!compact && (
@@ -194,7 +194,7 @@ export function SettingsMenu({ compact = false }: { compact?: boolean }) {
                 options={[
                   { key: "look", label: "Look" },
                   { key: "text", label: "Text" },
-                  { key: "answers", label: "Answers" },
+                  ...(!readingOnly ? [{ key: "answers" as const, label: "Answers" }] : []),
                 ]}
               />
             </div>

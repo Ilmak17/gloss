@@ -7,16 +7,13 @@ import { blockEl, selectBlock, spanIn } from "@/lib/anchor";
 import { displayArticle, readingMinutes, titleClass, type Article } from "@/lib/article";
 import { ARTICLE_QUESTIONS } from "@/lib/actions";
 import { SAMPLE_QUESTIONS } from "@/lib/samples";
-import { fetchBrief } from "@/lib/ask";
-import { BRAND } from "@/lib/brand";
+import { startStudy } from "@/lib/study-draft";
 import { indexArticle } from "@/lib/doc";
 import { fetchText } from "@/lib/sync";
 import { loadDoc, useGlosses, useHighlights, useStore, type Anchor } from "@/lib/store";
 import { applySettings } from "@/lib/settings";
 import { GlossWordmark } from "@/components/brand/Gloss";
 import { Block, type Mark } from "./Block";
-import { Brief } from "./Brief";
-import { CarefulRead } from "./CarefulRead";
 import { Composer, type ComposerHandle } from "./Composer";
 import { ReaderContext, type ReaderApi } from "./context";
 import { Lens, type OpenHighlight } from "./Lens";
@@ -408,10 +405,7 @@ function ReaderInner({ article }: { article: Article }) {
           break;
         case "b":
         case "B": {
-          const b = st.briefs[articleId];
-          if (!b || b.status === "error") fetchBrief(ix);
-          else setUI({ briefOpen: !st.briefOpen });
-          if (window.scrollY > 400) window.scrollTo({ top: 0, behavior: "smooth" });
+          startStudy(ix, { action: "ask", question: "Помоги понять главную мысль текста и доказательства автора." });
           break;
         }
         case "n":
@@ -503,10 +497,6 @@ function ReaderInner({ article }: { article: Article }) {
                     </a>
                   )}
                 </div>
-                <CarefulRead article={article} />
-                <div className="focus-hide rise" style={{ animationDelay: "200ms" }}>
-                  <Brief />
-                </div>
               </header>
 
               <div ref={setArticleEl} className="prose-read" onClick={onTextClick} onMouseOver={onTextOver} onMouseLeave={() => setUI({ hoverGloss: null })}>
@@ -533,13 +523,6 @@ function ReaderInner({ article }: { article: Article }) {
                   ❦
                 </p>
                 {article.source && <p>From {article.source}.</p>}
-                <p className="mt-1">
-                  Glosses are powered by DeepSeek V4.1 Flash, served by{" "}
-                  <a href={BRAND.togetherUrl} target="_blank" rel="noopener noreferrer" className="text-ink-2 underline decoration-rule-strong underline-offset-4 hover:text-ink">
-                    Together AI
-                  </a>
-                  .
-                </p>
                 <div className="mt-6 flex flex-wrap gap-2">
                   <button type="button" onClick={() => setUI({ notebookOpen: true })} className="h-9 rounded-full border border-rule px-4 text-[13px] font-medium text-ink-2 hover:border-rule-strong hover:text-ink">
                     Open your notebook

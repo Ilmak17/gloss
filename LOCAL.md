@@ -29,7 +29,7 @@ Restart the local server after changing environment settings. A key entered in V
 
 Use **Читать вслух** in the bottom player to begin at the current paragraph. The player offers pause, resume, stop, speed, repeat, seek within the current audio passage, and a button to return to the spoken paragraph. Its time display is for that passage, not the whole book. **Следовать за голосом** controls automatic paragraph tracking. ElevenLabs word timestamps drive word highlighting in browsers with the CSS Custom Highlight API; otherwise paragraph tracking remains available. Mismatched/missing timestamps fall back to paragraph tracking.
 
-Audio is generated in short passages, with up to two passages prefetched. It uses your provider credits, needs internet access and is not stored across listening sessions. Pausing retains the current clip; stopping/restarting can generate it again. AI questions still use the existing Together integration and are separate from voice settings.
+Audio is generated in short passages, with up to two passages prefetched. It uses your provider credits, needs internet access and is not stored across listening sessions. Pausing retains the current clip; stopping/restarting can generate it again. Preparing study questions is local and needs no AI key.
 
 ## Read and discuss
 
@@ -37,21 +37,28 @@ The compact player keeps playback, passage progress and **Разбор** visible
 Open **⋯** for speed, repeat, follow-voice, voice settings and stop. The menu
 opens upward and closes on Escape or an outside click.
 
-The desktop reader has contents on the left and a discussion panel on the right.
-Select text and choose **Explain**, or use **Разобрать абзац** in the player.
+The desktop reader has contents on the left and a question panel on the right.
+Select text and choose **Explain**, or use **Разбор** in the player.
 Selecting text, opening a discussion or opening the notebook pauses narration.
-**Продолжить чтение** resumes only when studying interrupted active playback;
+The return-to-reading button resumes only when studying interrupted active playback;
 closing the panel with X or Escape leaves it paused. Chapter navigation stops
 audio so an earlier chapter cannot start speaking later.
 
-Answers and follow-ups use the existing Together provider and default to Russian.
-They require a Together key; an ElevenLabs key only enables voice. Existing
-answers, highlights and personal notes remain available through **Заметки**.
-The first working version has no audio-only screen or automatic chapter quiz.
+Study questions now go to a local Codex draft, not the Together API. All reader
+entry points (selection, paragraph, question box and B shortcut) prepare a draft.
+Edit the question, or choose a suggested question; neither calls a model.
+Reopening the same passage/action reuses the draft and preserves edits. Drafts
+live with the existing browser notes and are included in Markdown export.
+Older answers remain readable in a collapsed history; failed key requests are
+not presented as answers. The reader no longer shows the Together logo, key
+prompt, model selector or AI brief generation. Legacy provider routes and
+non-reader features remain in the codebase.
 
-**Контекст для Codex** copies the quote, nearby paragraphs and recent discussion
-for manual pasting into a Codex chat. It does not send messages or share this
-chat's history with the reader's AI. No extra service is called by copying.
+**Скопировать для Codex** prepares the quote, question, nearby paragraphs and
+saved discussion for manual pasting into a Codex chat. It does not send messages
+or read this chat's history. The complete packet is also available in a selectable
+field if the embedded browser cannot access the clipboard. It explicitly marks
+the excerpt as partial context, not the full book. No service is called by copying.
 
 ## Development and verification
 
