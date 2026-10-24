@@ -2020,10 +2020,12 @@ a.desk-tile:focus-visible {
 .study-player { position: fixed; z-index: 35; bottom: max(20px, env(safe-area-inset-bottom)); left: calc((100% + var(--study-left) - var(--study-right)) / 2); transform: translateX(-50%); width: min(480px, calc(100% - var(--study-left) - var(--study-right) - 32px)); background: color-mix(in oklab, var(--bg-raised) 94%, transparent); backdrop-filter: blur(20px); border: 1px solid color-mix(in oklab, var(--rule) 70%, transparent); border-radius: 999px; box-shadow: 0 4px 20px -10px #0003, 0 1px 3px #00000005; padding: 7px 10px 7px 7px; }
 .study-player.is-idle { width: min(300px, calc(100% - var(--study-left) - var(--study-right) - 32px)); }
 .study-player-main { display: flex; align-items: center; gap: 12px; min-height: 36px; }
-.study-play { width: 36px; height: 36px; border-radius: 50%; background: var(--study-accent); color: var(--bg); display: grid; place-items: center; flex: none; transition: transform .16s, background .16s; }
-.study-play:hover { background: color-mix(in oklab, var(--study-accent) 82%, var(--bg)); }
-.study-play:active { transform: scale(.94); }
-.study-play:disabled { opacity: .65; }
+.study-play { width: 36px; height: 36px; border-radius: 12px; border: 1px solid color-mix(in oklab, var(--ink) 80%, var(--bg)); background: linear-gradient(155deg, color-mix(in oklab, var(--ink) 80%, var(--bg)), var(--ink)); color: var(--bg); display: grid; place-items: center; flex: none; box-shadow: inset 0 1px 0 rgb(255 255 255 / .13), 0 2px 4px rgb(0 0 0 / .12); transition: transform .18s var(--ease-out), box-shadow .18s, filter .18s; }
+.study-play:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.12); box-shadow: inset 0 1px 0 rgb(255 255 255 / .17), 0 3px 7px rgb(0 0 0 / .15); }
+.study-play:active:not(:disabled) { transform: translateY(0) scale(.94); box-shadow: inset 0 1px 2px rgb(0 0 0 / .14); }
+.study-play:focus-visible { outline: 2px solid var(--ink-3); outline-offset: 3px; }
+.study-play:disabled { opacity: .55; cursor: wait; box-shadow: none; }
+.study-play-glyph { animation: fade .16s var(--ease-out); }
 .study-icon { display: grid; place-items: center; width: 30px; height: 32px; flex: none; color: var(--ink-2); border-radius: 6px; }
 .study-icon:hover { background: var(--bg-sunk); }
 .study-timeline { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }

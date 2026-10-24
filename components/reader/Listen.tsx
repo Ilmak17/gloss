@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Headphones, LoaderCircle, Pause, Play, Square, RotateCcw, MessageCircle, Locate, Ellipsis, SlidersHorizontal } from "lucide-react";
+import { Headphones, LoaderCircle, Square, RotateCcw, MessageCircle, Locate, Ellipsis, SlidersHorizontal } from "lucide-react";
 import { blockEl } from "@/lib/anchor";
 import { useStore } from "@/lib/store";
 import { openVoiceSettings } from "@/lib/voice-settings";
@@ -85,7 +85,9 @@ export function ListenBar({ from }: { from: () => string | null }) {
       {on && <button type="button" className="study-play" aria-label={status === "playing" ? "Пауза" : status === "error" ? "Повторить озвучку" : active ? "Продолжить озвучку" : "Читать вслух"} disabled={status === "loading"} onClick={() => {
         setUI({ activeGloss: null, notebookOpen: false });
         if (status === "idle") startListening(ix, from()); else toggleListening();
-      }}>{status === "loading" ? <LoaderCircle size={15} className="animate-spin" /> : status === "playing" ? <Pause size={13} fill="currentColor" strokeWidth={0} /> : <Play size={13} fill="currentColor" strokeWidth={0} />}</button>}
+      }}>{status === "loading" ? <LoaderCircle size={15} className="animate-spin" aria-hidden /> : <svg key={status === "playing" ? "pause" : "play"} className="study-play-glyph" width="16" height="16" viewBox="0 0 16 16" aria-hidden>
+        {status === "playing" ? <><rect x="4" y="3" width="2.5" height="10" rx="1.25" fill="currentColor" /><rect x="9.5" y="3" width="2.5" height="10" rx="1.25" fill="currentColor" /></> : <path d="M5 3.5 12 8l-7 4.5z" fill="currentColor" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />}
+      </svg>}</button>}
       <div className="study-timeline">
         {active && !error && duration > 0 ? <>
           <input aria-label="Позиция в текущем аудиофрагменте" aria-valuetext={`${clock(elapsed)} из ${clock(duration)}`} type="range" min={0} max={duration} step={.1} value={elapsed} onChange={e => seekListening(Number(e.target.value))} style={{ backgroundImage: `linear-gradient(to right, var(--study-accent) ${Math.min(100, elapsed / duration * 100)}%, var(--rule-strong) 0%)` }} />
