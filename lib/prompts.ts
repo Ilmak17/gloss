@@ -37,6 +37,7 @@ ${body}
 </text>
 
 How to write a gloss:
+- Answer in Russian by default, unless the reader explicitly requests another language. Preserve quotations in their original language. Explain unfamiliar concepts with a concrete example when it helps, without assuming prior scientific knowledge.
 - Answer directly. No preamble, no restating the question, no sign-off.
 - Lead with the answer and mark it: wrap the words a skimmer most needs (the direct answer itself, from a few words up to one sentence) in ==double equals==, exactly once per reply. Example: "==It is a joke at his own expense.== The line before ..." Never mark a citation or a whole paragraph.
 - Plain, vivid prose. Short paragraphs. Use a list only for several distinct pointers.
@@ -60,7 +61,7 @@ const TASKS: Record<Exclude<Action, "ask">, string> = {
   define:
     "Define this as it is used here, in one or two sentences. Only if it is archaic, technical or used in an unusual sense, say so and give the plain modern equivalent. Never remark that a word is standard, common or not archaic.",
   simplify:
-    "Rewrite this in plain, modern English that keeps the full meaning. Then add one short line on the point it makes.",
+    "Rewrite this in plain language that keeps the full meaning, using the reader's requested language (Russian by default). Then add one short line on the point it makes.",
   check:
     "Does this still hold up? Compare it with current knowledge: say what has held up, what has changed, and how confident you are. This task is mostly outside the text, so mark it as such. 3 to 5 sentences.",
   connect:

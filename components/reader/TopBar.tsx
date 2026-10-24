@@ -1,19 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Keyboard, NotebookPen } from "lucide-react";
+import { Focus, Keyboard, NotebookPen } from "lucide-react";
 import { Account } from "@/components/account/Account";
 import { Lockup } from "@/components/brand/Gloss";
 import { KeyMenu } from "@/components/ui/KeyMenu";
 import { ContentsMenu } from "./ContentsMenu";
 import { VoiceMenu } from "./VoiceMenu";
-import { ListenButton } from "./Listen";
 import { SettingsMenu } from "@/components/ui/SettingsMenu";
 import { barBtn } from "@/components/ui/Popover";
 import { useGlosses, useHighlights, useStore } from "@/lib/store";
 import { useReader } from "./context";
 
-export function TopBar({ currentN, pastTitle, listenFrom }: { currentN: number | null; pastTitle: boolean; listenFrom: () => string | null }) {
+export function TopBar({ currentN, pastTitle }: { currentN: number | null; pastTitle: boolean }) {
   const { ix, jumpTo } = useReader();
   const [hidden, setHidden] = useState(false);
   const [scrolledUp, setScrolledUp] = useState(false);
@@ -22,6 +21,7 @@ export function TopBar({ currentN, pastTitle, listenFrom }: { currentN: number |
   const focusMode = useStore((s) => s.focusMode);
   const barRef = useRef<HTMLSpanElement>(null);
   const notebookOpen = useStore((s) => s.notebookOpen);
+  const activeGloss = useStore((s) => s.activeGloss);
   const setUI = useStore((s) => s.setUI);
   const brief = useStore((s) => s.briefs[ix.article.id]);
   const count = useGlosses(ix.article.id).length + useHighlights(ix.article.id).length;
@@ -76,7 +76,7 @@ export function TopBar({ currentN, pastTitle, listenFrom }: { currentN: number |
     };
   }, []);
 
-  const tucked = focusMode ? !peek && !scrolledUp && !notebookOpen : hidden && !notebookOpen;
+  const tucked = focusMode ? !peek && !scrolledUp && !notebookOpen && !activeGloss : hidden && !notebookOpen && !activeGloss;
 
   const section = (() => {
     if (brief?.status !== "ready" || currentN === null) return null;
@@ -122,13 +122,13 @@ export function TopBar({ currentN, pastTitle, listenFrom }: { currentN: number |
         </div>
 
         <nav aria-label="Reader tools" className="flex items-center gap-1">
+          <button type="button" className={barBtn} aria-label="Фокус" aria-pressed={focusMode} onClick={() => setUI({ focusMode: !focusMode, activeGloss: null })}><Focus size={17} /><span className="hidden lg:inline">Фокус</span></button>
           <span className="hidden sm:block">
             <button type="button" className={barBtn} onClick={() => setUI({ shortcutsOpen: true })} aria-label="Keyboard shortcuts" data-tip="Shortcuts" data-tip-kbd="?">
               <Keyboard size={17} strokeWidth={1.8} />
             </button>
           </span>
           <ContentsMenu />
-          <ListenButton from={listenFrom} />
           <VoiceMenu />
           <SettingsMenu />
           <KeyMenu />
@@ -142,7 +142,7 @@ export function TopBar({ currentN, pastTitle, listenFrom }: { currentN: number |
             data-tip-kbd="N"
           >
             <NotebookPen size={16} strokeWidth={1.8} />
-            <span className="hidden sm:inline">Notebook</span>
+            <span className="hidden sm:inline">Заметки</span>
             {count > 0 && (
               <span className="min-w-[18px] rounded-full bg-[var(--rubric)] px-1.5 text-center text-[11px] font-semibold leading-[18px] tabular-nums text-white">{count}</span>
             )}

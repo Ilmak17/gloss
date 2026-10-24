@@ -6,6 +6,7 @@ import { ACTIONS, isShortSelection, type Action } from "@/lib/actions";
 import { MARKERS, type Marker } from "@/lib/settings";
 import { anchorToRange, selectionToAnchor } from "@/lib/anchor";
 import { startGloss } from "@/lib/ask";
+import { pauseListening } from "@/lib/listening";
 import { uid, useStore, type Anchor } from "@/lib/store";
 import { useReader } from "./context";
 import { WebSwitch } from "./WebSwitch";
@@ -94,6 +95,7 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
       if (lensRef.current?.mode === "ask" || lensRef.current?.mode === "note") return;
       const a = selectionToAnchor(window.getSelection(), rootEl, ix.texts, ix.order);
       if (a) {
+        pauseListening(true);
         setLens({ anchor: a, mode: "actions" });
         setUI({ activeHighlight: null });
       } else if (lensRef.current && !lensRef.current.highlightId) {

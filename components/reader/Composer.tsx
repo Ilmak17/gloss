@@ -32,7 +32,7 @@ export const Composer = forwardRef<ComposerHandle, { currentBlock: () => string 
   };
 
   return (
-    <div className="composer focus-hide pointer-events-none sticky bottom-4 z-30 mt-20 sm:bottom-6">
+    <div className="composer focus-hide pointer-events-none relative z-30 mt-12">
       {focused && !q && (
         <div className="pointer-events-auto mb-2 flex flex-wrap justify-center gap-1.5" style={{ animation: "rise 0.3s var(--ease-out) both" }}>
           {suggestions.map((s) => (
@@ -69,7 +69,7 @@ export const Composer = forwardRef<ComposerHandle, { currentBlock: () => string 
               inputRef.current?.blur();
             }
           }}
-          placeholder="Ask about the whole text"
+          placeholder="Вопрос к этому тексту…"
           aria-label="Ask anything about the whole text"
           className="h-9 min-w-0 flex-1 bg-transparent text-[14.5px] text-ink outline-none focus-visible:outline-none placeholder:text-ink-3"
         />

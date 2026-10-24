@@ -27,9 +27,27 @@ For a new free ElevenLabs account, library voices can be blocked by the API even
 
 Restart the local server after changing environment settings. A key entered in Voice settings overrides the server key and remains in this browser's local storage. The server sends it only to ElevenLabs. The Together provider continues using its separate key from AI settings.
 
-Use **Read aloud from here** to begin at the current paragraph. The player offers pause, resume, stop, speed, and a button to return to the spoken paragraph. ElevenLabs word timestamps drive word highlighting in browsers with the CSS Custom Highlight API; otherwise paragraph tracking remains available. Mismatched/missing timestamps fall back to paragraph tracking.
+Use **Читать вслух** in the bottom player to begin at the current paragraph. The player offers pause, resume, stop, speed, repeat, seek within the current audio passage, and a button to return to the spoken paragraph. Its time display is for that passage, not the whole book. **Следовать за голосом** controls automatic paragraph tracking. ElevenLabs word timestamps drive word highlighting in browsers with the CSS Custom Highlight API; otherwise paragraph tracking remains available. Mismatched/missing timestamps fall back to paragraph tracking.
 
 Audio is generated in short passages, with up to two passages prefetched. It uses your provider credits, needs internet access and is not stored across listening sessions. Pausing retains the current clip; stopping/restarting can generate it again. AI questions still use the existing Together integration and are separate from voice settings.
+
+## Read and discuss
+
+The desktop reader has contents on the left and a discussion panel on the right.
+Select text and choose **Explain**, or use **Разобрать абзац** in the player.
+Selecting text, opening a discussion or opening the notebook pauses narration.
+**Продолжить чтение** resumes only when studying interrupted active playback;
+closing the panel with X or Escape leaves it paused. Chapter navigation stops
+audio so an earlier chapter cannot start speaking later.
+
+Answers and follow-ups use the existing Together provider and default to Russian.
+They require a Together key; an ElevenLabs key only enables voice. Existing
+answers, highlights and personal notes remain available through **Заметки**.
+The first working version has no audio-only screen or automatic chapter quiz.
+
+**Контекст для Codex** copies the quote, nearby paragraphs and recent discussion
+for manual pasting into a Codex chat. It does not send messages or share this
+chat's history with the reader's AI. No extra service is called by copying.
 
 ## Development and verification
 

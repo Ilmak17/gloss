@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Headphones, LoaderCircle, Pause, Play, Square } from "lucide-react";
+import { Headphones, LoaderCircle, Pause, Play, Square, RotateCcw, MessageCircle, Locate } from "lucide-react";
 import { blockEl } from "@/lib/anchor";
 import { useStore } from "@/lib/store";
 import { openVoiceSettings } from "@/lib/voice-settings";
-import { useListen, startListening, stopListening, toggleListening, cycleRate } from "@/lib/listening";
+import { useListen, startListening, stopListening, toggleListening, cycleRate, pauseListening, seekListening } from "@/lib/listening";
+import { startGloss } from "@/lib/ask";
 import { barBtn } from "@/components/ui/Popover";
 import { useReader } from "./context";
 export { startListening, stopListening } from "@/lib/listening";
@@ -39,102 +40,63 @@ export function ListenButton({ from }: { from: () => string | null }) {
   );
 }
 
-/** While the voice is reading: a small bar just above the question box, and the cursor on the paragraph being read. */
-export function ListenBar() {
+const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+
+/** One dock for narration and the transition from reading to discussion. */
+export function ListenBar({ from }: { from: () => string | null }) {
   const { ix, jumpToBlock } = useReader();
-  const { status, block, rate, error, needKey } = useListen();
-  const on = useStore((s) => s.settings.listen);
-  const setUI = useStore((s) => s.setUI);
+  const { status, block, rate, elapsed, duration, error, needKey, follow, studyPaused } = useListen();
+  const on = useStore(s => s.settings.listen);
+  const activeGloss = useStore(s => s.activeGloss);
+  const pending = useStore(s => s.pending);
+  const notebook = useStore(s => s.notebookOpen);
+  const setUI = useStore(s => s.setUI);
   const prev = useRef<string | null>(null);
 
-  // Leaving the text, or switching Listen off, stops the voice.
   useEffect(() => () => stopListening(), [ix]);
+  useEffect(() => { if (!on) stopListening(); }, [on]);
+  useEffect(() => { if (activeGloss || pending || notebook) pauseListening(true); }, [activeGloss, pending, notebook]);
   useEffect(() => {
-    if (!on) stopListening();
-  }, [on]);
-
-  // Follow the voice, but only while the reader is following too.
-  useEffect(() => {
-    if (!block) {
-      prev.current = null;
-      return;
-    }
+    if (!block) { prev.current = null; return; }
+    if (status !== "playing" || !follow) return;
     setUI({ cursor: block });
     const was = prev.current ? blockEl(prev.current)?.getBoundingClientRect() : null;
     const following = !was || (was.bottom > 0 && was.top < window.innerHeight);
     const r = blockEl(block)?.getBoundingClientRect();
-    if (following && r && (r.top < 80 || r.bottom > window.innerHeight * 0.8)) jumpToBlock(block, { flash: false });
+    if (following && r && (r.top < 80 || r.bottom > window.innerHeight * .8)) jumpToBlock(block, { flash: false });
     prev.current = block;
-  }, [block, jumpToBlock, setUI]);
+  }, [block, status, follow, jumpToBlock, setUI]);
 
-  if (status === "idle") return null;
+  const explain = () => {
+    const id = block ?? from() ?? ix.byNumber.get(1);
+    if (!id) return;
+    const quote = (ix.texts.get(id) ?? "").slice(0, 12000);
+    if (!quote.trim()) return;
+    pauseListening(true);
+    startGloss(ix, { action: "explain", anchor: { start: { b: id, o: 0 }, end: { b: id, o: quote.length }, quote } });
+  };
+  const active = status !== "idle";
   const n = block ? ix.numbers.get(block) : undefined;
 
-  return (
-    <div
-      role="region"
-      aria-label="Reading aloud"
-      className="fixed bottom-[calc(env(safe-area-inset-bottom)+80px)] left-1/2 sm:bottom-[calc(env(safe-area-inset-bottom)+90px)] z-[46] flex -translate-x-1/2 items-center gap-1 rounded-full bg-lens p-1 text-lens-fg shadow-pop ring-1 ring-black/5"
-      style={{ animation: "rise 0.35s var(--ease-out) both" }}
-    >
-      {!needKey && (
-        <button
-          type="button"
-          onClick={toggleListening}
-          disabled={status === "loading"}
-          aria-label={status === "playing" ? "Pause" : status === "error" ? "Try again" : "Play"}
-          className="grid size-9 place-items-center rounded-full bg-[var(--rubric)] text-white transition-transform active:scale-90"
-        >
-          {status === "loading" ? (
-            <LoaderCircle size={16} className="animate-spin" />
-          ) : status === "playing" ? (
-            <Pause size={15} fill="currentColor" strokeWidth={0} />
-          ) : (
-            <Play size={15} fill="currentColor" strokeWidth={0} className="translate-x-px" />
-          )}
-        </button>
-      )}
-      {status === "error" ? (
-        <>
-          <span className={`max-w-[min(360px,60vw)] truncate px-2 text-[13px] ${needKey ? "pl-3.5" : ""}`} title={error}>
-            {error}
-          </span>
-          {needKey && (
-            <button
-              type="button"
-              onClick={() => {
-                stopListening();
-                openVoiceSettings();
-              }}
-              className="h-9 shrink-0 rounded-full px-3 text-[13px] font-medium underline decoration-lens-mute underline-offset-4 transition-colors hover:bg-lens-hover"
-            >
-              Voice settings
-            </button>
-          )}
-        </>
-      ) : (
-        <button
-          type="button"
-          onClick={() => block && jumpToBlock(block, { flash: false })}
-          className="h-9 rounded-full px-2.5 text-[13px] tabular-nums text-lens-fg/85 transition-colors hover:bg-lens-hover hover:text-lens-fg"
-          aria-label={n ? `Reading paragraph ${n}. Show it.` : "Show where it is reading"}
-        >
-          {n ? `Reading ¶${n}` : "Reading"}
-        </button>
-      )}
-      {!needKey && (
-        <button
-          type="button"
-          onClick={cycleRate}
-          aria-label={`Speed ${rate} times. Change speed.`}
-          className="h-9 min-w-[48px] rounded-full px-2.5 text-[13px] font-medium tabular-nums transition-colors hover:bg-lens-hover"
-        >
-          {`${rate}×`}
-        </button>
-      )}
-      <button type="button" onClick={stopListening} aria-label="Stop reading aloud" className="grid size-9 place-items-center rounded-full text-lens-fg/80 transition-colors hover:bg-lens-hover hover:text-lens-fg">
-        <Square size={13} fill="currentColor" strokeWidth={0} />
-      </button>
+  return <section className="study-player" aria-label="Плеер чтения">
+    <div className="study-player-main">
+      {on && <button type="button" className="study-play" aria-label={status === "playing" ? "Пауза" : status === "error" ? "Повторить озвучку" : active ? "Продолжить озвучку" : "Читать вслух"} disabled={status === "loading"} onClick={() => {
+        setUI({ activeGloss: null, notebookOpen: false });
+        if (status === "idle") startListening(ix, from()); else toggleListening();
+      }}>{status === "loading" ? <LoaderCircle size={18} className="animate-spin" /> : status === "playing" ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}</button>}
+      {active && !error && <button type="button" className="study-icon" onClick={() => seekListening(0)} aria-label="Повторить текущий фрагмент"><RotateCcw size={16} /></button>}
+      <div className="study-track">
+        <div><span>{error ? "Не удалось включить голос" : studyPaused ? "Пауза · разбираем мысль" : active ? `Текущий фрагмент${n ? ` · ¶${n}` : ""}` : "Читай в своём темпе"}</span>{active && duration > 0 && <span>{clock(elapsed)} / {clock(duration)}</span>}</div>
+        {active && !error ? <input aria-label="Позиция в текущем аудиофрагменте" type="range" min={0} max={duration || 1} step={.1} value={elapsed} disabled={!duration} onChange={e => seekListening(Number(e.target.value))} /> : <p>{error || "Выдели мысль или начни слушать с этого места"}</p>}
+      </div>
+      {active && <button type="button" className="study-speed" aria-label={`Скорость ${rate}×`} onClick={cycleRate}>{rate}×</button>}
+      {active && <button type="button" className="study-icon" onClick={stopListening} aria-label="Остановить озвучку"><Square size={14} /></button>}
+      <button type="button" className="study-discuss" aria-label="Разобрать абзац" onClick={explain}><MessageCircle size={16} /><span>Разобрать абзац</span></button>
     </div>
-  );
+    <div className="study-player-options">
+      {on && <label><input type="checkbox" checked={follow} onChange={e => useListen.setState({ follow: e.target.checked })} /> Следовать за голосом</label>}
+      {block && <button type="button" onClick={() => jumpToBlock(block, { flash: false })}><Locate size={13} /> К голосу</button>}
+      <button type="button" onClick={openVoiceSettings}>{needKey ? "Подключить голос" : "Настройки голоса"}</button>
+    </div>
+  </section>;
 }

@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ArrowUpRight, X } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { blockEl, selectBlock, spanIn } from "@/lib/anchor";
-import { displayArticle, isHeading, readingMinutes, titleClass, type Article } from "@/lib/article";
+import { displayArticle, readingMinutes, titleClass, type Article } from "@/lib/article";
 import { ARTICLE_QUESTIONS } from "@/lib/actions";
 import { SAMPLE_QUESTIONS } from "@/lib/samples";
 import { fetchBrief } from "@/lib/ask";
@@ -18,15 +18,14 @@ import { Block, type Mark } from "./Block";
 import { Brief } from "./Brief";
 import { CarefulRead } from "./CarefulRead";
 import { Composer, type ComposerHandle } from "./Composer";
-import { ReaderContext, useMedia, useReader, type ReaderApi } from "./context";
-import { GlossCard } from "./GlossCard";
+import { ReaderContext, type ReaderApi } from "./context";
 import { Lens, type OpenHighlight } from "./Lens";
 import { ListenBar } from "./Listen";
 import { SignInNudge } from "@/components/account/SignInNudge";
-import { Margin } from "./Margin";
+import { StudyPanel } from "./StudyPanel";
+import { StudyContents } from "./StudyContents";
 import { Notebook } from "./Notebook";
 import { Peek, Shortcuts, Toast } from "./Overlays";
-import { Rail } from "./Rail";
 import { TopBar } from "./TopBar";
 
 export function Reader({ id, initial }: { id: string; initial: Article | null }) {
@@ -100,11 +99,9 @@ export function Reader({ id, initial }: { id: string; initial: Article | null })
         </div>
       </main>
     );
-  return <ReaderInner article={shown} />;
+  return <ReaderInner key={shown.id} article={shown} />;
 }
 
-const GUTTER_WIDE = 64;
-const GUTTER_MID = 52;
 
 function ReaderInner({ article }: { article: Article }) {
   const ix = useMemo(() => indexArticle(article), [article]);
@@ -130,13 +127,10 @@ function ReaderInner({ article }: { article: Article }) {
   const focusMode = useStore((s) => s.focusMode);
   const notebookOpen = useStore((s) => s.notebookOpen);
   const showNumbers = useStore((s) => s.settings.numbers);
-  const showRail = useStore((s) => s.settings.rail);
   const hydrated = useStore((s) => s.hydrated);
   const setUI = useStore((s) => s.setUI);
   const setProgress = useStore((s) => s.setProgress);
 
-  const wide = useMedia("(min-width: 1080px)", true);
-  const withRail = useMedia("(min-width: 1260px)", true);
 
   // Reset per-article UI when the article changes.
   useEffect(() => {
@@ -202,8 +196,6 @@ function ReaderInner({ article }: { article: Article }) {
     return map;
   }, [glosses, highlights, pending, ix, article.blocks]);
 
-  const notes = useMemo(() => highlights.filter((h) => h.note), [highlights]);
-  const openNote = useCallback((h: { id: string; anchor: Anchor }) => setOpenHl({ id: h.id, anchor: h.anchor, at: Date.now(), note: true }), []);
   const atBlocks = useMemo(() => new Set(glosses.filter((g) => !g.anchor && g.at).map((g) => g.at!)), [glosses]);
   // The drop cap goes on the first real paragraph, not a one-line caption or credit.
   const firstPara = useMemo(() => article.blocks.find((b) => b.type === "p" && (ix.texts.get(b.id)?.length ?? 0) >= 180)?.id, [article.blocks, ix]);
@@ -357,17 +349,6 @@ function ReaderInner({ article }: { article: Article }) {
     if (id !== useStore.getState().hoverGloss) setUI({ hoverGloss: id });
   };
 
-  // Clicking empty paper puts the active gloss down.
-  useEffect(() => {
-    const onDown = (e: PointerEvent) => {
-      const t = e.target as HTMLElement;
-      if (t.closest(".gloss, [data-g], .lens, .pop, header, aside, [role=dialog], .cite, .sheet")) return;
-      if (useStore.getState().activeGloss) setUI({ activeGloss: null });
-    };
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
-  }, [setUI]);
-
   /* ---------------- keyboard ---------------- */
 
   useEffect(() => {
@@ -468,7 +449,7 @@ function ReaderInner({ article }: { article: Article }) {
 
   /* ---------------- layout ---------------- */
 
-  const gutter = withRail ? GUTTER_WIDE : GUTTER_MID;
+  const studying = !!activeGloss && !notebookOpen;
 
   const paraCount = ix.byNumber.size;
   // A short line above the title: where this came from.
@@ -477,16 +458,12 @@ function ReaderInner({ article }: { article: Article }) {
   return (
     <ReaderContext.Provider value={api}>
       <title>{`${article.title}, glossed`}</title>
-      <div className={`${focusMode ? "focus-mode" : ""} ${showNumbers ? "" : "hide-nums"} ${notebookOpen ? "nb-open" : ""}`}>
-        <TopBar currentN={current ? ix.numbers.get(current) ?? null : null} pastTitle={pastTitle} listenFrom={askAnchor} />
+      <div className={`study-reader ${studying ? "is-studying" : ""} ${focusMode ? "focus-mode" : ""} ${showNumbers ? "" : "hide-nums"} ${notebookOpen ? "nb-open" : ""}`}>
+        <TopBar currentN={current ? ix.numbers.get(current) ?? null : null} pastTitle={pastTitle} />
 
-        <main className="relative z-[1] px-4 pb-10 pt-[calc(var(--topbar-h)+64px)] sm:px-6">
+        <StudyContents current={current} />
+        <main className="study-main relative z-[1] px-4 pt-[calc(var(--topbar-h)+48px)] sm:px-6">
           <div className="reader-grid">
-            <div className="rg-rail relative">
-              <div className="sticky top-[calc(var(--topbar-h)+28px)] h-[calc(100dvh-var(--topbar-h)-64px)]">{withRail && showRail && <Rail articleEl={articleEl} />}</div>
-            </div>
-            <div className="rg-numgap" aria-hidden />
-
             <div className="min-w-0">
               <header className="mb-14">
                 {kicker && (
@@ -576,8 +553,6 @@ function ReaderInner({ article }: { article: Article }) {
               <Composer ref={composerRef} currentBlock={askAnchor} suggestions={SAMPLE_QUESTIONS[article.id] ?? ARTICLE_QUESTIONS} />
             </div>
 
-            <div className="rg-gutter" aria-hidden />
-            <div className="rg-margin min-w-0">{wide && <Margin glosses={glosses} notes={notes} articleEl={articleEl} gutter={gutter} onOpenNote={openNote} />}</div>
           </div>
         </main>
 
@@ -591,12 +566,12 @@ function ReaderInner({ article }: { article: Article }) {
         )}
 
         <Lens rootEl={articleEl} openHighlight={openHl} />
-        <ListenBar />
+        <ListenBar from={askAnchor} />
+        <StudyPanel />
         <SignInNudge />
         <Notebook />
         <Peek peek={peek} />
         <Shortcuts />
-        {!wide && <GlossSheet />}
 
         {toast?.kind === "resume" && (
           <Toast onClose={() => setToast(null)}>
@@ -630,31 +605,4 @@ function ReaderInner({ article }: { article: Article }) {
 }
 
 const EMPTY: Mark[] = [];
-
-/** Under 1080px there is no margin, so the active gloss rises as a sheet. */
-function GlossSheet() {
-  const { ix } = useReader();
-  const glosses = useGlosses(ix.article.id);
-  const active = useStore((s) => s.activeGloss);
-  const notebookOpen = useStore((s) => s.notebookOpen);
-  const setUI = useStore((s) => s.setUI);
-  const g = glosses.find((x) => x.id === active);
-  if (!g || notebookOpen) return null;
-  return (
-    <div
-      className="sheet scroll-thin fixed inset-x-0 bottom-0 z-[52] mx-auto max-h-[64dvh] max-w-[680px] overflow-y-auto rounded-t-[20px] border border-b-0 border-rule bg-raised pb-[max(12px,env(safe-area-inset-bottom))] shadow-pop"
-      style={{ animation: "sheet-up 0.38s var(--ease-out)" }}
-    >
-      <div className="sticky top-0 z-10 flex items-center justify-center bg-raised/95 pb-1 pt-2.5 backdrop-blur">
-        <span className="h-1 w-9 rounded-full bg-rule-strong" aria-hidden />
-        <button type="button" aria-label="Close" onClick={() => setUI({ activeGloss: null })} className="absolute right-3 top-2 grid size-8 place-items-center rounded-lg text-ink-3 hover:bg-sunk">
-          <X size={16} />
-        </button>
-      </div>
-      <div className="px-3">
-        <GlossCard gloss={g} variant="sheet" active hover={false} entering={false} onActivate={() => {}} />
-      </div>
-    </div>
-  );
-}
 

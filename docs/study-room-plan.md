@@ -33,3 +33,17 @@ Read/listen mode means following the voice can be turned off; a separate
 audio-only screen and automatic end-of-chapter quiz are deferred. Existing
 question-based study remains available. Audio progress is per current passage,
 not an invented total book duration. Closing discussion keeps playback paused.
+
+## Result, 2026-10-24
+
+Core implementation complete. The 23 automated checks and TypeScript pass;
+production build passes with the existing Custom Highlight/font fallback
+warnings. In the desktop browser, ElevenLabs narration paused at 0:03 for a
+discussion and resumed at 0:03. Chapter navigation, saved-notebook reopening,
+and the visible Codex context packet were checked.
+
+Together has no configured key in the local reader, so the missing-key state is
+verified but a real AI answer is not. Mobile CSS is included, but no mobile
+viewport was available for visual verification. Clipboard write resolves in the
+page, but the browser tool's clipboard read-back did not match; the complete
+context is therefore also available in a selectable text field.
