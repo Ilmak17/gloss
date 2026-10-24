@@ -6,6 +6,7 @@ import { Account } from "@/components/account/Account";
 import { Lockup } from "@/components/brand/Gloss";
 import { KeyMenu } from "@/components/ui/KeyMenu";
 import { ContentsMenu } from "./ContentsMenu";
+import { VoiceMenu } from "./VoiceMenu";
 import { ListenButton } from "./Listen";
 import { SettingsMenu } from "@/components/ui/SettingsMenu";
 import { barBtn } from "@/components/ui/Popover";
@@ -68,7 +69,11 @@ export function TopBar({ currentN, pastTitle, listenFrom }: { currentN: number |
       setPeek(true);
     };
     window.addEventListener("gloss:key", show);
-    return () => window.removeEventListener("gloss:key", show);
+    window.addEventListener("gloss:voice-settings", show);
+    return () => {
+      window.removeEventListener("gloss:key", show);
+      window.removeEventListener("gloss:voice-settings", show);
+    };
   }, []);
 
   const tucked = focusMode ? !peek && !scrolledUp && !notebookOpen : hidden && !notebookOpen;
@@ -124,6 +129,7 @@ export function TopBar({ currentN, pastTitle, listenFrom }: { currentN: number |
           </span>
           <ContentsMenu />
           <ListenButton from={listenFrom} />
+          <VoiceMenu />
           <SettingsMenu />
           <KeyMenu />
           <button

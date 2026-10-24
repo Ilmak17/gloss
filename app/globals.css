@@ -1942,3 +1942,6 @@ a.desk-tile:focus-visible {
     vertical-align: middle;
   }
 }
+
+/* Timed narration, independent of saved annotations. */
+::highlight(speech) { background-color: #f4cb72; color: #1c1914; }

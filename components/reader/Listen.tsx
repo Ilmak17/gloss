@@ -3,12 +3,13 @@
 import { useEffect, useRef } from "react";
 import { create } from "zustand";
 import { Headphones, LoaderCircle, Pause, Play, Square } from "lucide-react";
-import { blockEl } from "@/lib/anchor";
+import { anchorToRange, blockEl } from "@/lib/anchor";
 import { blockText, type Block } from "@/lib/article";
-import { openKeyMenu, readApiKey } from "@/lib/ask";
+import { readApiKey } from "@/lib/ask";
 import type { DocIndex } from "@/lib/doc";
 import { useStore } from "@/lib/store";
-import { TTS_MAX_CHARS } from "@/lib/voice";
+import { speechChunks, type TimedWord } from "@/lib/speech";
+import { openVoiceSettings, readVoiceSettings } from "@/lib/voice-settings";
 import { barBtn } from "@/components/ui/Popover";
 import { useReader } from "./context";
 
@@ -25,23 +26,6 @@ const RATES = [1, 1.2, 1.4, 1.7, 2, 0.8];
 const RATE_KEY = "gloss:listen-rate";
 
 const useListen = create<ListenState>(() => ({ status: "idle", block: null, rate: 1 }));
-
-/** Paragraphs are split at sentence ends; the very first clip is short, so the voice starts quickly. */
-function chunks(text: string, first: boolean): string[] {
-  const sentences = text.match(/[^.!?]+[.!?]+["'”’)\]]*\s*|[^.!?]+$/g) ?? [text];
-  const out: string[] = [];
-  let cur = "";
-  for (const s of sentences) {
-    const limit = first && out.length === 0 ? 220 : TTS_MAX_CHARS;
-    if (cur && (cur + s).length > limit) {
-      out.push(cur.trim());
-      cur = "";
-    }
-    cur += s;
-  }
-  if (cur.trim()) out.push(cur.trim());
-  return out.flatMap((c) => (c.length > TTS_MAX_CHARS ? c.match(new RegExp(`[\\s\\S]{1,${TTS_MAX_CHARS}}`, "g")) ?? [] : [c]));
-}
 
 const SPOKEN = new Set<Block["type"]>(["p", "h2", "h3", "quote", "li", "note"]);
 
@@ -69,32 +53,46 @@ function silence(): string {
 
 /* ---------------- the engine: one voice at a time ---------------- */
 
-let items: { block: string; text: string }[] = [];
+let items: { block: string; text: string; start: number }[] = [];
+let activeWords: TimedWord[] = [];
+let wantedPaused = false;
+let highlightFrame = 0;
+let lastHighlight = "";
 let idx = 0;
 let session = 0;
 let audio: HTMLAudioElement | null = null;
 let ctrl: AbortController | null = null;
-const clips = new Map<number, Promise<string>>();
+type Clip = { url: string; words: TimedWord[] };
+const clips = new Map<number, Promise<Clip>>();
 const urls = new Map<number, string>();
 
-function clip(i: number): Promise<string> {
+function clip(i: number): Promise<Clip> {
   let p = clips.get(i);
   if (!p) {
     const signal = ctrl?.signal;
+    const requestSession = session;
+    const voice = readVoiceSettings();
     p = fetch("/api/speak", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: items[i].text, apiKey: readApiKey() || undefined }),
+      body: JSON.stringify({ text: items[i].text, provider: voice.provider, voiceId: voice.voiceId || undefined, apiKey: (voice.provider === "elevenlabs" ? voice.apiKey : readApiKey()) || undefined }),
       signal,
     }).then(async (r) => {
       if (!r.ok) {
         const j = (await r.json().catch(() => ({}))) as { error?: string; code?: string };
-        if (j.code === "need_key") useListen.setState({ needKey: true });
-        throw new Error(j.error ?? "The voice did not answer.");
+        throw Object.assign(new Error(j.error ?? "The voice did not answer."), { needKey: j.code === "need_key" });
       }
-      const url = URL.createObjectURL(await r.blob());
+      let blob: Blob;
+      let words: TimedWord[] = [];
+      if (r.headers.get("content-type")?.includes("application/json")) {
+        const data = await r.json() as { audio: string; words: TimedWord[] };
+        blob = new Blob([Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))], { type: "audio/mpeg" });
+        words = data.words;
+      } else blob = await r.blob();
+      if (requestSession !== session || signal?.aborted) throw new DOMException("Stopped", "AbortError");
+      const url = URL.createObjectURL(blob);
       urls.set(i, url);
-      return url;
+      return { url, words };
     });
     // A failed clip is forgotten, so "Try again" fetches it afresh.
     p.catch(() => clips.get(i) === p && clips.delete(i));
@@ -118,20 +116,23 @@ async function playAt(i: number, s: number) {
   if (i >= items.length) return stopListening();
   idx = i;
   const ready = urls.has(i);
-  useListen.setState({ block: items[i].block, ...(ready ? {} : { status: "loading" }) });
-  let url: string;
+  useListen.setState({ block: items[i].block, needKey: false, error: undefined, ...(ready ? {} : { status: "loading" }) });
+  let result: Clip;
   try {
-    url = await clip(i);
+    result = await clip(i);
   } catch (e) {
-    if (s === session) useListen.setState({ status: "error", error: e instanceof Error ? e.message : "The voice did not answer." });
+    if (s === session) useListen.setState({ status: "error", needKey: e instanceof Error && "needKey" in e && Boolean(e.needKey), error: e instanceof Error ? e.message : "The voice did not answer." });
     return;
   }
   if (s !== session || !audio) return;
   void clip(i + 1 < items.length ? i + 1 : i);
   if (i + 2 < items.length) void clip(i + 2);
   release(i - 1);
-  audio.src = url;
+  activeWords = result.words;
+  clearSpeechHighlight();
+  audio.src = result.url;
   audio.playbackRate = useListen.getState().rate;
+  if (wantedPaused) { useListen.setState({ status: "paused" }); return; }
   try {
     await audio.play();
     if (s === session) useListen.setState({ status: "playing" });
@@ -142,25 +143,23 @@ async function playAt(i: number, s: number) {
 
 export function startListening(ix: DocIndex, fromBlock: string | null) {
   stopListening();
-  // Reading aloud always uses the reader's own key: say so before anything is fetched.
-  if (!readApiKey()) {
-    useListen.setState({ status: "error", needKey: true, error: "Reading aloud uses your own Together key." });
-    return;
-  }
   const blocks = ix.article.blocks;
   const at = Math.max(0, fromBlock ? blocks.findIndex((b) => b.id === fromBlock) : 0);
-  let first = true;
   items = [];
   for (const b of blocks.slice(at)) {
     if (!SPOKEN.has(b.type)) continue;
-    const t = blockText(b).trim();
+    const t = blockText(b);
     if (!t) continue;
-    for (const c of chunks(t, first)) items.push({ block: b.id, text: c });
-    first = false;
+    for (const c of speechChunks(t)) items.push({ block: b.id, text: c.text, start: c.start });
   }
   if (!items.length) return;
 
+  wantedPaused = false;
   audio ??= new Audio();
+  audio.ontimeupdate = highlightSpeech;
+  audio.onplaying = () => { cancelAnimationFrame(highlightFrame); followSpeech(); };
+  audio.onpause = () => cancelAnimationFrame(highlightFrame);
+  audio.onerror = () => useListen.setState({ status: "error", error: "This audio could not be played. Try again." });
   // Only a spoken clip ending moves on; the unlocking silence ending must not.
   audio.onended = () => audio?.src.startsWith("blob:") && void playAt(idx + 1, session);
   // Unlock playback inside the click: later clips arrive after an await.
@@ -183,10 +182,18 @@ export function startListening(ix: DocIndex, fromBlock: string | null) {
 
 export function stopListening() {
   session++;
+  cancelAnimationFrame(highlightFrame);
+  clearSpeechHighlight();
+  activeWords = [];
+  wantedPaused = false;
   ctrl?.abort();
   ctrl = null;
   if (audio) {
     audio.onended = null;
+    audio.ontimeupdate = null;
+    audio.onplaying = null;
+    audio.onpause = null;
+    audio.onerror = null;
     audio.pause();
     audio.removeAttribute("src");
   }
@@ -199,11 +206,17 @@ export function stopListening() {
 function toggleListening() {
   const { status } = useListen.getState();
   if (!audio) return;
-  if (status === "playing") {
+  if (status === "loading") {
+    wantedPaused = !wantedPaused;
+    return;
+  } else if (status === "playing") {
+    wantedPaused = true;
     audio.pause();
     useListen.setState({ status: "paused" });
   } else if (status === "paused") {
-    audio.play().then(() => useListen.setState({ status: "playing" })).catch(() => {});
+    wantedPaused = false;
+    const s = session;
+    audio.play().then(() => { if (s === session) useListen.setState({ status: "playing" }); }).catch(() => {});
   } else if (status === "error") {
     useListen.setState({ error: undefined });
     void playAt(idx, session);
@@ -218,6 +231,27 @@ function cycleRate() {
   try {
     localStorage.setItem(RATE_KEY, String(next));
   } catch {}
+}
+
+/** CSS highlights leave annotation spans and text selection untouched. */
+function clearSpeechHighlight() {
+  lastHighlight = "";
+  if (typeof CSS !== "undefined" && "highlights" in CSS) CSS.highlights.delete("speech");
+}
+function followSpeech() {
+  highlightSpeech();
+  if (audio && !audio.paused) highlightFrame = requestAnimationFrame(followSpeech);
+}
+function highlightSpeech() {
+  if (!audio || !items[idx] || typeof Highlight === "undefined" || !("highlights" in CSS)) return;
+  const word = activeWords.find(w => w.from <= audio!.currentTime && w.to > audio!.currentTime);
+  if (!word) { clearSpeechHighlight(); return; }
+  const key = `${idx}:${word.start}`;
+  if (key === lastHighlight) return;
+  lastHighlight = key;
+  const item = items[idx];
+  const range = anchorToRange({ start: { b: item.block, o: item.start + word.start }, end: { b: item.block, o: item.start + word.end } });
+  if (range) CSS.highlights.set("speech", new Highlight(range));
 }
 
 /* ---------------- the controls ---------------- */
@@ -291,6 +325,7 @@ export function ListenBar() {
         <button
           type="button"
           onClick={toggleListening}
+          disabled={status === "loading"}
           aria-label={status === "playing" ? "Pause" : status === "error" ? "Try again" : "Play"}
           className="grid size-9 place-items-center rounded-full bg-[var(--rubric)] text-white transition-transform active:scale-90"
         >
@@ -313,11 +348,11 @@ export function ListenBar() {
               type="button"
               onClick={() => {
                 stopListening();
-                openKeyMenu();
+                openVoiceSettings();
               }}
               className="h-9 shrink-0 rounded-full px-3 text-[13px] font-medium underline decoration-lens-mute underline-offset-4 transition-colors hover:bg-lens-hover"
             >
-              Add key
+              Voice settings
             </button>
           )}
         </>

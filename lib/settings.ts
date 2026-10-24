@@ -56,7 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
   search: true,
   numbers: false,
   rail: true,
-  listen: false,
+  listen: true,
 };
 
 /** Swatch colours for the settings panel. The real palettes live in globals.css. */
