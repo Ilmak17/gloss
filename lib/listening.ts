@@ -15,12 +15,12 @@ import { readVoiceSettings } from "./voice-settings";
  */
 
 type Status = "idle" | "loading" | "playing" | "paused" | "error";
-type ListenState = { status: Status; block: string | null; rate: number; elapsed: number; duration: number; studyPaused: boolean; follow: boolean; error?: string; needKey?: boolean; cache?: string };
+type ListenState = { status: Status; block: string | null; offset: number; rate: number; elapsed: number; duration: number; studyPaused: boolean; follow: boolean; error?: string; needKey?: boolean; cache?: string };
 
 const RATES = [1, 1.2, 1.4, 1.7, 2, 0.8];
 const RATE_KEY = "gloss:listen-rate";
 
-export const useListen = create<ListenState>(() => ({ status: "idle", block: null, rate: 1, elapsed: 0, duration: 0, studyPaused: false, follow: true }));
+export const useListen = create<ListenState>(() => ({ status: "idle", block: null, offset: 0, rate: 1, elapsed: 0, duration: 0, studyPaused: false, follow: true }));
 
 const SPOKEN = new Set<Block["type"]>(["p", "h2", "h3", "quote", "li", "note"]);
 
@@ -55,6 +55,8 @@ let studySession: number | null = null;
 let highlightFrame = 0;
 let lastHighlight = "";
 let idx = 0;
+let initialOffset = 0;
+let pendingSeek: number | null = null;
 let session = 0;
 let audio: HTMLAudioElement | null = null;
 let ctrl: AbortController | null = null;
@@ -114,7 +116,7 @@ async function playAt(i: number, s: number) {
   if (i >= items.length) return stopListening();
   idx = i;
   const ready = urls.has(i);
-  useListen.setState({ block: items[i].block, elapsed: 0, duration: 0, cache: undefined, needKey: false, error: undefined, ...(ready ? {} : { status: "loading" }) });
+  useListen.setState({ block: items[i].block, offset: i === 0 ? Math.max(items[i].start, initialOffset) : items[i].start, elapsed: 0, duration: 0, cache: undefined, needKey: false, error: undefined, ...(ready ? {} : { status: "loading" }) });
   let result: Clip;
   try {
     result = await clip(i);
@@ -128,6 +130,9 @@ async function playAt(i: number, s: number) {
   release(i - 1);
   activeWords = result.words;
   clearSpeechHighlight();
+  const target = i === 0 ? initialOffset - items[i].start : 0;
+  const firstWord = result.words.find(w => w.end > target);
+  pendingSeek = target > 0 && firstWord ? firstWord.from : 0;
   audio.src = result.url;
   audio.playbackRate = useListen.getState().rate;
   if (wantedPaused) { useListen.setState({ status: "paused" }); return; }
@@ -142,8 +147,9 @@ async function playAt(i: number, s: number) {
   }
 }
 
-export function startListening(ix: DocIndex, fromBlock: string | null) {
+export function startListening(ix: DocIndex, fromBlock: string | null, fromOffset = 0) {
   stopListening();
+  initialOffset = Math.max(0, fromOffset);
   const blocks = ix.article.blocks;
   const at = Math.max(0, fromBlock ? blocks.findIndex((b) => b.id === fromBlock) : 0);
   items = [];
@@ -151,14 +157,21 @@ export function startListening(ix: DocIndex, fromBlock: string | null) {
     if (!SPOKEN.has(b.type)) continue;
     const t = blockText(b);
     if (!t) continue;
-    for (const c of speechChunks(t)) items.push({ block: b.id, text: c.text, start: c.start });
+    for (const c of speechChunks(t)) {
+      if (b.id === fromBlock && c.start + c.text.length <= initialOffset) continue;
+      items.push({ block: b.id, text: c.text, start: c.start });
+    }
   }
   if (!items.length) return;
+  if (items[0].block !== fromBlock) initialOffset = 0;
 
   wantedPaused = false;
   audio ??= new Audio();
   audio.ontimeupdate = () => { updatePosition(); highlightSpeech(); };
-  audio.onloadedmetadata = updatePosition;
+  audio.onloadedmetadata = () => {
+    if (audio?.src.startsWith("blob:") && pendingSeek !== null) { audio.currentTime = pendingSeek; pendingSeek = null; }
+    updatePosition(); highlightSpeech();
+  };
   audio.ondurationchange = updatePosition;
   audio.onplaying = () => { cancelAnimationFrame(highlightFrame); followSpeech(); };
   audio.onpause = () => cancelAnimationFrame(highlightFrame);
@@ -188,6 +201,8 @@ export function stopListening() {
   cancelAnimationFrame(highlightFrame);
   clearSpeechHighlight();
   activeWords = [];
+  pendingSeek = null;
+  initialOffset = 0;
   wantedPaused = false;
   studySession = null;
   ctrl?.abort();
@@ -206,7 +221,7 @@ export function stopListening() {
   release(Infinity);
   clips.clear();
   items = [];
-  useListen.setState({ status: "idle", block: null, elapsed: 0, duration: 0, studyPaused: false, error: undefined, needKey: false, cache: undefined });
+  useListen.setState({ status: "idle", block: null, offset: 0, elapsed: 0, duration: 0, studyPaused: false, error: undefined, needKey: false, cache: undefined });
 }
 
 /** Pause is idempotent, including while the first clip is still being fetched. */
@@ -288,14 +303,17 @@ function followSpeech() {
   if (audio && !audio.paused) highlightFrame = requestAnimationFrame(followSpeech);
 }
 function highlightSpeech() {
-  if (!audio || !items[idx] || typeof Highlight === "undefined" || !("highlights" in CSS)) return;
+  if (!audio || !items[idx]) return;
   const word = activeWords.find(w => w.from <= audio!.currentTime && w.to > audio!.currentTime);
   if (!word) { clearSpeechHighlight(); return; }
+  const item = items[idx];
+  const offset = item.start + word.start;
+  if (useListen.getState().offset !== offset) useListen.setState({ offset });
+  if (typeof Highlight === "undefined" || typeof CSS === "undefined" || !("highlights" in CSS)) return;
   const key = `${idx}:${word.start}`;
   if (key === lastHighlight) return;
-  lastHighlight = key;
-  const item = items[idx];
+
   const range = anchorToRange({ start: { b: item.block, o: item.start + word.start }, end: { b: item.block, o: item.start + word.end } });
-  if (range) CSS.highlights.set("speech", new Highlight(range));
+  if (range) { CSS.highlights.set("speech", new Highlight(range)); lastHighlight = key; }
 }
 

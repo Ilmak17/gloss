@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { isPagedBook } from "@/lib/books";
+import { BookReader } from "./BookReader";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { blockEl, selectBlock, spanIn } from "@/lib/anchor";
@@ -96,7 +98,7 @@ export function Reader({ id, initial }: { id: string; initial: Article | null })
         </div>
       </main>
     );
-  return <ReaderInner key={shown.id} article={shown} />;
+  return isPagedBook(shown) ? <BookReader key={shown.id} article={shown} /> : <ReaderInner key={shown.id} article={shown} />;
 }
 
 

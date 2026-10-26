@@ -71,6 +71,32 @@ test("study interruptions preserve audio and cannot revive an obsolete session",
     stopListening();
   });
 
+  await t.test("starting midway seeks within the original cached passage and publishes source offsets", async () => {
+    const requested: string[] = [];
+    t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
+      requested.push(JSON.parse(init?.body as string).text);
+      return Response.json({audio:btoa('audio'),words:[{start:0,end:1,from:0,to:1},{start:2,end:7,from:2,to:3},{start:8,end:15,from:4,to:6}]});
+    });
+    startListening(ix, "p1", 8); await settle();
+    (a as unknown as {onloadedmetadata:()=>void}).onloadedmetadata();
+    assert.deepEqual(requested,["A small passage."]);
+    assert.equal(a.currentTime,4);
+    seekListening(2.2);
+    assert.equal(useListen.getState().offset,2);
+    stopListening();
+  });
+
+  await t.test("a non-spoken start never applies its offset to the next paragraph", async () => {
+    t.mock.method(globalThis, "fetch", async () => Response.json({audio:btoa('audio'),words:[{start:0,end:3,from:0,to:1},{start:4,end:8,from:2,to:3},{start:9,end:15,from:4,to:6}]}));
+    const book=indexArticle({id:'figure-test',title:'Figure test',blocks:[{id:'figure',type:'figure',runs:[{text:'Illustration'}]},{id:'next',type:'p',runs:[{text:'One word after.'}]}]});
+    startListening(book,'figure',9); await settle();
+    (a as unknown as {onloadedmetadata:()=>void}).onloadedmetadata();
+    assert.equal(useListen.getState().block,'next');
+    assert.equal(useListen.getState().offset,0);
+    assert.equal(a.currentTime,0);
+    stopListening();
+  });
+
   await t.test("selection while loading prevents delayed automatic playback", async () => {
     let resolve!: (value: Response) => void;
     t.mock.method(globalThis, "fetch", () => new Promise<Response>(r => { resolve = r; }));

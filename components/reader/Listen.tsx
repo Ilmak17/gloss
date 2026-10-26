@@ -45,7 +45,7 @@ const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.fl
 
 /** One dock for narration and the transition from reading to discussion. */
 export function ListenBar({ from }: { from: () => string | null }) {
-  const { ix, jumpToBlock } = useReader();
+  const { ix, jumpToBlock, paged, readingPoint, goToPoint } = useReader();
   const { status, block, rate, elapsed, duration, error, needKey, follow, studyPaused, cache } = useListen();
   const on = useStore(s => s.settings.listen);
   const activeGloss = useStore(s => s.activeGloss);
@@ -58,6 +58,7 @@ export function ListenBar({ from }: { from: () => string | null }) {
   useEffect(() => { if (!on) stopListening(); }, [on]);
   useEffect(() => { if (activeGloss || pending || notebook) pauseListening(true); }, [activeGloss, pending, notebook]);
   useEffect(() => {
+    if (paged) return;
     if (!block) { prev.current = null; return; }
     if (status !== "playing" || !follow) return;
     setUI({ cursor: block });
@@ -66,7 +67,7 @@ export function ListenBar({ from }: { from: () => string | null }) {
     const r = blockEl(block)?.getBoundingClientRect();
     if (following && r && (r.top < 80 || r.bottom > window.innerHeight * .8)) jumpToBlock(block, { flash: false });
     prev.current = block;
-  }, [block, status, follow, jumpToBlock, setUI]);
+  }, [block, status, follow, jumpToBlock, setUI, paged]);
 
   const explain = () => {
     const id = studyBlock(ix, block ?? from());
@@ -85,7 +86,7 @@ export function ListenBar({ from }: { from: () => string | null }) {
     <div className="study-player-main">
       {on && <button type="button" className="study-play" aria-label={status === "playing" ? "Pause" : status === "error" ? "Retry audio" : active ? "Resume listening" : "Read aloud"} disabled={status === "loading"} onClick={() => {
         setUI({ activeGloss: null, notebookOpen: false });
-        if (status === "idle") startListening(ix, from()); else toggleListening();
+        if (status === "idle") { const point = readingPoint?.(); useListen.setState({follow:true}); startListening(ix, point?.b ?? from(), point?.o ?? 0); } else toggleListening();
       }}>{status === "loading" ? <LoaderCircle size={15} className="animate-spin" aria-hidden /> : <svg key={status === "playing" ? "pause" : "play"} className="study-play-glyph" width="16" height="16" viewBox="0 0 16 16" aria-hidden>
         {status === "playing" ? <><rect x="4" y="3" width="2.5" height="10" rx="1.25" fill="currentColor" /><rect x="9.5" y="3" width="2.5" height="10" rx="1.25" fill="currentColor" /></> : <path d="M5 3.5 12 8l-7 4.5z" fill="currentColor" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />}
       </svg>}</button>}
@@ -104,7 +105,7 @@ export function ListenBar({ from }: { from: () => string | null }) {
             {active && (cache === "hit" || cache === "saved") && <p className="text-xs text-ink-3 px-2 pb-2">{cache === "hit" ? "Saved audio · no new charge" : "Audio saved on this Mac"}</p>}
             <button type="button" onClick={cycleRate}><span>Speed</span><strong>{rate}×</strong></button>
             {active && <button type="button" onClick={() => { seekListening(0); close(); }}><RotateCcw size={15} /> Replay passage</button>}
-            {block && <button type="button" onClick={() => { jumpToBlock(block, { flash: false }); close(); }}><Locate size={15} /> Jump to audio</button>}
+            {block && <button type="button" onClick={() => { useListen.setState({follow:true}); if (goToPoint) goToPoint({b:block,o:useListen.getState().offset}); else jumpToBlock(block, { flash: false }); close(); }}><Locate size={15} /> Jump to audio</button>}
             {on && <label><input type="checkbox" checked={follow} onChange={e => useListen.setState({ follow: e.target.checked })} /> Follow along</label>}
             <div className="study-audio-rule" />
             <button type="button" onClick={() => { close(); openVoiceSettings(); }}><SlidersHorizontal size={15} /> Voice settings</button>

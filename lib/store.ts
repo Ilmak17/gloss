@@ -57,6 +57,7 @@ export type BriefState =
 export type { Settings } from "./settings";
 
 export type LibraryItem = {
+  format?: Article["format"];
   id: string;
   title: string;
   author?: string;
@@ -88,7 +89,7 @@ export type LibraryItem = {
   addedVia?: string;
 };
 
-export type Progress = { block: string; pct: number; at: number };
+export type Progress = { block: string; offset?: number; pct: number; at: number };
 
 /** A row from the account, as the sync route sends it. `data` is null on a tombstone. */
 export type RemoteRow<T> = { id: string; articleId: string; data: T | null; deleted: boolean };
@@ -278,6 +279,7 @@ export const useStore = create<State>((set, get) => ({
     set((st) => {
       const year = Number(a.published?.match(/\b(1[5-9]\d\d|20\d\d)\b/)?.[1]) || undefined;
       const item: LibraryItem = {
+        format: a.format,
         id: a.id,
         title: a.title,
         author: a.author,
@@ -376,6 +378,14 @@ export const useStore = create<State>((set, get) => ({
    write waits for a pause rather than serializing on every token. */
 if (typeof window !== "undefined") {
   let t: ReturnType<typeof setTimeout> | null = null;
+  const flush = () => {
+    if (!t) return;
+    clearTimeout(t); t = null;
+    const { glosses, highlights, briefs, progress, library } = useStore.getState();
+    try { localStorage.setItem(KEY, JSON.stringify({ glosses, highlights, briefs, progress, library })); } catch {}
+  };
+  window.addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); });
   useStore.subscribe((st, prev) => {
     if (!st.hydrated) return;
     if (
@@ -387,12 +397,7 @@ if (typeof window !== "undefined") {
     )
       return;
     if (t) clearTimeout(t);
-    t = setTimeout(() => {
-      const { glosses, highlights, briefs, progress, library } = useStore.getState();
-      try {
-        localStorage.setItem(KEY, JSON.stringify({ glosses, highlights, briefs, progress, library }));
-      } catch {}
-    }, 400);
+    t = setTimeout(flush, 400);
   });
 }
 

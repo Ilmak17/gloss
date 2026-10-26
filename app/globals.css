@@ -2085,3 +2085,50 @@ a.desk-tile:focus-visible {
 @media (max-width: 1279px) { .is-studying .reader-contents-menu { display: block; } }
 @media (max-width: 999px) { .reader-contents-menu { display: block; } }
 .focus-mode .reader-contents-menu { display: block; }
+
+/* EPUBs are a quiet, single-page surface. The source text remains intact in columns. */
+.book-reader.study-reader { --study-left:0px; --study-right:0px; position:fixed; inset:0; overflow:hidden; background:var(--bg); }
+.book-toolbar { position:absolute; inset:0 0 auto; height:64px; display:grid; grid-template-columns:1fr minmax(0,1.4fr) 1fr; align-items:center; gap:16px; padding:0 24px; z-index:50; background:var(--bg); transition:opacity .3s; }
+.book-toolbar nav { display:flex; align-items:center; gap:4px; }
+.book-toolbar nav:last-child { justify-content:flex-end; }
+.book-toolbar h1 { font-size:13px; font-weight:500; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.book-reader.is-quiet .book-toolbar:not(:hover):not(:focus-within):not(:has([role=dialog])) { opacity:.25; }
+.book-stage { position:absolute; top:78px; bottom:112px; width:min(calc(100% - 104px), calc(var(--read-size) * var(--measure-k)), 780px); left:50%; transform:translateX(-50%); }
+.book-chapter-label { font-size:11px; line-height:18px; color:var(--ink-3); text-align:center; letter-spacing:.04em; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-bottom:20px; }
+.book-viewport { width:100%; height:calc(100% - 38px); overflow:hidden; overflow-anchor:none; touch-action:pan-y; }
+.book-pages.prose-read { height:100%; width:100%; columns:1; column-gap:64px; column-fill:auto; animation:none; overflow-wrap:anywhere; }
+.book-pages.prose-read .blk { break-inside:auto; }
+.book-pages.prose-read .blk-text { text-wrap:wrap; orphans:2; widows:2; }
+.book-pages.prose-read .blk[data-type=h2], .book-pages.prose-read .blk[data-type=h3] { break-after:avoid; break-inside:avoid; }
+.book-pages.prose-read .blk:first-child { margin-top:0; }
+.book-pages.prose-read .blk[data-type=h2]:first-child { padding-top:20px; margin-bottom:1.5em; font-size:1.55em; text-align:center; font-weight:450; }
+.book-pages .fig-img { max-height:40dvh; width:auto; max-width:100%; object-fit:contain; margin-inline:auto; }
+.book-pages .blk[data-type=figure] { break-inside:avoid; }
+.book-pages .tbl { max-height:45dvh; overflow:auto; }
+.book-pages .blk[data-type=pre] { white-space:pre-wrap; overflow-wrap:anywhere; }
+.book-footer { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); display:flex; gap:24px; align-items:center; color:var(--ink-3); font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.book-footer button { display:grid; place-items:center; width:36px; height:36px; border-radius:50%; color:var(--ink-2); }
+.book-footer button:hover:not(:disabled) { background:var(--bg-sunk); }
+.book-footer button:disabled { opacity:.2; }
+.book-reader .study-player { bottom:58px; }
+.book-reader .study-panel { width:min(380px,100%); top:64px; z-index:55; box-shadow:-16px 0 50px rgb(0 0 0 / .08); }
+.book-reader.is-studying .study-player { display:none; }
+.book-navigation { max-height:min(65dvh,560px); overflow:auto; padding:8px; }
+.book-navigation > button, .book-mark-row > button:first-child { display:flex; align-items:center; justify-content:space-between; gap:14px; width:100%; text-align:left; padding:10px; border-radius:8px; font-size:13px; color:var(--ink-2); }
+.book-navigation button:hover, .book-navigation button[aria-current=location] { background:var(--bg-sunk); color:var(--ink); }
+.book-navigation button[aria-current=location] { font-weight:600; }
+.book-menu-label { display:flex; gap:6px; align-items:center; padding:8px 10px; font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-3); }
+.book-menu-empty { padding:6px 10px 12px; font-size:12px; color:var(--ink-3); }
+.book-mark-row { display:flex; align-items:center; }
+.book-mark-row > button:last-child { padding:10px; color:var(--ink-3); }
+.book-navigation input { width:100%; border:1px solid var(--rule); border-radius:10px; padding:10px 12px; outline-offset:2px; font-size:13px; }
+.book-navigation .book-search-hit { display:block; line-height:1.5; border-bottom:1px solid var(--rule); }
+.book-save-error { position:fixed; bottom:114px; left:50%; transform:translateX(-50%); padding:12px; background:var(--bg); border:1px solid var(--rule); z-index:60; }
+@media(max-width:640px) {
+  .book-toolbar { padding:0 10px; gap:6px; grid-template-columns:auto minmax(0,1fr) auto; }
+  .book-toolbar nav { gap:0; }
+  .book-toolbar h1 { font-size:11px; }
+  .book-stage { width:calc(100% - 44px); top:74px; bottom:110px; }
+  .book-progress { display:none; }
+  .book-reader .study-player { width:min(480px,calc(100% - 32px)); }
+}

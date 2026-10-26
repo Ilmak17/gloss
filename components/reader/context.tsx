@@ -5,6 +5,9 @@ import type { DocIndex } from "@/lib/doc";
 
 export type ReaderApi = {
   ix: DocIndex;
+  paged?: boolean;
+  readingPoint?: () => import("@/lib/store").Point;
+  goToPoint?: (point: import("@/lib/store").Point) => void;
   /** Scroll a paragraph into view and flash it. */
   jumpTo: (n: number, opts?: { flash?: boolean; instant?: boolean }) => void;
   jumpToBlock: (blockId: string, opts?: { flash?: boolean; instant?: boolean }) => void;

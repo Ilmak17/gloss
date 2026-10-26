@@ -121,7 +121,7 @@ let swap: { finished: Promise<void> } | null = null;
  * Type, colour and answers in one small panel. Every change applies to the
  * page underneath immediately, so the page itself is the preview.
  */
-export function SettingsMenu({ compact = false, readingOnly = false }: { compact?: boolean; readingOnly?: boolean }) {
+export function SettingsMenu({ compact = false, readingOnly = false, book = false }: { compact?: boolean; readingOnly?: boolean; book?: boolean }) {
   const settings = useStore((s) => s.settings);
   const setSettings = useStore((s) => s.setSettings);
   const focusMode = useStore((s) => s.focusMode);
@@ -261,14 +261,14 @@ export function SettingsMenu({ compact = false, readingOnly = false }: { compact
                     </div>
                   </Row>
                   <div className="grid grid-cols-2 gap-1.5 border-t border-rule pt-3.5">
-                    <Chip label="Numbers" icon={<Pilcrow size={14} />} on={settings.numbers} onChange={(v) => set({ numbers: v })} />
-                    <Chip label="Map" icon={<MapIcon size={14} />} on={settings.rail} onChange={(v) => set({ rail: v })} />
-                    <Chip label="Focus" icon={<Focus size={14} />} on={focusMode} onChange={(v) => setUI({ focusMode: v })} />
+                    {!book && <Chip label="Numbers" icon={<Pilcrow size={14} />} on={settings.numbers} onChange={(v) => set({ numbers: v })} />}
+                    {!book && <Chip label="Map" icon={<MapIcon size={14} />} on={settings.rail} onChange={(v) => set({ rail: v })} />}
+                    {!book && <Chip label="Focus" icon={<Focus size={14} />} on={focusMode} onChange={(v) => setUI({ focusMode: v })} />}
                     <Chip label="Listen" icon={<Headphones size={14} />} on={settings.listen} onChange={(v) => set({ listen: v })} />
                   </div>
                 </>
               )}
-              <PaintedCovers />
+              {!book && <PaintedCovers />}
             </div>
           )}
 
