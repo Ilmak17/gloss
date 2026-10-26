@@ -1944,7 +1944,15 @@ a.desk-tile:focus-visible {
 }
 
 /* Timed narration, independent of saved annotations. */
-::highlight(speech) { background-color: #f4cb72; color: #1c1914; }
+/* Offset belongs to the originating text; custom highlights inherit it. */
+.prose-read .blk-text { text-underline-offset: .18em; }
+::highlight(speech) {
+  background-color: transparent;
+  text-decoration-line: underline;
+  text-decoration-style: solid;
+  text-decoration-color: var(--ink-2);
+  text-decoration-thickness: .085em;
+}
 
 /* Study room: the page keeps its reading measure as discussion opens beside it. */
 .study-reader { --study-left: 208px; --study-right: 0px; --study-accent: var(--ink); }
