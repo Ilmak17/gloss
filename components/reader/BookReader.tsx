@@ -310,7 +310,10 @@ export function BookReader({ article }: { article: Article }) {
               remove={removeMark}
             />
           </nav>
-          <h1>{article.title}</h1>
+          <div className="book-toolbar-center">
+            <h1 className="sr-only">{article.title}</h1>
+            <ListenBar from={() => point.current.b} />
+          </div>
           <nav aria-label="Reading tools">
             <SettingsMenu readingOnly book />
             <button
@@ -350,7 +353,7 @@ export function BookReader({ article }: { article: Article }) {
           </nav>
         </header>
         <main className="book-stage">
-          <div className="book-chapter-label">{chapters[chapter]?.title}</div>
+          <div className="book-chapter-label">{article.title} · {chapters[chapter]?.title}</div>
           <div
             className="book-viewport"
             ref={viewport}
@@ -458,7 +461,6 @@ export function BookReader({ article }: { article: Article }) {
           </p>
         )}
         <Lens rootEl={root} openHighlight={openHl} />
-        <ListenBar from={() => point.current.b} />
         <StudyPanel />
         <Notebook />
         <Peek peek={peek} />

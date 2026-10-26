@@ -2088,14 +2088,14 @@ a.desk-tile:focus-visible {
 
 /* EPUBs are a quiet, single-page surface. The source text remains intact in columns. */
 .book-reader.study-reader { --study-left:0px; --study-right:0px; position:fixed; inset:0; overflow:hidden; background:var(--bg); }
-.book-toolbar { position:absolute; inset:0 0 auto; height:64px; display:grid; grid-template-columns:1fr minmax(0,1.4fr) 1fr; align-items:center; gap:16px; padding:0 24px; z-index:50; background:var(--bg); transition:opacity .3s; }
+.book-toolbar { position:absolute; inset:0 0 auto; height:64px; display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:16px; padding:0 24px; z-index:50; background:var(--bg); transition:opacity .3s; }
 .book-toolbar nav { display:flex; align-items:center; gap:4px; }
 .book-toolbar nav:last-child { justify-content:flex-end; }
 .book-toolbar h1 { font-size:13px; font-weight:500; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
-.book-reader.is-quiet .book-toolbar:not(:hover):not(:focus-within):not(:has([role=dialog])) { opacity:.25; }
-.book-stage { position:absolute; top:78px; bottom:112px; width:min(calc(100% - 104px), calc(var(--read-size) * var(--measure-k)), 780px); left:50%; transform:translateX(-50%); }
-.book-chapter-label { font-size:11px; line-height:18px; color:var(--ink-3); text-align:center; letter-spacing:.04em; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-bottom:20px; }
-.book-viewport { width:100%; height:calc(100% - 38px); overflow:hidden; overflow-anchor:none; touch-action:pan-y; }
+.book-reader.is-quiet .book-toolbar:not(:hover):not(:focus-within):not(:has([role=dialog])) { opacity:.7; }
+.book-stage { position:absolute; top:72px; bottom:52px; width:min(calc(100% - 104px), calc(var(--read-size) * var(--measure-k)), 780px); left:50%; transform:translateX(-50%); }
+.book-chapter-label { font-size:11px; line-height:18px; color:var(--ink-3); text-align:center; letter-spacing:.04em; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-bottom:14px; }
+.book-viewport { width:100%; height:calc(100% - 32px); overflow:hidden; overflow-anchor:none; touch-action:pan-y; }
 .book-pages.prose-read { height:100%; width:100%; columns:1; column-gap:64px; column-fill:auto; animation:none; overflow-wrap:anywhere; }
 .book-pages.prose-read .blk { break-inside:auto; }
 .book-pages.prose-read .blk-text { text-wrap:wrap; orphans:2; widows:2; }
@@ -2110,9 +2110,14 @@ a.desk-tile:focus-visible {
 .book-footer button { display:grid; place-items:center; width:36px; height:36px; border-radius:50%; color:var(--ink-2); }
 .book-footer button:hover:not(:disabled) { background:var(--bg-sunk); }
 .book-footer button:disabled { opacity:.2; }
-.book-reader .study-player { bottom:58px; }
+.book-toolbar-center { min-width:0; display:flex; justify-content:center; }
+.book-reader .study-player { position:relative; inset:auto; transform:none; width:min(420px,100%); padding:4px; border:0; background:transparent; backdrop-filter:none; box-shadow:none; }
+.book-reader .study-player.is-idle { width:260px; }
+.book-reader .study-player-main { gap:10px; }
+.book-reader .study-player-menu .pop { top:calc(100% + 12px); bottom:auto; --origin:top right !important; }
+.book-reader .study-player-error { top:calc(100% + 10px); bottom:auto; }
 .book-reader .study-panel { width:min(380px,100%); top:64px; z-index:55; box-shadow:-16px 0 50px rgb(0 0 0 / .08); }
-.book-reader.is-studying .study-player { display:none; }
+.book-reader.study-reader.is-studying .study-player { display:block; }
 .book-navigation { max-height:min(65dvh,560px); overflow:auto; padding:8px; }
 .book-navigation > button, .book-mark-row > button:first-child { display:flex; align-items:center; justify-content:space-between; gap:14px; width:100%; text-align:left; padding:10px; border-radius:8px; font-size:13px; color:var(--ink-2); }
 .book-navigation button:hover, .book-navigation button[aria-current=location] { background:var(--bg-sunk); color:var(--ink); }
@@ -2128,7 +2133,12 @@ a.desk-tile:focus-visible {
   .book-toolbar { padding:0 10px; gap:6px; grid-template-columns:auto minmax(0,1fr) auto; }
   .book-toolbar nav { gap:0; }
   .book-toolbar h1 { font-size:11px; }
-  .book-stage { width:calc(100% - 44px); top:74px; bottom:110px; }
+  .book-stage { width:calc(100% - 44px); top:116px; bottom:50px; }
   .book-progress { display:none; }
-  .book-reader .study-player { width:min(480px,calc(100% - 32px)); }
+  .book-toolbar { height:106px; grid-template-columns:1fr 1fr; grid-template-rows:48px 48px; }
+  .book-toolbar-center { grid-column:1 / -1; grid-row:2; }
+  .book-toolbar nav:last-child { grid-column:2; grid-row:1; }
+  .book-reader .study-player { width:min(420px,calc(100% - 20px)); }
+  .book-reader .study-panel { top:106px; }
+  .book-toolbar-center .study-player-menu .pop { right:0; }
 }

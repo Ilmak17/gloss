@@ -30,7 +30,7 @@ Restart the local server after editing environment settings. Michael is the defa
 
 ElevenLabs remains an explicit alternative, using `ELEVENLABS_API_KEY` and optionally `ELEVENLABS_VOICE_ID`. Together uses its separate AI key. Browser settings store each provider's key separately; legacy ElevenLabs settings are retained when Kokoro becomes the default. No provider failure automatically switches to another paid provider. Kokoro's English voices refuse Cyrillic input with an actionable message.
 
-Use **Read aloud** in the bottom player to begin at the current paragraph (or the saved source position inside an EPUB page). Pause, resume, stop, speed, repeat, seek and follow-voice controls remain in **⋯**. Turning a book page manually suspends audio following; **Jump to audio** restores it. Time is for the current passage. Kokoro and ElevenLabs timestamps drive word highlighting where the CSS Custom Highlight API is available. Missing or mismatched words (including normalized numbers) fall back to paragraph tracking instead of guessing offsets.
+Use **Read aloud** in the player (top toolbar for EPUB books, bottom dock for articles) to begin at the current paragraph (or the saved source position inside an EPUB page). Pause, resume, stop, speed, repeat, seek and follow-voice controls remain in **⋯**. Turning a book page manually suspends audio following; **Jump to audio** restores it. Time is for the current passage. Kokoro and ElevenLabs timestamps drive word highlighting where the CSS Custom Highlight API is available. Missing or mismatched words (including normalized numbers) fall back to paragraph tracking instead of guessing offsets.
 
 ### Persistent audio
 
