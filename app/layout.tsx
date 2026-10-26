@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Atkinson_Hyperlegible_Next, Literata, Newsreader, Schibsted_Grotesk } from "next/font/google";
+import { Atkinson_Hyperlegible_Next, Newsreader, Schibsted_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import { BOOT_SCRIPT } from "@/lib/settings";
 import "./globals.css";
 import { Tooltips } from "@/components/ui/Tooltips";
@@ -23,14 +24,15 @@ const sans = Schibsted_Grotesk({
   display: "swap",
 });
 
-// Optional reading faces: declared here, fetched only when a reader picks them.
-const book = Literata({
-  subsets: ["latin", "latin-ext"],
-  axes: ["opsz"],
-  style: ["normal", "italic"],
+// Bundled variable fonts: optical size, true italics and Cyrillic work offline.
+const book = localFont({
+  src: [
+    { path: "./fonts/literata/Literata-Roman.woff2", weight: "200 900", style: "normal" },
+    { path: "./fonts/literata/Literata-Italic.woff2", weight: "200 900", style: "italic" },
+  ],
   variable: "--nf-book",
   display: "swap",
-  preload: false,
+  adjustFontFallback: "Times New Roman",
 });
 
 const legible = Atkinson_Hyperlegible_Next({

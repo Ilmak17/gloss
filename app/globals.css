@@ -367,7 +367,7 @@ kbd,
 
 [data-face="book"] .prose-read {
   font-family: var(--font-book);
-  font-size: calc(var(--read-size) * 0.94);
+  font-size: var(--read-size);
 }
 
 [data-face="legible"] .prose-read {
