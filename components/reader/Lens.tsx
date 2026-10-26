@@ -6,7 +6,7 @@ import { ACTIONS, isShortSelection, type Action } from "@/lib/actions";
 import { MARKERS, type Marker } from "@/lib/settings";
 import { anchorToRange, selectionToAnchor } from "@/lib/anchor";
 import { startStudy } from "@/lib/study-draft";
-import { pauseListening, startListening } from "@/lib/listening";
+import { pauseListening, startListening, useListen } from "@/lib/listening";
 import { uid, useStore, type Anchor } from "@/lib/store";
 import { useReader } from "./context";
 
@@ -409,7 +409,7 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
             })}
             {paged && <>
               <button type="button" className="lens-btn px-2.5" onClick={() => run("ask", "Translate this passage into Russian, preserving the meaning. Briefly explain any idioms or ambiguous terms.")}>Translate</button>
-              <button type="button" className="lens-btn px-2.5" onClick={() => { const from = lens.anchor.start; close(); startListening(ix, from.b, from.o); }}>Listen from here</button>
+              <button type="button" className="lens-btn px-2.5" onClick={() => { const from = lens.anchor.start; close(); useListen.setState({ follow: true }); startListening(ix, from.b, from.o); }}>Listen from here</button>
             </>}
             <button
               type="button"

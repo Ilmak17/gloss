@@ -2224,3 +2224,14 @@ button.fig-trigger:focus-visible { outline:2px solid var(--ink-2); outline-offse
   .image-viewer-percent { display:none; }
   .image-viewer-stage { padding:14px; }
 }
+
+.listen-start-trigger { display:flex; align-items:center; gap:6px; padding:6px 0; color:var(--ink-3); font-size:13px; }
+.listen-start-trigger:hover { color:var(--ink); }
+.listen-start-menu .pop { top:calc(100% + 16px); bottom:auto; --origin:top left !important; }
+.listen-start-help { padding:8px; font-size:11px; line-height:1.5; color:var(--ink-3); }
+.listen-start-hint { position:absolute; top:72px; left:50%; transform:translateX(-50%); z-index:51; display:flex; align-items:center; gap:16px; max-width:calc(100% - 24px); padding:5px 12px; border:1px solid var(--rule); border-radius:20px; background:var(--bg); font:12px/1.4 var(--font-sans); box-shadow:0 3px 14px rgb(0 0 0 / .04); white-space:nowrap; }
+.listen-start-hint button { color:var(--ink-3); }
+.listen-start-hint kbd { margin-left:4px; font-size:10px; }
+.book-reader.is-picking-start .book-chapter-label { visibility:hidden; }
+.book-reader.is-picking-start .book-pages .blk-text { cursor:crosshair; }
+@media(max-width:640px) { .listen-start-hint { top:110px; font-size:11px; gap:10px; } }

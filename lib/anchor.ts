@@ -153,3 +153,20 @@ export function selectBlock(blockId: string) {
   sel?.removeAllRanges();
   sel?.addRange(r);
 }
+
+/** Hit-test visible text only: never let a click on a margin pick a neighbouring page. */
+export function pointFromClick(root: HTMLElement, target: Element, x: number, y: number): Point | null {
+  const text = target.closest<HTMLElement>(".blk-text");
+  const block = text?.closest<HTMLElement>("[data-block]");
+  if (!text || !block || !root.contains(text) || !["p", "h2", "h3", "quote", "li", "note"].includes(block.dataset.type ?? "")) return null;
+  const doc = document as Document & {
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null;
+    caretRangeFromPoint?: (x: number, y: number) => Range | null;
+  };
+  const caret = doc.caretPositionFromPoint?.(x, y);
+  const range = caret ? null : doc.caretRangeFromPoint?.(x, y);
+  const node = caret?.offsetNode ?? range?.startContainer;
+  const offset = caret?.offset ?? range?.startOffset;
+  if (!node || offset === undefined || !text.contains(node)) return null;
+  return pointFor(node, offset, "start", root);
+}

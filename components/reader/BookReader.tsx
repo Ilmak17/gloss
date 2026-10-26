@@ -25,7 +25,7 @@ import {
   pageStride,
 } from "@/lib/book-pages";
 import { indexArticle } from "@/lib/doc";
-import { selectBlock, spanIn } from "@/lib/anchor";
+import { selectBlock, spanIn, pointFromClick } from "@/lib/anchor";
 import {
   useGlosses,
   useHighlights,
@@ -33,7 +33,7 @@ import {
   type Anchor,
   type Point,
 } from "@/lib/store";
-import { useListen, pauseListening, resumeAfterStudy, listeningSessionId } from "@/lib/listening";
+import { useListen, startListening, pauseListening, resumeAfterStudy, listeningSessionId } from "@/lib/listening";
 import { SettingsMenu } from "@/components/ui/SettingsMenu";
 import { barBtn } from "@/components/ui/Popover";
 import { Block, type Mark } from "./Block";
@@ -46,6 +46,7 @@ import { BookPagination } from "./BookPagination";
 import { BookFootnote } from "./BookFootnote";
 import { locateBookPage } from "@/lib/book-pagination";
 import { Popover } from "@/components/ui/Popover";
+import { listeningWordStart } from "@/lib/listen-start";
 import { Lens, type OpenHighlight } from "./Lens";
 import { Peek } from "./Overlays";
 
@@ -77,6 +78,7 @@ export function BookReader({ article }: { article: Article }) {
   const [openHl, setOpenHl] = useState<OpenHighlight | null>(null);
   const [peek, setPeek] = useState<{ n: number; rect: DOMRect } | null>(null);
   const [quiet, setQuiet] = useState(false);
+  const [choosingStart, setChoosingStart] = useState(false);
   const quietTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPage = useRef(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
@@ -250,6 +252,12 @@ export function BookReader({ article }: { article: Article }) {
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, [turn]);
+  useEffect(() => {
+    if (!choosingStart) return;
+    const cancel = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); setChoosingStart(false); } };
+    window.addEventListener("keydown", cancel);
+    return () => window.removeEventListener("keydown", cancel);
+  }, [choosingStart]);
   const marks = useMemo(() => {
     const map = new Map<string, Mark[]>();
     const place = (
@@ -285,6 +293,13 @@ export function BookReader({ article }: { article: Article }) {
     () => ({
       ix,
       paged: true,
+      chooseListeningStart: () => {
+        pauseListening();
+        setUI({ activeGloss: null, notebookOpen: false, pending: null });
+        window.getSelection()?.removeAllRanges();
+        setChoosingStart(true);
+      },
+      cancelListeningStart: () => setChoosingStart(false),
       readingPoint: () => point.current,
       goToPoint: (target) => go(target, false),
       jumpToBlock: (b) => explore({ b, o: 0 }),
@@ -294,7 +309,7 @@ export function BookReader({ article }: { article: Article }) {
       },
       peek: (n, rect) => setPeek(n !== null && rect ? { n, rect } : null),
     }),
-    [ix, go, explore],
+    [ix, go, explore, setUI],
   );
   const saveMarks = (next: BookMark[]) => {
     try {
@@ -329,7 +344,7 @@ export function BookReader({ article }: { article: Article }) {
     <ReaderContext.Provider value={api}>
       <title>{article.title}</title>
       <div
-        className={`book-reader study-reader hide-nums ${quiet ? "is-quiet" : ""} ${activeGloss && !notebookOpen ? "is-studying" : ""} ${notebookOpen ? "nb-open" : ""}`}
+        className={`book-reader study-reader hide-nums ${quiet ? "is-quiet" : ""} ${activeGloss && !notebookOpen ? "is-studying" : ""} ${notebookOpen ? "nb-open" : ""} ${choosingStart ? "is-picking-start" : ""}`}
         onPointerMove={awaken}
       >
         <header className="book-toolbar">
@@ -413,6 +428,19 @@ export function BookReader({ article }: { article: Article }) {
             <div
               ref={setRoot}
               className={`book-pages prose-read${isCoverChapter(chapters[chapter]) ? " is-cover-page" : ""}`}
+              onClickCapture={(e) => {
+                if (!choosingStart || !root) return;
+                e.preventDefault(); e.stopPropagation();
+                const picked = pointFromClick(root, e.target as Element, e.clientX, e.clientY);
+                if (!picked) return;
+                const offset = listeningWordStart(ix.texts.get(picked.b) ?? "", picked.o);
+                if (offset === null) return;
+                window.getSelection()?.removeAllRanges();
+                setChoosingStart(false);
+                setUI({ activeGloss: null, notebookOpen: false, pending: null });
+                useListen.setState({ follow: true });
+                startListening(ix, picked.b, offset);
+              }}
               onClick={(e) => {
                 const link = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="#epub-"]');
                 if (link) {
@@ -518,6 +546,10 @@ export function BookReader({ article }: { article: Article }) {
             )}
           </button>
         </footer>
+        {choosingStart && <div className="listen-start-hint" role="status">
+          <span>Click the word to start listening</span>
+          <button onClick={() => setChoosingStart(false)}>Cancel <kbd>Esc</kbd></button>
+        </div>}
         {saveError && (
           <p role="alert" className="book-save-error">
             {saveError}
