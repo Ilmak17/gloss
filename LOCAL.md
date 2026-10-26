@@ -16,20 +16,27 @@ The maximum archive size is 64 MB, with 16 MB per expanded file and 128 MB total
 
 ## Listen while reading
 
-Open a text, choose **Voice settings**, then select **ElevenLabs**. Paste your ElevenLabs API key and optionally a voice ID from your ElevenLabs voice library. Alternatively configure the local server in `.env.local`:
+Kokoro via DeepInfra is the default for English books. Set a server key in the ignored `.env.local`, or enter one under **Voice settings → Подключить DeepInfra**:
 
 ```dotenv
-ELEVENLABS_API_KEY=your-key
-ELEVENLABS_VOICE_ID=your-voice-id
+DEEPINFRA_API_KEY=your-key
 ```
 
-For a new free ElevenLabs account, library voices can be blocked by the API even when they work on the website. Create a personal voice with Voice Design and use its voice ID, or choose an eligible paid plan. The local setup uses a personal voice named **Gloss Reader**; its ID and key are in the ignored `.env.local`.
+Restart the local server after editing environment settings. Choose one of six American/British voices and use **Послушать голос** to compare a short original English passage. Each preview is generated only on click and saved just like book audio. The standard DeepInfra tier is explicit: no priority premium. Published price checked 2026-10-26: $0.99 per million characters; actual billing is controlled by DeepInfra. Account funds are required.
 
-Restart the local server after changing environment settings. A key entered in Voice settings overrides the server key and remains in this browser's local storage. The server sends it only to ElevenLabs. The Together provider continues using its separate key from AI settings.
+ElevenLabs remains an explicit alternative, using `ELEVENLABS_API_KEY` and optionally `ELEVENLABS_VOICE_ID`. Together uses its separate AI key. Browser settings store each provider's key separately; legacy ElevenLabs settings are retained when Kokoro becomes the default. No provider failure automatically switches to another paid provider. Kokoro's English voices refuse Cyrillic input with an actionable message.
 
-Use **Читать вслух** in the bottom player to begin at the current paragraph. The player offers pause, resume, stop, speed, repeat, seek within the current audio passage, and a button to return to the spoken paragraph. Its time display is for that passage, not the whole book. **Следовать за голосом** controls automatic paragraph tracking. ElevenLabs word timestamps drive word highlighting in browsers with the CSS Custom Highlight API; otherwise paragraph tracking remains available. Mismatched/missing timestamps fall back to paragraph tracking.
+Use **Читать вслух** in the bottom player to begin at the current paragraph. Pause, resume, stop, speed, repeat, seek and follow-voice controls remain in **⋯**. Time is for the current passage. Kokoro and ElevenLabs timestamps drive word highlighting where the CSS Custom Highlight API is available. Missing or mismatched words (including normalized numbers) fall back to paragraph tracking instead of guessing offsets.
 
-Audio is generated in short passages, with up to two passages prefetched. It uses your provider credits, needs internet access and is not stored across listening sessions. Pausing retains the current clip; stopping/restarting can generate it again. Preparing study questions is local and needs no AI key.
+### Persistent audio
+
+Local loopback requests save successful MP3 audio and word timings in **`.data/audio/`**, ignored by Git. Reopening the reader or restarting the server reuses saved audio. The cache identity includes exact trimmed text, provider, model, voice, fixed generation speed/format, a format version, and a credential fingerprint. Changing voice/model/text/credentials creates a separate entry. Playback speed changes do not regenerate audio. Neither credentials nor source text are stored in the cache files, but audio naturally contains the spoken text. Files use private permissions.
+
+There is no speculative prefetch: a new passage generates when playback reaches it. This may introduce a pause between passages on their first listen. Concurrent identical requests in one server process share generation. Closing the tab or stopping narration does not cancel a generation already sent to the provider: it finishes and saves for reuse. A failed provider request is not cached; explicit retry may incur cost if the provider charged before failing.
+
+Set `GLOSS_AUDIO_CACHE_DIR` to move the cache. Back up this directory to retain paid audio; deleting it makes later listening generate again. No automatic eviction is performed. `GLOSS_AUDIO_CACHE=off` disables storage for testing; non-loopback hosted requests never use this shared local cache. This is a single-user local setup, not a multi-user hosting cache. Read/access failures stop before generation; if a disk write fails after generation, the player warns that the audio was not saved.
+
+Preparing study questions is local and needs no AI key.
 
 ## Read and discuss
 

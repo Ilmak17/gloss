@@ -10,12 +10,12 @@ import { readVoiceSettings } from "./voice-settings";
 
 /**
  * Read aloud. The text is spoken a passage at a time from where you are, each
- * clip fetched a little ahead of the voice, and the paragraph being read is
+ * clip fetched only when needed, and the paragraph being read is
  * marked like the keyboard cursor so the eye can follow along.
  */
 
 type Status = "idle" | "loading" | "playing" | "paused" | "error";
-type ListenState = { status: Status; block: string | null; rate: number; elapsed: number; duration: number; studyPaused: boolean; follow: boolean; error?: string; needKey?: boolean };
+type ListenState = { status: Status; block: string | null; rate: number; elapsed: number; duration: number; studyPaused: boolean; follow: boolean; error?: string; needKey?: boolean; cache?: string };
 
 const RATES = [1, 1.2, 1.4, 1.7, 2, 0.8];
 const RATE_KEY = "gloss:listen-rate";
@@ -58,7 +58,7 @@ let idx = 0;
 let session = 0;
 let audio: HTMLAudioElement | null = null;
 let ctrl: AbortController | null = null;
-type Clip = { url: string; words: TimedWord[] };
+type Clip = { url: string; words: TimedWord[]; cache?: string };
 const clips = new Map<number, Promise<Clip>>();
 const urls = new Map<number, string>();
 
@@ -71,7 +71,7 @@ function clip(i: number): Promise<Clip> {
     p = fetch("/api/speak", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: items[i].text, provider: voice.provider, voiceId: voice.voiceId || undefined, apiKey: (voice.provider === "elevenlabs" ? voice.apiKey : readApiKey()) || undefined }),
+      body: JSON.stringify({ text: items[i].text, provider: voice.provider, voiceId: voice.voiceId || undefined, apiKey: (voice.provider === "together" ? readApiKey() : voice.apiKey) || undefined }),
       signal,
     }).then(async (r) => {
       if (!r.ok) {
@@ -80,15 +80,17 @@ function clip(i: number): Promise<Clip> {
       }
       let blob: Blob;
       let words: TimedWord[] = [];
+      let cache: string | undefined;
       if (r.headers.get("content-type")?.includes("application/json")) {
-        const data = await r.json() as { audio: string; words: TimedWord[] };
+        const data = await r.json() as { audio: string; words: TimedWord[]; cache?: string };
         blob = new Blob([Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))], { type: "audio/mpeg" });
         words = data.words;
+        cache = data.cache;
       } else blob = await r.blob();
       if (requestSession !== session || signal?.aborted) throw new DOMException("Stopped", "AbortError");
       const url = URL.createObjectURL(blob);
       urls.set(i, url);
-      return { url, words };
+      return { url, words, cache };
     });
     // A failed clip is forgotten, so "Try again" fetches it afresh.
     p.catch(() => clips.get(i) === p && clips.delete(i));
@@ -112,7 +114,7 @@ async function playAt(i: number, s: number) {
   if (i >= items.length) return stopListening();
   idx = i;
   const ready = urls.has(i);
-  useListen.setState({ block: items[i].block, elapsed: 0, duration: 0, needKey: false, error: undefined, ...(ready ? {} : { status: "loading" }) });
+  useListen.setState({ block: items[i].block, elapsed: 0, duration: 0, cache: undefined, needKey: false, error: undefined, ...(ready ? {} : { status: "loading" }) });
   let result: Clip;
   try {
     result = await clip(i);
@@ -121,8 +123,8 @@ async function playAt(i: number, s: number) {
     return;
   }
   if (s !== session || !audio) return;
-  void clip(i + 1 < items.length ? i + 1 : i);
-  if (i + 2 < items.length) void clip(i + 2);
+  // Fetch only the requested passage: no credits spent on unread paragraphs.
+  useListen.setState({ cache: result.cache });
   release(i - 1);
   activeWords = result.words;
   clearSpeechHighlight();
@@ -204,7 +206,7 @@ export function stopListening() {
   release(Infinity);
   clips.clear();
   items = [];
-  useListen.setState({ status: "idle", block: null, elapsed: 0, duration: 0, studyPaused: false, error: undefined, needKey: false });
+  useListen.setState({ status: "idle", block: null, elapsed: 0, duration: 0, studyPaused: false, error: undefined, needKey: false, cache: undefined });
 }
 
 /** Pause is idempotent, including while the first clip is still being fetched. */

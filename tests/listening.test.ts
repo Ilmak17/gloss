@@ -59,6 +59,18 @@ test("study interruptions preserve audio and cannot revive an obsolete session",
     stopListening();
   });
 
+  await t.test("starting and pausing do not pre-generate unread passages", async () => {
+    const requested: string[] = [];
+    t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
+      requested.push(JSON.parse(init?.body as string).text);
+      return new Response("test audio");
+    });
+    const book = indexArticle({ id: "budget-test", title: "Budget", blocks: ["First.", "Second.", "Third."].map((text, i) => ({ id: `p${i}`, type: "p" as const, runs: [{ text }] })) });
+    startListening(book, "p0"); await settle(); pauseListening(); await settle();
+    assert.deepEqual(requested, ["First."]);
+    stopListening();
+  });
+
   await t.test("selection while loading prevents delayed automatic playback", async () => {
     let resolve!: (value: Response) => void;
     t.mock.method(globalThis, "fetch", () => new Promise<Response>(r => { resolve = r; }));

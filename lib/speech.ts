@@ -1,6 +1,25 @@
 export type Alignment = { characters: string[]; character_start_times_seconds: number[]; character_end_times_seconds: number[] };
 export type TimedWord = { start: number; end: number; from: number; to: number };
 
+/** Match provider words in order; never skip source words or guess normalized numbers. */
+export function kokoroWordsWithTiming(text: string, input: unknown): TimedWord[] {
+  if (!Array.isArray(input)) return [];
+  const result: TimedWord[] = [];
+  let cursor = 0, previousTime = 0;
+  const harmless = (s: string) => /^[\s\p{P}\p{S}]*$/u.test(s);
+  for (const w of input) {
+    if (!w || typeof w.text !== "string" || !w.text.trim() || !Number.isFinite(w.start) || !Number.isFinite(w.end) || w.start < previousTime || w.end < w.start) return [];
+    const token = w.text.trim();
+    const start = text.indexOf(token, cursor);
+    if (start < 0 || !harmless(text.slice(cursor, start))) return [];
+    const end = start + token.length;
+    result.push({ start, end, from: w.start, to: w.end });
+    cursor = end;
+    previousTime = w.start;
+  }
+  return harmless(text.slice(cursor)) ? result : [];
+}
+
 /** Retain source offsets, including across repeated sentences and surrogate pairs. */
 export function speechChunks(text: string, max = 1200): { text: string; start: number; end: number }[] {
   if (max < 2) throw new Error("Speech chunk size must be at least 2.");

@@ -46,7 +46,7 @@ const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.fl
 /** One dock for narration and the transition from reading to discussion. */
 export function ListenBar({ from }: { from: () => string | null }) {
   const { ix, jumpToBlock } = useReader();
-  const { status, block, rate, elapsed, duration, error, needKey, follow, studyPaused } = useListen();
+  const { status, block, rate, elapsed, duration, error, needKey, follow, studyPaused, cache } = useListen();
   const on = useStore(s => s.settings.listen);
   const activeGloss = useStore(s => s.activeGloss);
   const pending = useStore(s => s.pending);
@@ -80,6 +80,7 @@ export function ListenBar({ from }: { from: () => string | null }) {
   const n = block ? ix.numbers.get(block) : undefined;
 
   return <section className={`study-player ${active ? "is-active" : "is-idle"}`} aria-label="Плеер чтения">
+    {active && cache === "unavailable" && <div role="status" className="study-player-error">Аудио играет, но не сохранилось на диск. После остановки повторная генерация может расходовать кредиты.</div>}
     {error && <div role="alert" className="study-player-error"><p>{error}</p><button type="button" onClick={openVoiceSettings}>{needKey ? "Подключить голос" : "Настройки голоса"}</button></div>}
     <div className="study-player-main">
       {on && <button type="button" className="study-play" aria-label={status === "playing" ? "Пауза" : status === "error" ? "Повторить озвучку" : active ? "Продолжить озвучку" : "Читать вслух"} disabled={status === "loading"} onClick={() => {
@@ -100,6 +101,7 @@ export function ListenBar({ from }: { from: () => string | null }) {
         <Popover label="Управление озвучкой" trigger={<Ellipsis size={18} />} triggerClass="study-icon" width={244}>
           {close => <div className="study-audio-options">
             <p className="study-audio-heading">Озвучка{n ? ` · ¶${n}` : ""}</p>
+            {active && (cache === "hit" || cache === "saved") && <p className="text-xs text-ink-3 px-2 pb-2">{cache === "hit" ? "С диска · без новой генерации" : "Аудио сохранено на этом Mac"}</p>}
             <button type="button" onClick={cycleRate}><span>Скорость</span><strong>{rate}×</strong></button>
             {active && <button type="button" onClick={() => { seekListening(0); close(); }}><RotateCcw size={15} /> Повторить фрагмент</button>}
             {block && <button type="button" onClick={() => { jumpToBlock(block, { flash: false }); close(); }}><Locate size={15} /> Вернуться к голосу</button>}

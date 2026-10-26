@@ -1,0 +1,37 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { mkdtemp, readdir, readFile, writeFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { cachedSpeech, speechCacheKey, type SpeechClip } from "../lib/speech-cache";
+const parts = { provider: "kokoro", model: "hexgrad/Kokoro-82M", voice: "af_heart", text: "Hello.", credential: "private-key" };
+const clip: SpeechClip = { audio: "YWJj", words: [], mimeType: "audio/mpeg" };
+test("disk cache survives callers, deduplicates concurrent generation and stores no credentials", async t => {
+  const dir = await mkdtemp(join(tmpdir(), "gloss-cache-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  let calls = 0;
+  const generate = async () => { calls++; return clip; };
+  const key = speechCacheKey(parts);
+  await Promise.all(Array.from({ length: 5 }, () => cachedSpeech(dir, key, generate)));
+  assert.equal(calls, 1);
+  const later = await cachedSpeech(dir, key, async () => { throw new Error("Must load disk"); });
+  assert.equal(later.cache, "hit");
+  assert.deepEqual(later.clip, clip);
+  const files = await readdir(dir);
+  assert.deepEqual(files, [`${key}.json`]);
+  const content = await readFile(join(dir, files[0]), "utf8");
+  assert.ok(!content.includes(parts.credential));
+  assert.ok(!content.includes(parts.text));
+  for (const override of [{ voice: "bf_emma" }, { model: "another-model" }, { text: "Hello!" }, { credential: "another-account" }, { provider: "elevenlabs" }]) assert.notEqual(speechCacheKey({ ...parts, ...override }), key);
+});
+test("provider failures are retryable; corrupt saved audio never silently spends again", async t => {
+  const dir = await mkdtemp(join(tmpdir(), "gloss-cache-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const key = speechCacheKey(parts);
+  await assert.rejects(cachedSpeech(dir, key, async () => { throw new Error("Provider failed"); }), /Provider failed/);
+  assert.equal((await cachedSpeech(dir, key, async () => clip)).cache, "saved");
+  await writeFile(join(dir, `${key}.json`), "broken json");
+  let calls = 0;
+  await assert.rejects(cachedSpeech(dir, key, async () => { calls++; return clip; }), /Saved audio/);
+  assert.equal(calls, 0);
+});
