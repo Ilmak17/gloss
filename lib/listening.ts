@@ -9,8 +9,8 @@ import { speechChunks, type TimedWord } from "./speech";
 import { readVoiceSettings } from "./voice-settings";
 
 /**
- * Read aloud. The text is spoken a passage at a time from where you are, each
- * clip fetched only when needed, and the paragraph being read is
+ * Read aloud. The text is spoken a passage at a time from where you are, the next
+ * clip prepared during playback, and the paragraph being read is
  * marked like the keyboard cursor so the eye can follow along.
  */
 
@@ -22,7 +22,7 @@ const RATE_KEY = "gloss:listen-rate";
 
 export const useListen = create<ListenState>(() => ({ status: "idle", block: null, offset: 0, rate: 1, elapsed: 0, duration: 0, studyPaused: false, follow: true }));
 
-const SPOKEN = new Set<Block["type"]>(["p", "h2", "h3", "quote", "li", "note"]);
+const SPOKEN = new Set<Block["type"]>(["p", "quote", "li", "note"]);
 
 /** A few hundred milliseconds of silence, played inside the click so phones let the voice play later. */
 function silence(): string {
@@ -63,6 +63,18 @@ let ctrl: AbortController | null = null;
 type Clip = { url: string; words: TimedWord[]; cache?: string };
 const clips = new Map<number, Promise<Clip>>();
 const urls = new Map<number, string>();
+const prefetched = new Set<number>();
+
+/** One bounded look-ahead, only after playback advances. Pausing/opening a book never starts it. */
+function prepareNext() {
+  if (!audio || audio.paused || wantedPaused || useListen.getState().status !== "playing") return;
+  if (audio.currentTime < .75 || !audio.src.startsWith("blob:")) return;
+  const next = idx + 1;
+  if (next >= items.length || prefetched.has(next)) return;
+  prefetched.add(next);
+  // Errors are retried normally when this passage becomes current; they must not stop today's audio.
+  void clip(next).catch(() => {});
+}
 
 function clip(i: number): Promise<Clip> {
   let p = clips.get(i);
@@ -125,7 +137,7 @@ async function playAt(i: number, s: number) {
     return;
   }
   if (s !== session || !audio) return;
-  // Fetch only the requested passage: no credits spent on unread paragraphs.
+  // At most one following passage is warmed after playback has actually advanced.
   useListen.setState({ cache: result.cache });
   release(i - 1);
   activeWords = result.words;
@@ -167,7 +179,7 @@ export function startListening(ix: DocIndex, fromBlock: string | null, fromOffse
 
   wantedPaused = false;
   audio ??= new Audio();
-  audio.ontimeupdate = () => { updatePosition(); highlightSpeech(); };
+  audio.ontimeupdate = () => { updatePosition(); highlightSpeech(); prepareNext(); };
   audio.onloadedmetadata = () => {
     if (audio?.src.startsWith("blob:") && pendingSeek !== null) { audio.currentTime = pendingSeek; pendingSeek = null; }
     updatePosition(); highlightSpeech();
@@ -220,6 +232,7 @@ export function stopListening() {
   }
   release(Infinity);
   clips.clear();
+  prefetched.clear();
   items = [];
   useListen.setState({ status: "idle", block: null, offset: 0, elapsed: 0, duration: 0, studyPaused: false, error: undefined, needKey: false, cache: undefined });
 }

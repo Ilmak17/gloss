@@ -99,6 +99,62 @@ test("study interruptions preserve audio and cannot revive an obsolete session",
     stopListening();
   });
 
+  await t.test("chapter playback starts with prose and skips headings between passages", async () => {
+    const requested: string[] = [];
+    t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
+      requested.push(JSON.parse(init?.body as string).text);
+      return new Response("test audio");
+    });
+    const book = indexArticle({ id: "heading-test", title: "Book", blocks: [
+      { id: "heading", type: "h2", runs: [{ text: "Chapter one" }] },
+      { id: "prose", type: "p", runs: [{ text: "The actual book text." }] },
+      { id: "subheading", type: "h3", runs: [{ text: "A heading" }] },
+      { id: "next", type: "p", runs: [{ text: "More book text." }] },
+    ] });
+    startListening(book, "heading"); await settle();
+    assert.equal(requested[0], "The actual book text.");
+    (a as unknown as { onended: () => void }).onended(); await settle();
+    assert.equal(requested[1], "More book text.");
+    stopListening();
+  });
+
+  await t.test("next passage is ready before the current one ends, but never more than one ahead", async () => {
+    const requested: string[] = [];
+    t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
+      requested.push(JSON.parse(init?.body as string).text);
+      return new Response("test audio");
+    });
+    const book = indexArticle({ id: "prefetch-test", title: "Book", blocks: ["One.", "Two.", "Three."].map((text, i) => ({ id: `p${i}`, type: "p" as const, runs: [{ text }] })) });
+    startListening(book, "p0"); await settle();
+    a.currentTime = 1;
+    (a as unknown as { ontimeupdate: () => void }).ontimeupdate(); await settle();
+    assert.deepEqual(requested, ["One.", "Two."]);
+    (a as unknown as { ontimeupdate: () => void }).ontimeupdate(); await settle();
+    assert.deepEqual(requested, ["One.", "Two."]);
+    (a as unknown as { onended: () => void }).onended(); await settle();
+    assert.equal(useListen.getState().block, "p1");
+    assert.equal(useListen.getState().status, "playing");
+    assert.deepEqual(requested, ["One.", "Two."], "transition reuses the prepared audio, without another network request");
+    pauseListening();
+    a.currentTime = 2;
+    (a as unknown as { ontimeupdate: () => void }).ontimeupdate(); await settle();
+    assert.equal(requested.length, 2);
+    stopListening();
+  });
+
+  await t.test("cancel during preparation cannot start late audio", async () => {
+    let resolve!: (value: Response) => void;
+    t.mock.method(globalThis, "fetch", () => new Promise<Response>(r => { resolve = r; }));
+    startListening(ix, "p1");
+    assert.equal(useListen.getState().status, "loading");
+    stopListening();
+    const calls = a.playCalls;
+    resolve(new Response("late audio")); await settle();
+    assert.equal(useListen.getState().status, "idle");
+    assert.equal(a.playCalls, calls);
+    assert.equal(a.src, "");
+  });
+
   await t.test("selection while loading prevents delayed automatic playback", async () => {
     let resolve!: (value: Response) => void;
     t.mock.method(globalThis, "fetch", () => new Promise<Response>(r => { resolve = r; }));

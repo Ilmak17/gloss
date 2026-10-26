@@ -91,8 +91,9 @@ export function ListenBar({ from }: { from: () => string | null }) {
     {active && cache === "unavailable" && <div role="status" className="study-player-error">Audio could not be saved. Replaying later may use credits.</div>}
     {error && <div role="alert" className="study-player-error"><p>{error}</p><button type="button" onClick={openVoiceSettings}>{needKey ? "Connect voice" : "Voice settings"}</button></div>}
     <div className="study-player-main">
-      {on && <button type="button" className="study-play" aria-label={status === "playing" ? "Pause" : status === "error" ? "Retry audio" : active ? "Resume listening" : "Read aloud"} disabled={status === "loading"} onClick={() => {
+      {on && <button type="button" className="study-play" data-tip={status === "loading" ? "Cancel audio preparation" : undefined} aria-label={status === "loading" ? "Cancel audio preparation" : status === "playing" ? "Pause" : status === "error" ? "Retry audio" : active ? "Resume listening" : "Read aloud"} onClick={() => {
         cancelListeningStart?.();
+        if (status === "loading") { stopListening(); return; }
         setUI({ activeGloss: null, notebookOpen: false });
         if (status === "idle") startHere(); else toggleListening();
       }}>{status === "loading" ? <LoaderCircle size={15} className="animate-spin" aria-hidden /> : <svg key={status === "playing" ? "pause" : "play"} className="study-play-glyph" width="16" height="16" viewBox="0 0 16 16" aria-hidden>
@@ -118,6 +119,7 @@ export function ListenBar({ from }: { from: () => string | null }) {
         <Popover label="Playback options" trigger={<Ellipsis size={18} />} triggerClass="study-icon" width={244}>
           {close => <div className="study-audio-options">
             <p className="study-audio-heading">Audio{n ? ` · ¶${n}` : ""}</p>
+            <p className="text-xs text-ink-3 px-2 pb-2">The next passage prepares while you listen. All prepared audio is saved.</p>
             {active && (cache === "hit" || cache === "saved") && <p className="text-xs text-ink-3 px-2 pb-2">{cache === "hit" ? "Saved audio · no new charge" : "Audio saved on this Mac"}</p>}
             {on && chooseListeningStart && <button type="button" onClick={() => { close(); chooseListeningStart(); }}><Locate size={15} /> Choose starting point…</button>}
             {on && active && <button type="button" onClick={() => { close(); startHere(); }}>From current reading position</button>}
