@@ -3,7 +3,7 @@
 import { useUser } from "@/components/account/auth";
 import { useRouter } from "next/navigation";
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState, ViewTransition } from "react";
-import { ChevronLeft, ChevronRight, LayoutGrid, Library as LibraryIcon, Search, X } from "lucide-react";
+import { ArrowRight, BookOpen as BookIcon, ChevronLeft, ChevronRight, Ellipsis, LayoutGrid, Library as LibraryIcon, Search, X } from "lucide-react";
 import { TopBar } from "@/components/ui/TopBar";
 import { readingMinutes, tidyTitle, wordCount } from "@/lib/article";
 import { forgetCover, paintAll } from "@/lib/covers";
@@ -19,15 +19,13 @@ import { AddButton, AddPanel, type AddTab } from "./AddPanel";
 import { Arrivals, type Wave } from "./Arrivals";
 import { Glyph } from "./Book";
 import { BookOpen, type Origin } from "./BookOpen";
-import { Shelf } from "./Shelf";
-import { Starter } from "./Starter";
 import { TopicGrid, TopicPage } from "./Topics";
 
 type View = "shelf" | "topics";
 
 const SEEN_KEY = "gloss:library-seen";
 /** Samples stay on the shelf until it has this many texts of your own, or for good once opened, unless taken off. */
-const SAMPLES_UNTIL = 6;
+const SAMPLES_UNTIL = 1;
 
 /**
  * Your library: everything on your shelf, sorted onto topics. The bookcase
@@ -52,11 +50,10 @@ export function Library() {
   const [topic, setTopic] = useState<TopicKey | null>(null);
   const [only, setOnly] = useState<TopicKey | null>(null);
   const [tag, setTag] = useState<TagKey | null>(null);
-  const [sort, setSort] = useState<Sort>("topic");
+  const [sort, setSort] = useState<Sort>("recent");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<{ id: string; origin: Origin } | null>(null);
   const [adding, setAdding] = useState<AddTab | null>(null);
-  const [fresh, setFresh] = useState<Set<string>>(() => new Set());
   const [leaving, setLeaving] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const known = useRef<Set<string> | null>(null);
@@ -103,10 +100,6 @@ export function Library() {
     const added = [...ids].filter((id) => !known.current!.has(id));
     known.current = ids;
     if (!added.length) return;
-    setFresh((f) => new Set([...f, ...added]));
-    // Each arrival's own timer, so a quick run of imports never leaves the early ones marked.
-    for (const id of added) setTimeout(() => setFresh((f) => (f.has(id) ? new Set([...f].filter((x) => x !== id)) : f)), 2600);
-
     // And they gather on the arrivals card: one card per run, kept open while more keep coming.
     const items = library.filter((x) => added.includes(x.id) && x.origin !== "sample");
     if (!items.length) return;
@@ -291,14 +284,6 @@ export function Library() {
                       <span>
                         <b>{stats.count}</b> {stats.count === 1 ? "text" : "texts"}
                       </span>
-                      {stats.topics > 0 && (
-                        <span>
-                          <b>{stats.topics}</b> {stats.topics === 1 ? "topic" : "topics"}
-                        </span>
-                      )}
-                      <span>
-                        <b>{stats.hours}</b> {stats.hours === 1 ? "hour" : "hours"} of reading
-                      </span>
                       {stats.reading > 0 && (
                         <span>
                           <b>{stats.reading}</b> in progress
@@ -333,22 +318,17 @@ export function Library() {
           </div>
         ) : (
           <div className="lib-tools">
-            <ViewSwitch view={view} onChange={(v) => go({ view: v })} />
+            {(books.length > 6 || view !== "shelf") && <ViewSwitch view={view} onChange={(v) => go({ view: v })} />}
             {searchBox}
-            {view === "shelf" && (
-              <div className="lib-sort" role="radiogroup" aria-label="Arrange by">
-                <span className="px-2 text-[12.5px] text-ink-4 max-md:hidden">Arrange by</span>
-                {SORTS.map((s) => (
-                  <button key={s.key} type="button" role="radio" aria-checked={sort === s.key} onClick={() => setSort(s.key)}>
-                    {s.label}
-                  </button>
-                ))}
-              </div>
+            {view === "shelf" && books.length > 1 && (
+              <select aria-label="Arrange books" value={sort} onChange={e => setSort(e.target.value as Sort)} className="ml-auto rounded-full border border-rule bg-bg px-3 py-2 text-sm text-ink-2">
+                {SORTS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+              </select>
             )}
           </div>
         )}
 
-        {view === "shelf" && !T && (
+        {view === "shelf" && !T && (books.length > 6 || only || tag) && (
           <ChipRow label="Filter">
             <Chip on={!only && !tag} onClick={() => (setOnly(null), setTag(null))}>
               All <span className="lib-n">{books.length}</span>
@@ -379,25 +359,24 @@ export function Library() {
               />
             ) : view === "shelf" ? (
               <>
-                {hydrated && (
-                  <Shelf
-                    books={sorted}
-                    shown={shown}
-                    sort={sort}
-                    openId={open?.id ?? null}
-                    fresh={fresh}
-                    onOpen={(b, el) => setOpen({ id: b.id, origin: { el, kind: "spine" } })}
-                    onLabel={sort === "topic" ? (k) => go({ view: "topics", topic: k as TopicKey }) : undefined}
-                  />
-                )}
+                {hydrated && <div className="reading-list">
+                  {sorted.filter(b => shown.has(b.id)).map(b => <div key={b.id} className="reading-card">
+                    <button type="button" data-book={b.id} className="reading-open" onClick={() => read(b)} aria-label={`${b.pct > 0 && b.pct < 1 ? "Continue" : "Read"} ${b.title}`}>
+                      <span className="reading-cover" aria-hidden><BookIcon size={24} strokeWidth={1.3} /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="reading-title">{b.title}</span>
+                        <span className="reading-author">{b.author}</span>
+                        <span className="reading-status">{b.pct >= 1 ? "Finished" : b.pct > 0 ? `${Math.round(b.pct * 100)}% read` : `${b.minutes} min read`}</span>
+                      </span>
+                      <span className="reading-action">{b.pct > 0 && b.pct < 1 ? "Continue" : "Read"}<ArrowRight size={16} /></span>
+                    </button>
+                    <button type="button" className="reading-details" aria-label={`Details for ${b.title}`} onClick={e => setOpen({ id: b.id, origin: { el: e.currentTarget.parentElement!.querySelector<HTMLElement>(".reading-cover")!, kind: "cover" } })}><Ellipsis size={18} /></button>
+                  </div>)}
+                </div>}
                 {hydrated && shown.size === 0 && books.length > 0 && (
-                  <p className="py-6 text-center text-[14px] text-ink-3">Nothing on the shelves matches{q ? <> &ldquo;{q}&rdquo;</> : ""}.</p>
+                  <p className="py-6 text-center text-[14px] text-ink-3">No books match{q ? <> &ldquo;{q}&rdquo;</> : ""}.</p>
                 )}
-                {hydrated && own.length < SAMPLES_UNTIL ? (
-                  <Starter count={own.length} signedIn={Boolean(isSignedIn)} onAdd={setAdding} />
-                ) : (
-                  hydrated && <p className="lib-hint">Click a spine to take it down. Arrow keys walk the shelf.</p>
-                )}
+                {hydrated && own.length === 0 && <p className="lib-hint">Add an EPUB or PDF to start reading.</p>}
               </>
             ) : (
               <TopicGrid topics={topics} onPick={(t: Topic) => go({ view: "topics", topic: t.key })} />

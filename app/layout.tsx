@@ -42,7 +42,7 @@ const legible = Atkinson_Hyperlegible_Next({
   adjustFontFallback: false,
 });
 
-const DESCRIPTION = "Highlight any line and ask it anything. An open model writes the answer in the margin, beside the words, citing the paragraphs it used.";
+const DESCRIPTION = "Your personal library. Read, listen, and discuss the ideas that matter.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

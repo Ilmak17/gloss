@@ -47,7 +47,7 @@ test("Codex handoff includes selected passage and neighboring context, with boun
   assert.match(packet, /Paragraph 2/);
   assert.match(packet, /Paragraph 3/);
   assert.doesNotMatch(packet, /Paragraph 0|Paragraph 4/);
-  assert.match(packet, /нужно проверить/);
+  assert.match(packet, /verify its claims/);
   assert.ok(packet.length < 10000);
 });
 

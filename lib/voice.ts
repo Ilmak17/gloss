@@ -12,7 +12,7 @@ export const TTS_MAX_CHARS = 1200;
 
 export const KOKORO_MODEL = "hexgrad/Kokoro-82M";
 export const KOKORO_URL = `https://api.deepinfra.com/v1/inference/${KOKORO_MODEL}`;
-export const KOKORO_VOICE = "af_heart";
+export const KOKORO_VOICE = "am_michael";
 export const KOKORO_VOICES = [
   { id: "af_heart", label: "Heart · American · female" },
   { id: "af_bella", label: "Bella · American · female" },

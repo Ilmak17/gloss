@@ -6,12 +6,12 @@ import { uid, useStore, type Anchor, type Gloss } from "./store";
 
 export const STUDY_QUESTIONS: Record<Action, string> = {
   ask: "",
-  explain: "Объясни смысл этого фрагмента на простом примере.",
-  define: "Что означает это понятие именно здесь?",
-  simplify: "Объясни эту мысль проще, сохранив её смысл.",
-  check: "Какие доказательства подтверждают эту мысль? Что нужно проверить?",
-  connect: "С какими другими идеями связан этот фрагмент?",
-  counter: "Какое самое сильное возражение можно привести?",
+  explain: "Explain this passage with a simple example.",
+  define: "What does this concept mean here?",
+  simplify: "Explain this idea in simpler terms.",
+  check: "What evidence supports this claim? What should we check?",
+  connect: "How does this connect to other ideas?",
+  counter: "What is the strongest counterargument?",
 };
 
 /** Saving a study question is entirely local: no model, key or network call. */

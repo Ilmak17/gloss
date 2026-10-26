@@ -8,7 +8,7 @@ No Clerk account or database is needed for local reading. Keep `.env.local` out 
 
 ## Books
 
-Choose **Open a book or PDF** on the home page, or **Add books & articles → Books & files** in the library. EPUB, PDF, Markdown and plain text are supported. The reader's **Contents** button moves between EPUB spine sections. Reading position is restored when the document opens again.
+The home page opens your library. Choose **Add a book → Books & files**. EPUB, PDF, Markdown and plain text are supported. The reader's **Contents** button moves between EPUB spine sections. Reading position is restored when the document opens again.
 
 EPUB import runs in the browser. It preserves reading order, prose, headings, emphasis, supported tables and packaged PNG/JPEG/GIF/WebP images. This is a reading view, not a reproduction of the publisher's page layout. DRM-encrypted chapters are unsupported; SVG, embedded media and book CSS are not rendered. Internal footnote navigation and nested publisher navigation are not implemented yet.
 
@@ -16,17 +16,17 @@ The maximum archive size is 64 MB, with 16 MB per expanded file and 128 MB total
 
 ## Listen while reading
 
-Kokoro via DeepInfra is the default for English books. Set a server key in the ignored `.env.local`, or enter one under **Voice settings → Подключить DeepInfra**:
+Kokoro via DeepInfra is the default for English books. Set a server key in the ignored `.env.local`, or enter one under **Voice settings → Advanced**:
 
 ```dotenv
 DEEPINFRA_API_KEY=your-key
 ```
 
-Restart the local server after editing environment settings. Choose one of six American/British voices and use **Послушать голос** to compare a short original English passage. Each preview is generated only on click and saved just like book audio. The standard DeepInfra tier is explicit: no priority premium. Published price checked 2026-10-26: $0.99 per million characters; actual billing is controlled by DeepInfra. Account funds are required.
+Restart the local server after editing environment settings. Michael is the default voice. Choose one of six American/British voices and use **Preview voice** to compare a short original English passage. Each preview is generated only on click and saved just like book audio. The standard DeepInfra tier is explicit: no priority premium. Published price checked 2026-10-26: $0.99 per million characters; actual billing is controlled by DeepInfra. Account funds are required.
 
 ElevenLabs remains an explicit alternative, using `ELEVENLABS_API_KEY` and optionally `ELEVENLABS_VOICE_ID`. Together uses its separate AI key. Browser settings store each provider's key separately; legacy ElevenLabs settings are retained when Kokoro becomes the default. No provider failure automatically switches to another paid provider. Kokoro's English voices refuse Cyrillic input with an actionable message.
 
-Use **Читать вслух** in the bottom player to begin at the current paragraph. Pause, resume, stop, speed, repeat, seek and follow-voice controls remain in **⋯**. Time is for the current passage. Kokoro and ElevenLabs timestamps drive word highlighting where the CSS Custom Highlight API is available. Missing or mismatched words (including normalized numbers) fall back to paragraph tracking instead of guessing offsets.
+Use **Read aloud** in the bottom player to begin at the current paragraph. Pause, resume, stop, speed, repeat, seek and follow-voice controls remain in **⋯**. Time is for the current passage. Kokoro and ElevenLabs timestamps drive word highlighting where the CSS Custom Highlight API is available. Missing or mismatched words (including normalized numbers) fall back to paragraph tracking instead of guessing offsets.
 
 ### Persistent audio
 
@@ -40,12 +40,15 @@ Preparing study questions is local and needs no AI key.
 
 ## Read and discuss
 
-The compact player keeps playback, passage progress and **Разбор** visible.
+The compact player keeps playback, passage progress and **Discuss** visible.
 Open **⋯** for speed, repeat, follow-voice, voice settings and stop. The menu
 opens upward and closes on Escape or an outside click.
 
+The interface is in English. The library opens books directly from a compact reading list; the Details button keeps rename, organization and removal available. Topic filters appear as the collection grows.
+
 The desktop reader has contents on the left and a question panel on the right.
-Select text and choose **Explain**, or use **Разбор** in the player.
+Select text and choose **Explain**, or use **Discuss** in the player.
+The copied context still requests explanations in Russian, without translating book text or changing existing notes.
 Selecting text, opening a discussion or opening the notebook pauses narration.
 The return-to-reading button resumes only when studying interrupted active playback;
 closing the panel with X or Escape leaves it paused. Chapter navigation stops
@@ -61,7 +64,7 @@ not presented as answers. The reader no longer shows the Together logo, key
 prompt, model selector or AI brief generation. Legacy provider routes and
 non-reader features remain in the codebase.
 
-**Скопировать для Codex** prepares the quote, question, nearby paragraphs and
+**Copy for Codex** prepares the quote, question, nearby paragraphs and
 saved discussion for manual pasting into a Codex chat. It does not send messages
 or read this chat's history. The complete packet is also available in a selectable
 field if the embedded browser cannot access the clipboard. It explicitly marks

@@ -49,33 +49,32 @@ function Discussion({ gloss }: { gloss: Gloss }) {
     catch { setCopyError(true); setCopied(false); }
   };
 
-  return <aside className="study-panel study-handoff" aria-label="Разбор текста" onKeyDown={e => {
+  return <aside className="study-panel study-handoff" aria-label="Discuss this passage" onKeyDown={e => {
     if (e.key === "Escape") { e.stopPropagation(); close(); }
   }}>
     <header className="handoff-heading">
-      <h2>Разберём мысль</h2>
-      <button ref={closeRef} type="button" onClick={close} aria-label="Закрыть разбор" className="study-icon"><X size={17} strokeWidth={1.5} /></button>
+      <h2>Discuss</h2>
+      <button ref={closeRef} type="button" onClick={close} aria-label="Close discussion" className="study-icon"><X size={17} strokeWidth={1.5} /></button>
     </header>
     <div className="handoff-body scroll-thin">
-      <section className="handoff-source" aria-label="Выбранный фрагмент">
-        <div className="handoff-source-title"><span>{gloss.anchor ? "Из текста" : "О тексте"}</span>{block && <button type="button" onClick={() => jumpToBlock(block, { flash: false })}> {number ? `¶${number}` : "К фрагменту"} <ArrowUpRight size={12} /></button>}</div>
-        {gloss.anchor ? <details className="handoff-quote"><summary><span>{gloss.anchor.quote}</span><small>Раскрыть цитату</small></summary><blockquote>{gloss.anchor.quote}</blockquote></details> : <p className="handoff-book-title">{ix.article.title}</p>}
+      <section className="handoff-source" aria-label="Selected passage">
+        <div className="handoff-source-title"><span>{gloss.anchor ? "Passage" : "Whole text"}</span>{block && <button type="button" onClick={() => jumpToBlock(block, { flash: false })}> {number ? `¶${number}` : "Go to passage"} <ArrowUpRight size={12} /></button>}</div>
+        {gloss.anchor ? <details className="handoff-quote"><summary><span>{gloss.anchor.quote}</span><small>Show full passage</small></summary><blockquote>{gloss.anchor.quote}</blockquote></details> : <p className="handoff-book-title">{ix.article.title}</p>}
       </section>
 
-      <label className="handoff-question-label" htmlFor="study-question">Что хочется понять?</label>
-      <textarea id="study-question" className="handoff-question" maxLength={2000} value={question} onChange={e => edit(e.target.value)} placeholder="Например: почему автор делает такой вывод?" />
-      <div className="handoff-suggestions" aria-label="Идеи для вопроса">
-        {["Объясни на примере", "Разбери по шагам", "Где границы этой идеи?"].map(q => <button key={q} type="button" onClick={() => edit(q)}>{q}<ArrowUpRight size={12} /></button>)}
+      <label className="handoff-question-label" htmlFor="study-question">Your question</label>
+      <textarea id="study-question" className="handoff-question" maxLength={2000} value={question} onChange={e => edit(e.target.value)} placeholder="What would you like to understand?" />
+      <div className="handoff-suggestions" aria-label="Suggested questions">
+        {["Give me an example", "Explain step by step"].map(q => <button key={q} type="button" onClick={() => edit(q)}>{q}<ArrowUpRight size={12} /></button>)}
       </div>
 
-      {history.length > 0 && <details className="handoff-history"><summary>Ранее обсуждали в читалке</summary>{history.map((t, i) => <div key={i}><span>{t.role === "user" ? "Вопрос" : "Сохранённый ответ AI"}</span><Answer text={t.content} sources={t.sources} /></div>)}</details>}
-      <p className="handoff-saved"><Check size={12} /> Вопрос сохранён в заметках</p>
+      {history.length > 0 && <details className="handoff-history"><summary>Previous discussion</summary>{history.map((t, i) => <div key={i}><span>{t.role === "user" ? "Question" : "Saved AI answer"}</span><Answer text={t.content} sources={t.sources} /></div>)}</details>}
     </div>
     <footer className="handoff-footer">
-      <button type="button" className="handoff-copy" onClick={copy}>{copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Скопировать ещё раз" : "Скопировать для Codex"}</button>
-      <p role="status">{copyError ? "Не удалось скопировать. Текст доступен ниже." : copied ? "Готово. Вставь в наш чат Codex." : "Вставь в наш чат — фрагмент и контекст будут внутри."}</p>
-      {packet && <details className="study-context" open={copyError || undefined}><summary>Показать подготовленный текст</summary><textarea aria-label="Контекст для ручного копирования" readOnly value={packet} onFocus={e => e.currentTarget.select()} /></details>}
-      <button type="button" className="handoff-return" onClick={() => { close(); resumeAfterStudy(); }}><ArrowLeft size={14} /> {studyPaused ? "Продолжить чтение и озвучку" : "Вернуться к чтению"}</button>
+      <button type="button" className="handoff-copy" onClick={copy}>{copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Copy again" : "Copy for Codex"}</button>
+      <p role="status">{copyError ? "Copy failed. Select the text below." : copied ? "Copied. Paste into our Codex chat." : "Paste into Codex to discuss."}</p>
+      {packet && <details className="study-context" open={copyError || undefined}><summary>View context</summary><textarea aria-label="Context to copy" readOnly value={packet} onFocus={e => e.currentTarget.select()} /></details>}
+      <button type="button" className="handoff-return" onClick={() => { close(); resumeAfterStudy(); }}><ArrowLeft size={14} /> {studyPaused ? "Resume listening" : "Back to reading"}</button>
     </footer>
   </aside>;
 }

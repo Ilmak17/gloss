@@ -7,7 +7,7 @@ import { BookOpen, BookmarkPlus, Check, Copy, Loader2, Plus, Trash2, X } from "l
 import { importFromFile, importFromUrl, keep, looksLikeUrl } from "@/lib/import";
 import { normalizeUrl } from "@/lib/links";
 import { useStore } from "@/lib/store";
-import { Mark, MarkStack, type AgentMark } from "./AgentMarks";
+import { Mark, type AgentMark } from "./AgentMarks";
 import { Glyph } from "./Book";
 
 export type AddTab = "links" | "agent" | "files";
@@ -40,11 +40,8 @@ export function AddPanel({ tab, onTab, onClose, signedIn }: { tab: AddTab; onTab
         <header className="flex items-center justify-between gap-3">
           <div className="lib-sort !ml-0 flex-wrap" role="tablist" aria-label="Add">
             <button type="button" role="tab" aria-selected={tab === "files"} aria-checked={tab === "files"} onClick={() => onTab("files")}>Books & files</button>
-            <button type="button" role="tab" aria-selected={tab === "agent"} aria-checked={tab === "agent"} onClick={() => onTab("agent")}>
-              Connect an agent
-            </button>
             <button type="button" role="tab" aria-selected={tab === "links"} aria-checked={tab === "links"} onClick={() => onTab("links")}>
-              Save links manually
+              Web links
             </button>
           </div>
           <button type="button" aria-label="Close" data-tip="Close" data-tip-kbd="Esc" onClick={onClose} className="grid size-9 place-items-center rounded-full text-ink-3 transition-colors hover:bg-sunk hover:text-ink">
@@ -66,16 +63,12 @@ export function AddPanel({ tab, onTab, onClose, signedIn }: { tab: AddTab; onTab
 export function AddButton({ onClick, compact }: { onClick: () => void; compact?: boolean }) {
   return (
     <button type="button" onClick={onClick} className={`lib-add${compact ? " is-compact" : ""}`}>
-      <MarkStack size={compact ? 22 : 26} />
+      <Plus size={compact ? 18 : 20} />
       <span className="min-w-0 text-left">
-        <span className="lib-add-title">Add books & articles</span>
-        {!compact && <span className="lib-add-sub">Import books, save links, or connect an agent</span>}
+        <span className="lib-add-title">Add a book</span>
+
       </span>
-      {!compact && (
-        <span className="lib-add-plus" aria-hidden>
-          <Plus size={15} strokeWidth={2.2} />
-        </span>
-      )}
+
     </button>
   );
 }
@@ -453,7 +446,7 @@ function Files() {
     } finally { setBusy(false); setStatus(""); }
   }
   return <div className="mt-5">
-    <h2 className="font-serif text-xl">Your books, on your shelf</h2>
+    <h2 className="font-serif text-xl">Open a book</h2>
     <p className="mt-2 text-sm text-ink-3">Import EPUB, PDF, Markdown or plain text. EPUB books keep their chapter order and reading position. Files stay in this browser.</p>
     <label className="mt-5 block rounded-xl border border-dashed border-rule-strong p-6 text-sm">
       Choose books or documents

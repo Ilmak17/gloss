@@ -16,14 +16,14 @@ export function studyContext(ix: DocIndex, gloss: Gloss): string {
   const surrounding = ix.article.blocks.slice(Math.max(0, i - 1), i + 2)
     .map(b => ix.texts.get(b.id) ?? "").join("\n\n").slice(0, 6000);
   const turns = gloss.turns.filter(t => t.content).slice(-4)
-    .map(t => `${t.role === "user" ? "Мой вопрос" : "Ответ AI в читалке (нужно проверить)"}: ${t.content.slice(0, 2000)}`).join("\n\n");
+    .map(t => `${t.role === "user" ? "My question" : "Saved AI answer (verify its claims)"}: ${t.content.slice(0, 2000)}`).join("\n\n");
   return [
-    "Разберём фрагмент моего чтения. Объясняй по-русски: смысл, механизм, пример, затем при необходимости углубимся. Отделяй слова автора от дополнительных знаний.",
-    "Ниже часть документа. Если для ответа её недостаточно, скажи, какой контекст нужен.",
-    `Книга / статья: ${ix.article.title.slice(0, 500)}${ix.article.author ? `\nАвтор: ${ix.article.author.slice(0, 300)}` : ""}`,
-    `Выделенный фрагмент:\n${(gloss.anchor?.quote ?? "Вопрос ко всему тексту").slice(0, 6000)}`,
-    `Соседний контекст (часть текста):\n${surrounding}`,
-    `Мой вопрос: ${(gloss.question?.trim() || "Что здесь имеет в виду автор?").slice(0, 2000)}`,
+    "Help me understand this passage. Explain in Russian: meaning, mechanism, then an example. Go deeper when useful. Distinguish the author's claims from additional knowledge.",
+    "This is an excerpt, not the full document. Say what additional context you need if it is insufficient.",
+    `Book / article: ${ix.article.title.slice(0, 500)}${ix.article.author ? `\nAuthor: ${ix.article.author.slice(0, 300)}` : ""}`,
+    `Selected passage:\n${(gloss.anchor?.quote ?? "Question about the whole text").slice(0, 6000)}`,
+    `Nearby context (excerpt):\n${surrounding}`,
+    `My question: ${(gloss.question?.trim() || "What does the author mean here?").slice(0, 2000)}`,
     turns,
   ].filter(Boolean).join("\n\n");
 }

@@ -52,7 +52,7 @@ function KeyButton() {
         onClick={openKeyMenu}
         className="inline-flex h-8 items-center rounded-full bg-ink px-3.5 text-[12.5px] font-medium text-bg transition-transform active:scale-[0.97]"
       >
-        Подключить AI · ключ Together
+        Connect AI · Together key
       </button>
       <Show when="signed-out">
         <SignInButton mode="modal">
@@ -81,7 +81,7 @@ function TurnBody({ t }: { t: Turn }) {
   if (t.error && !t.content)
     return (
       <>
-        <p className="text-[13.5px] text-rubric-text">{t.needKey ? "Для ответов AI нужен ключ Together. Озвучка ElevenLabs подключается отдельно." : t.error}</p>
+        <p className="text-[13.5px] text-rubric-text">{t.needKey ? "AI answers require a Together key. Voice settings are separate." : t.error}</p>
         {t.needKey && <KeyButton />}
       </>
     );
@@ -309,8 +309,8 @@ export const GlossCard = forwardRef<HTMLElement, Props>(function GlossCard({ glo
                   inputRef.current?.blur();
                 }
               }}
-              placeholder="Уточнить мысль…"
-              aria-label="Уточнить мысль"
+              placeholder="Ask a follow-up…"
+              aria-label="Ask a follow-up"
               className="h-9 min-w-0 flex-1 bg-transparent text-[13.5px] text-ink outline-none focus-visible:outline-none placeholder:text-ink-4"
             />
             <button

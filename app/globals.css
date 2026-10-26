@@ -1955,9 +1955,9 @@ a.desk-tile:focus-visible {
 .study-reader .prose-read .blk { scroll-margin-bottom: 160px; }
 .study-contents { position: fixed; inset: var(--topbar-h) auto 0 0; width: var(--study-left); display: flex; flex-direction: column; padding: 28px 20px; border-right: 1px solid var(--rule); z-index: 2; }
 .study-library { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 12px; }
-.study-book { margin: 26px 0 30px; padding: 22px 16px; background: color-mix(in oklab, var(--study-accent) 12%, var(--bg)); border-left: 4px solid color-mix(in oklab, var(--study-accent) 26%, var(--bg)); }
+.study-book { margin: 28px 0; padding: 0; }
 .study-book > span, .study-eyebrow { font-size: 9px; letter-spacing: .14em; color: var(--ink-3); }
-.study-book h2 { margin-top: 12px; font-family: var(--font-serif); font-size: 22px; line-height: 1.15; overflow-wrap: anywhere; }
+.study-book h2 { margin-top: 0; font-family: var(--font-serif); font-size: 18px; line-height: 1.3; overflow-wrap: anywhere; }
 .study-book p { margin-top: 12px; font-size: 11px; color: var(--ink-3); }
 .study-contents nav { overflow: auto; margin: 14px -8px; flex: 1; min-height: 60px; }
 .study-contents nav button { display: flex; gap: 9px; width: 100%; padding: 12px 10px; border-radius: 8px; font-size: 12px; text-align: left; color: var(--ink-3); }
@@ -1996,7 +1996,7 @@ a.desk-tile:focus-visible {
 .handoff-quote small { display: block; margin-top: 9px; color: var(--ink-3); font-size: 10px; }
 .handoff-quote[open] summary > span { display: none; }
 .handoff-quote[open] small { font-size: 0; }
-.handoff-quote[open] small::after { content: "Свернуть цитату"; font-size: 10px; }
+.handoff-quote[open] small::after { content: "Collapse passage"; font-size: 10px; }
 .handoff-quote blockquote { margin-top: 10px; max-height: 25dvh; overflow: auto; font-family: var(--font-serif); font-size: 17px; line-height: 1.5; white-space: pre-wrap; }
 .handoff-book-title { font-family: var(--font-serif); font-size: 20px; line-height: 1.4; }
 .handoff-question-label { display: block; margin: 20px 0 10px; font-size: 13px; font-weight: 500; }
@@ -2079,3 +2079,9 @@ a.desk-tile:focus-visible {
   .study-player-main > .study-play, .study-player-menu .study-icon { min-width: 40px; height: 40px; }
   .study-main { padding-top: calc(var(--topbar-h) + 26px); }
 }
+
+/* Contents stay available when the reading sidebar is hidden. */
+.reader-contents-menu { display: none; }
+@media (max-width: 1279px) { .is-studying .reader-contents-menu { display: block; } }
+@media (max-width: 999px) { .reader-contents-menu { display: block; } }
+.focus-mode .reader-contents-menu { display: block; }

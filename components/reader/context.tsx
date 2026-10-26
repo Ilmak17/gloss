@@ -6,8 +6,8 @@ import type { DocIndex } from "@/lib/doc";
 export type ReaderApi = {
   ix: DocIndex;
   /** Scroll a paragraph into view and flash it. */
-  jumpTo: (n: number, opts?: { flash?: boolean }) => void;
-  jumpToBlock: (blockId: string, opts?: { flash?: boolean }) => void;
+  jumpTo: (n: number, opts?: { flash?: boolean; instant?: boolean }) => void;
+  jumpToBlock: (blockId: string, opts?: { flash?: boolean; instant?: boolean }) => void;
   /** Show a floating preview of a paragraph next to a citation chip. */
   peek: (n: number | null, rect?: DOMRect) => void;
 };

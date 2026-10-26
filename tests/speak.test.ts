@@ -79,7 +79,7 @@ test("Kokoro uses standard pricing, its own credential and source-aligned word t
     assert.equal(url, "https://api.deepinfra.com/v1/inference/hexgrad/Kokoro-82M");
     assert.equal((options.headers as Record<string, string>).Authorization, "Bearer deepinfra-test");
     assert.equal((options.headers as Record<string, string>)["xi-api-key"], undefined);
-    assert.deepEqual(JSON.parse(options.body as string), { text: "Hello, world!", preset_voice: ["af_heart"], output_format: "mp3", speed: 1, stream: false, return_timestamps: true, service_tier: "default" });
+    assert.deepEqual(JSON.parse(options.body as string), { text: "Hello, world!", preset_voice: ["am_michael"], output_format: "mp3", speed: 1, stream: false, return_timestamps: true, service_tier: "default" });
     return Response.json({ audio: "data:audio/mpeg;base64,YWJj", words: [{ text: "Hello", start: 0, end: 0.4 }, { text: "world", start: 0.5, end: 0.9 }] });
   });
   const response = await POST(req({ provider: "kokoro", apiKey: "deepinfra-test", text: "Hello, world!" }));

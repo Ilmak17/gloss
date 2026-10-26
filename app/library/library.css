@@ -2081,3 +2081,24 @@ button.starter-card:active {
     transition: opacity 0.2s ease;
   }
 }
+
+/* A quiet reading list: open a book in one click, manage it from Details. */
+.library .lib-title { font-size: clamp(32px, 5vw, 48px); }
+.reading-list { display: grid; gap: 12px; padding-top: 24px; }
+.reading-card { display: flex; align-items: center; border: 1px solid var(--rule); border-radius: 16px; background: var(--bg-raised); }
+.reading-open { display: flex; align-items: center; gap: 20px; flex: 1; min-width: 0; padding: 22px; text-align: left; border-radius: 16px; }
+.reading-open:hover { background: var(--bg-sunk); }
+.reading-cover { display: grid; place-items: center; flex: none; width: 52px; height: 70px; background: var(--bg-sunk); color: var(--ink-3); border: 1px solid var(--rule); border-radius: 4px 8px 8px 4px; }
+.reading-title { display: block; font-family: var(--font-serif); font-size: 23px; line-height: 1.25; overflow-wrap: anywhere; }
+.reading-author { display: block; margin-top: 5px; font-size: 13px; color: var(--ink-3); }
+.reading-status { display: block; margin-top: 10px; font-size: 11px; color: var(--ink-3); }
+.reading-action { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+.reading-details { flex: none; display: grid; place-items: center; width: 36px; height: 36px; margin-right: 16px; border-radius: 50%; color: var(--ink-3); }
+.reading-details:hover { background: var(--bg-sunk); color: var(--ink); }
+@media (max-width: 599px) {
+  .reading-open { gap: 12px; padding: 16px; }
+  .reading-cover { width: 36px; height: 50px; }
+  .reading-title { font-size: 19px; }
+  .reading-action { display: none; }
+  .reading-details { margin-right: 8px; }
+}

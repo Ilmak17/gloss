@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { blockEl, selectBlock, spanIn } from "@/lib/anchor";
-import { displayArticle, readingMinutes, titleClass, type Article } from "@/lib/article";
+import { displayArticle, readingMinutes, type Article } from "@/lib/article";
 import { ARTICLE_QUESTIONS } from "@/lib/actions";
 import { SAMPLE_QUESTIONS } from "@/lib/samples";
 import { startStudy } from "@/lib/study-draft";
@@ -136,11 +136,11 @@ function ReaderInner({ article }: { article: Article }) {
 
   /* ---------------- navigation ---------------- */
 
-  const jumpToBlock = useCallback((blockId: string, opts?: { flash?: boolean }) => {
+  const jumpToBlock = useCallback((blockId: string, opts?: { flash?: boolean; instant?: boolean }) => {
     const el = blockEl(blockId);
     if (!el) return;
     const top = el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.28;
-    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    window.scrollTo({ top: Math.max(0, top), behavior: opts?.instant ? "instant" : "smooth" });
     if (opts?.flash !== false) {
       el.classList.remove("is-flash");
       void el.offsetWidth;
@@ -405,7 +405,7 @@ function ReaderInner({ article }: { article: Article }) {
           break;
         case "b":
         case "B": {
-          startStudy(ix, { action: "ask", question: "Помоги понять главную мысль текста и доказательства автора." });
+          startStudy(ix, { action: "ask", question: "Help me understand the main idea and the evidence behind it." });
           break;
         }
         case "n":
@@ -445,7 +445,6 @@ function ReaderInner({ article }: { article: Article }) {
 
   const studying = !!activeGloss && !notebookOpen;
 
-  const paraCount = ix.byNumber.size;
   // A short line above the title: where this came from.
   const kicker = article.source ? article.source.split(/,|\(/)[0].trim() : article.origin === "paste" ? "Pasted text" : undefined;
 
@@ -466,7 +465,7 @@ function ReaderInner({ article }: { article: Article }) {
                     <span className="truncate">{kicker}</span>
                   </p>
                 )}
-                <h1 className={`rise font-serif font-[380] tracking-[-0.022em] text-ink text-balance [font-variation-settings:'opsz'_72] ${titleClass(article.title)}`} style={{ animationDelay: "40ms" }}>
+                <h1 className={`rise font-serif font-[380] tracking-[-0.022em] text-ink text-balance [font-variation-settings:'opsz'_72] text-[clamp(2rem,4vw,3.25rem)] leading-[1.1]`} style={{ animationDelay: "40ms" }}>
                   {article.title}
                 </h1>
                 {article.dek && (
@@ -483,7 +482,7 @@ function ReaderInner({ article }: { article: Article }) {
                       {article.published && <span className="text-ink-3">{`  \u00b7  ${article.published}`}</span>}
                     </p>
                     <p className="mt-1 text-[13px] leading-snug text-ink-3">
-                      {readingMinutes(ix.words)} min read <span className="text-ink-4">{"\u00b7"}</span> {paraCount} paragraphs
+                      {readingMinutes(ix.words)} min read
                     </p>
                   </div>
                   {article.sourceUrl && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Focus, Keyboard, NotebookPen } from "lucide-react";
+import { Focus, NotebookPen } from "lucide-react";
 import { Account } from "@/components/account/Account";
 import { Lockup } from "@/components/brand/Gloss";
 import { ContentsMenu } from "./ContentsMenu";
@@ -121,13 +121,8 @@ export function TopBar({ currentN, pastTitle }: { currentN: number | null; pastT
         </div>
 
         <nav aria-label="Reader tools" className="flex items-center gap-1">
-          <button type="button" className={barBtn} aria-label="Фокус" aria-pressed={focusMode} onClick={() => setUI({ focusMode: !focusMode, activeGloss: null })}><Focus size={17} /><span className="hidden lg:inline">Фокус</span></button>
-          <span className="hidden sm:block">
-            <button type="button" className={barBtn} onClick={() => setUI({ shortcutsOpen: true })} aria-label="Keyboard shortcuts" data-tip="Shortcuts" data-tip-kbd="?">
-              <Keyboard size={17} strokeWidth={1.8} />
-            </button>
-          </span>
-          <ContentsMenu />
+          <button type="button" className={barBtn} aria-label="Focus" aria-pressed={focusMode} onClick={() => setUI({ focusMode: !focusMode, activeGloss: null })}><Focus size={17} /><span className="hidden lg:inline">Focus</span></button>
+          <span className="reader-contents-menu"><ContentsMenu /></span>
           <VoiceMenu />
           <SettingsMenu readingOnly />
           <button
@@ -140,7 +135,7 @@ export function TopBar({ currentN, pastTitle }: { currentN: number | null; pastT
             data-tip-kbd="N"
           >
             <NotebookPen size={16} strokeWidth={1.8} />
-            <span className="hidden sm:inline">Заметки</span>
+            <span className="hidden sm:inline">Notes</span>
             {count > 0 && (
               <span className="min-w-[18px] rounded-full bg-[var(--rubric)] px-1.5 text-center text-[11px] font-semibold leading-[18px] tabular-nums text-white">{count}</span>
             )}

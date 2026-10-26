@@ -31,7 +31,7 @@ const KEYS: [string, string][] = [
   ["J  K", "Next and previous paragraph"],
   ["Enter", "Ask about the current paragraph"],
   ["[  ]", "Previous and next gloss"],
-  ["B", "Подготовить вопрос к тексту"],
+  ["B", "Discuss the text"],
   ["N", "Notebook"],
   ["F", "Focus mode"],
   ["Esc", "Close or step back"],

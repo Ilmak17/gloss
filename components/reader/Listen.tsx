@@ -79,11 +79,11 @@ export function ListenBar({ from }: { from: () => string | null }) {
   const active = status !== "idle";
   const n = block ? ix.numbers.get(block) : undefined;
 
-  return <section className={`study-player ${active ? "is-active" : "is-idle"}`} aria-label="Плеер чтения">
-    {active && cache === "unavailable" && <div role="status" className="study-player-error">Аудио играет, но не сохранилось на диск. После остановки повторная генерация может расходовать кредиты.</div>}
-    {error && <div role="alert" className="study-player-error"><p>{error}</p><button type="button" onClick={openVoiceSettings}>{needKey ? "Подключить голос" : "Настройки голоса"}</button></div>}
+  return <section className={`study-player ${active ? "is-active" : "is-idle"}`} aria-label="Reading player">
+    {active && cache === "unavailable" && <div role="status" className="study-player-error">Audio could not be saved. Replaying later may use credits.</div>}
+    {error && <div role="alert" className="study-player-error"><p>{error}</p><button type="button" onClick={openVoiceSettings}>{needKey ? "Connect voice" : "Voice settings"}</button></div>}
     <div className="study-player-main">
-      {on && <button type="button" className="study-play" aria-label={status === "playing" ? "Пауза" : status === "error" ? "Повторить озвучку" : active ? "Продолжить озвучку" : "Читать вслух"} disabled={status === "loading"} onClick={() => {
+      {on && <button type="button" className="study-play" aria-label={status === "playing" ? "Pause" : status === "error" ? "Retry audio" : active ? "Resume listening" : "Read aloud"} disabled={status === "loading"} onClick={() => {
         setUI({ activeGloss: null, notebookOpen: false });
         if (status === "idle") startListening(ix, from()); else toggleListening();
       }}>{status === "loading" ? <LoaderCircle size={15} className="animate-spin" aria-hidden /> : <svg key={status === "playing" ? "pause" : "play"} className="study-play-glyph" width="16" height="16" viewBox="0 0 16 16" aria-hidden>
@@ -91,24 +91,24 @@ export function ListenBar({ from }: { from: () => string | null }) {
       </svg>}</button>}
       <div className="study-timeline">
         {active && !error && duration > 0 ? <>
-          <input aria-label="Позиция в текущем аудиофрагменте" aria-valuetext={`${clock(elapsed)} из ${clock(duration)}`} type="range" min={0} max={duration} step={.1} value={elapsed} onChange={e => seekListening(Number(e.target.value))} style={{ backgroundImage: `linear-gradient(to right, var(--study-accent) ${Math.min(100, elapsed / duration * 100)}%, var(--rule-strong) 0%)` }} />
-          <span className="study-time" title={`Текущий фрагмент${n ? ` · ¶${n}` : ""}${studyPaused ? " · пауза для разбора" : ""}`}>{clock(elapsed)}<span> / {clock(duration)}</span></span>
-        </> : <span className="study-idle-label">{error ? "Голос недоступен" : status === "loading" ? "Готовим голос…" : on ? "Слушать текст" : "Читаем"}</span>}
+          <input aria-label="Position in current passage" aria-valuetext={`${clock(elapsed)} of ${clock(duration)}`} type="range" min={0} max={duration} step={.1} value={elapsed} onChange={e => seekListening(Number(e.target.value))} style={{ backgroundImage: `linear-gradient(to right, var(--study-accent) ${Math.min(100, elapsed / duration * 100)}%, var(--rule-strong) 0%)` }} />
+          <span className="study-time" title={`Current passage${n ? ` · ¶${n}` : ""}${studyPaused ? " · paused for discussion" : ""}`}>{clock(elapsed)}<span> / {clock(duration)}</span></span>
+        </> : <span className="study-idle-label">{error ? "Audio unavailable" : status === "loading" ? "Preparing audio…" : on ? "Listen" : "Reading"}</span>}
       </div>
       <span className="study-player-divider" aria-hidden />
-      <button type="button" className="study-discuss" aria-label="Разобрать абзац" data-tip="Разобрать текущий абзац" onClick={explain}><MessageCircle size={15} strokeWidth={1.6} /><span>Разбор</span></button>
+      <button type="button" className="study-discuss" aria-label="Discuss paragraph" data-tip="Discuss this paragraph" onClick={explain}><MessageCircle size={15} strokeWidth={1.6} /><span>Discuss</span></button>
       <div className="study-player-menu">
-        <Popover label="Управление озвучкой" trigger={<Ellipsis size={18} />} triggerClass="study-icon" width={244}>
+        <Popover label="Playback options" trigger={<Ellipsis size={18} />} triggerClass="study-icon" width={244}>
           {close => <div className="study-audio-options">
-            <p className="study-audio-heading">Озвучка{n ? ` · ¶${n}` : ""}</p>
-            {active && (cache === "hit" || cache === "saved") && <p className="text-xs text-ink-3 px-2 pb-2">{cache === "hit" ? "С диска · без новой генерации" : "Аудио сохранено на этом Mac"}</p>}
-            <button type="button" onClick={cycleRate}><span>Скорость</span><strong>{rate}×</strong></button>
-            {active && <button type="button" onClick={() => { seekListening(0); close(); }}><RotateCcw size={15} /> Повторить фрагмент</button>}
-            {block && <button type="button" onClick={() => { jumpToBlock(block, { flash: false }); close(); }}><Locate size={15} /> Вернуться к голосу</button>}
-            {on && <label><input type="checkbox" checked={follow} onChange={e => useListen.setState({ follow: e.target.checked })} /> Следовать за голосом</label>}
+            <p className="study-audio-heading">Audio{n ? ` · ¶${n}` : ""}</p>
+            {active && (cache === "hit" || cache === "saved") && <p className="text-xs text-ink-3 px-2 pb-2">{cache === "hit" ? "Saved audio · no new charge" : "Audio saved on this Mac"}</p>}
+            <button type="button" onClick={cycleRate}><span>Speed</span><strong>{rate}×</strong></button>
+            {active && <button type="button" onClick={() => { seekListening(0); close(); }}><RotateCcw size={15} /> Replay passage</button>}
+            {block && <button type="button" onClick={() => { jumpToBlock(block, { flash: false }); close(); }}><Locate size={15} /> Jump to audio</button>}
+            {on && <label><input type="checkbox" checked={follow} onChange={e => useListen.setState({ follow: e.target.checked })} /> Follow along</label>}
             <div className="study-audio-rule" />
-            <button type="button" onClick={() => { close(); openVoiceSettings(); }}><SlidersHorizontal size={15} /> Настройки голоса</button>
-            {active && <button type="button" onClick={() => { stopListening(); close(); }}><Square size={14} /> Остановить озвучку</button>}
+            <button type="button" onClick={() => { close(); openVoiceSettings(); }}><SlidersHorizontal size={15} /> Voice settings</button>
+            {active && <button type="button" onClick={() => { stopListening(); close(); }}><Square size={14} /> Stop listening</button>}
           </div>}
         </Popover>
       </div>

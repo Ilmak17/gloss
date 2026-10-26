@@ -37,11 +37,11 @@ export async function POST(req: Request) {
   const label = kokoro ? "DeepInfra" : eleven ? "ElevenLabs" : "Together";
   const ownKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
   const apiKey = ownKey || (kokoro ? process.env.DEEPINFRA_API_KEY : eleven ? process.env.ELEVENLABS_API_KEY : req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim());
-  if (!apiKey) return error(`Подключи ${label} в настройках голоса.`, 401, "need_key");
+  if (!apiKey) return error(`Connect ${label} in Voice settings.`, 401, "need_key");
   const defaultVoice = kokoro ? KOKORO_VOICE : eleven ? process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM" : TTS_VOICE;
   const voice = provider === "together" ? TTS_VOICE : typeof body.voiceId === "string" && body.voiceId.trim() ? body.voiceId.trim() : defaultVoice;
   if (!/^[a-zA-Z0-9_-]{1,100}$/.test(voice) || (kokoro && !KOKORO_VOICES.some(v => v.id === voice))) return error("Choose a supported voice in Voice settings.", 400);
-  if (kokoro && /\p{Script=Cyrillic}/u.test(text)) return error("Kokoro читает английский, но не русский. Для этого фрагмента выбери ElevenLabs в настройках.", 400, "unsupported_language");
+  if (kokoro && /\p{Script=Cyrillic}/u.test(text)) return error("Kokoro supports English, not Russian. Choose ElevenLabs for this passage.", 400, "unsupported_language");
   const model = kokoro ? KOKORO_MODEL : eleven ? "eleven_multilingual_v2" : TTS_MODEL;
   const local = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
   const cacheEnabled = local && process.env.GLOSS_AUDIO_CACHE !== "off";
@@ -56,18 +56,18 @@ export async function POST(req: Request) {
         headers: eleven ? { "Content-Type": "application/json", "xi-api-key": apiKey } : { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "User-Agent": APP_UA },
         body: JSON.stringify(kokoro ? { text, preset_voice: [voice], output_format: "mp3", speed: 1, stream: false, return_timestamps: true, service_tier: "default" } : eleven ? { text, model_id: model } : { model, voice, input: text, response_format: "mp3" }),
       });
-    } catch { throw new VoiceError("Не удалось получить озвучку. Попробуй ещё раз.", 502); }
+    } catch { throw new VoiceError("Could not generate audio. Please try again.", 502); }
     if (!res.ok) {
-      if (res.status === 401 || res.status === 403) throw new VoiceError(`${label} отклонил ключ или доступ к голосу. Проверь настройки.`, 401, "need_key");
+      if (res.status === 401 || res.status === 403) throw new VoiceError(`${label} rejected the key or voice access. Check Voice settings.`, 401, "need_key");
       if (res.status === 402) {
         if (eleven) {
           const data = await res.json().catch(() => null) as { detail?: { code?: string } } | null;
           if (data?.detail?.code === "paid_plan_required") throw new VoiceError("This library voice requires a paid ElevenLabs plan. Choose your own Voice Design voice in Voice settings, or check your ElevenLabs plan.", 402, "voice_plan_required");
         }
-        throw new VoiceError(`${label}: недостаточно средств или кредитов. Проверь баланс аккаунта.`, 402, "billing_required");
+        throw new VoiceError(`${label}: insufficient credits. Check your account balance.`, 402, "billing_required");
       }
-      if (res.status === 429) throw new VoiceError(`${label}: достигнут лимит запросов или кредитов. Попробуй позже.`, 429);
-      throw new VoiceError(`${label} не смог озвучить фрагмент (${res.status}).`, 502);
+      if (res.status === 429) throw new VoiceError(`${label}: request or credit limit reached. Try again later.`, 429);
+      throw new VoiceError(`${label} could not read this passage (${res.status}).`, 502);
     }
     if (provider === "together") {
       const bytes = Buffer.from(await res.arrayBuffer());
@@ -82,7 +82,7 @@ export async function POST(req: Request) {
       const audio = raw.replace(/^data:audio\/[\w.+-]+;base64,/, "");
       if (!audio || audio.length > 30_000_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(audio) || !Buffer.from(audio, "base64").length) throw new Error("Invalid audio");
       return { audio, words: kokoro ? kokoroWordsWithTiming(text, data.words) : wordsWithTiming(text, data.alignment), mimeType: "audio/mpeg" };
-    } catch { throw new VoiceError(`${label} вернул неполную озвучку. Попробуй ещё раз.`, 502); }
+    } catch { throw new VoiceError(`${label} returned incomplete audio. Please try again.`, 502); }
   };
   try {
     if (!cacheEnabled) return Response.json({ ...await generate(), cache: "disabled" }, { headers });
@@ -90,6 +90,6 @@ export async function POST(req: Request) {
     return Response.json({ ...result.clip, cache: result.cache }, { headers });
   } catch (e) {
     if (e instanceof VoiceError) return error(e.message, e.status, e.code);
-    return error("Не удалось открыть локальное хранилище аудио. Проверь доступ к папке .data/audio; повторная генерация остановлена.", 503, "cache_unavailable");
+    return error("Cannot access saved audio. Check permissions for .data/audio. New generation has been stopped to avoid repeat charges.", 503, "cache_unavailable");
   }
 }
