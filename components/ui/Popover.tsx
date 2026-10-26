@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 /** A button that opens a small panel. Closes on outside click and Escape. */
 export function Popover({
   label,
+  description,
   trigger,
   children,
   align = "right",
@@ -14,6 +15,7 @@ export function Popover({
   openOn,
 }: {
   label: string;
+  description?: string;
   trigger: ReactNode;
   children: (close: () => void) => ReactNode;
   align?: "left" | "right";
@@ -61,6 +63,7 @@ export function Popover({
       <button
         type="button"
         aria-label={label}
+        aria-description={description}
         data-tip={open ? undefined : tip ?? label}
         aria-expanded={open}
         aria-haspopup="dialog"

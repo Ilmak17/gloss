@@ -6,7 +6,7 @@ import { ACTIONS, isShortSelection, type Action } from "@/lib/actions";
 import { MARKERS, type Marker } from "@/lib/settings";
 import { anchorToRange, selectionToAnchor } from "@/lib/anchor";
 import { startStudy } from "@/lib/study-draft";
-import { pauseListening } from "@/lib/listening";
+import { pauseListening, startListening } from "@/lib/listening";
 import { uid, useStore, type Anchor } from "@/lib/store";
 import { useReader } from "./context";
 
@@ -39,7 +39,7 @@ const STARTERS = {
 export type OpenHighlight = { id: string; anchor: Anchor; at: number; note?: boolean };
 
 export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; openHighlight: OpenHighlight | null }) {
-  const { ix } = useReader();
+  const { ix, paged } = useReader();
   const [lens, setLens] = useState<LensState | null>(null);
   const [pos, setPos] = useState<{ x: number; y: number; below: boolean; arrow: number; docked: boolean } | null>(null);
   const [draft, setDraft] = useState("");
@@ -283,7 +283,7 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
   };
 
   const short = isShortSelection(lens.anchor.quote);
-  const primary: Action[] = ["explain", short ? "define" : "simplify"];
+  const primary: Action[] = paged ? ["explain"] : ["explain", short ? "define" : "simplify"];
   const more: Action[] = [short ? "simplify" : "define", "check", "connect", "counter"];
   const existing = lens.highlightId ? useStore.getState().highlights[ix.article.id]?.find((h) => h.id === lens.highlightId) : undefined;
   const markerColor = MARKERS.find((m) => m.key === marker)?.color;
@@ -407,6 +407,10 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
                 </button>
               );
             })}
+            {paged && <>
+              <button type="button" className="lens-btn px-2.5" onClick={() => run("ask", "Translate this passage into Russian, preserving the meaning. Briefly explain any idioms or ambiguous terms.")}>Translate</button>
+              <button type="button" className="lens-btn px-2.5" onClick={() => { const from = lens.anchor.start; close(); startListening(ix, from.b, from.o); }}>Listen from here</button>
+            </>}
             <button
               type="button"
               aria-label="More actions"

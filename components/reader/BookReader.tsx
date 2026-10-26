@@ -33,7 +33,7 @@ import {
   type Anchor,
   type Point,
 } from "@/lib/store";
-import { useListen } from "@/lib/listening";
+import { useListen, pauseListening, resumeAfterStudy, listeningSessionId } from "@/lib/listening";
 import { SettingsMenu } from "@/components/ui/SettingsMenu";
 import { barBtn } from "@/components/ui/Popover";
 import { Block, type Mark } from "./Block";
@@ -42,6 +42,10 @@ import { ReaderContext, type ReaderApi } from "./context";
 import { ListenBar } from "./Listen";
 import { StudyPanel } from "./StudyPanel";
 import { Notebook } from "./Notebook";
+import { BookPagination } from "./BookPagination";
+import { BookFootnote } from "./BookFootnote";
+import { locateBookPage } from "@/lib/book-pagination";
+import { Popover } from "@/components/ui/Popover";
 import { Lens, type OpenHighlight } from "./Lens";
 import { Peek } from "./Overlays";
 
@@ -63,6 +67,12 @@ export function BookReader({ article }: { article: Article }) {
   const viewport = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState(0);
   const [bookmarks, setBookmarks] = useState<BookMark[]>([]);
+  const [pageCounts, setPageCounts] = useState<number[] | null>(null);
+  const [returnPoint, setReturnPoint] = useState<Point | null>(null);
+  const [footnote, setFootnote] = useState<string | null>(null);
+  const [pageInput, setPageInput] = useState("");
+  const returnAudio = useRef<{session:number;follow:boolean} | null>(null);
+  const pendingPage = useRef<number | null>(null);
   const [saveError, setSaveError] = useState("");
   const [openHl, setOpenHl] = useState<OpenHighlight | null>(null);
   const [peek, setPeek] = useState<{ n: number; rect: DOMRect } | null>(null);
@@ -139,20 +149,38 @@ export function BookReader({ article }: { article: Article }) {
     },
     [chapters, awaken],
   );
+  const explore = useCallback((target: Point) => {
+    const origin = { ...point.current };
+    setReturnPoint(previous => previous ?? origin);
+    returnAudio.current ??= {session:listeningSessionId(),follow:useListen.getState().follow};
+    pauseListening(true);
+    go(target);
+  }, [go]);
+  const backToReading = () => {
+    if (!returnPoint) return;
+    go(returnPoint, false);
+    setReturnPoint(null);
+    if (returnAudio.current?.session === listeningSessionId()) {
+      useListen.setState({follow:returnAudio.current.follow});
+      resumeAfterStudy();
+    }
+    returnAudio.current = null;
+  };
   useLayoutEffect(() => {
     if (!viewport.current || !root) return;
     const vp = viewport.current;
     const layout = () => {
       const count = pageCount(vp);
-      const next = lastPage.current
+      const next = pendingPage.current !== null ? Math.min(count - 1, pendingPage.current) : lastPage.current
         ? count - 1
         : Math.min(count - 1, pageForPoint(vp, point.current));
       vp.scrollLeft = next * pageStride(vp);
       setPages(count);
       setPage(next);
-      if (lastPage.current) {
+      if (lastPage.current || pendingPage.current !== null) {
         point.current = firstPointOnPage(vp, blocks, next);
         lastPage.current = false;
+        pendingPage.current = null;
       }
       persist();
     };
@@ -210,7 +238,7 @@ export function BookReader({ article }: { article: Article }) {
         ) ||
         useStore.getState().activeGloss ||
         useStore.getState().notebookOpen ||
-        document.querySelector("[role=dialog]") ||
+        document.querySelector("[role=dialog],dialog[open]") ||
         window.getSelection()?.toString()
       )
         return;
@@ -259,14 +287,14 @@ export function BookReader({ article }: { article: Article }) {
       paged: true,
       readingPoint: () => point.current,
       goToPoint: (target) => go(target, false),
-      jumpToBlock: (b) => go({ b, o: 0 }),
+      jumpToBlock: (b) => explore({ b, o: 0 }),
       jumpTo: (n) => {
         const b = ix.byNumber.get(n);
-        if (b) go({ b, o: 0 });
+        if (b) explore({ b, o: 0 });
       },
       peek: (n, rect) => setPeek(n !== null && rect ? { n, rect } : null),
     }),
-    [ix, go],
+    [ix, go, explore],
   );
   const saveMarks = (next: BookMark[]) => {
     try {
@@ -289,6 +317,14 @@ export function BookReader({ article }: { article: Article }) {
       viewport.current &&
       pageForPoint(viewport.current, m.point) === page,
   );
+  const totalPages = pageCounts?.reduce((sum,n) => sum+n,0);
+  const globalPage = pageCounts ? pageCounts.slice(0,chapter).reduce((sum,n)=>sum+n,0) + page + 1 : null;
+  const noteTarget = footnote ? article.epub?.targets[footnote] : null;
+  const noteStart = noteTarget ? article.blocks.findIndex(b=>b.id===noteTarget.block) : -1;
+  const explicitEnd = noteTarget?.endBlock ? article.blocks.findIndex(b=>b.id===noteTarget.endBlock) : -1;
+  const noteEnd = explicitEnd >= noteStart && explicitEnd >= 0 ? explicitEnd + 1 : noteStart < 0 ? -1 : Math.min(article.blocks.length, ...Object.values(article.epub?.targets ?? {}).map(t=>article.blocks.findIndex(b=>b.id===t.block)).filter(i=>i>noteStart));
+  const noteBlocks = noteStart < 0 ? [] : article.blocks.slice(noteStart, noteEnd);
+  const closeNote = () => { setFootnote(null); resumeAfterStudy(); };
   return (
     <ReaderContext.Provider value={api}>
       <title>{article.title}</title>
@@ -306,7 +342,7 @@ export function BookReader({ article }: { article: Article }) {
               chapters={chapters}
               current={chapter}
               bookmarks={bookmarks}
-              go={go}
+              go={explore}
               remove={removeMark}
             />
           </nav>
@@ -378,6 +414,18 @@ export function BookReader({ article }: { article: Article }) {
               ref={setRoot}
               className="book-pages prose-read"
               onClick={(e) => {
+                const link = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="#epub-"]');
+                if (link) {
+                  e.preventDefault();
+                  const key = decodeURIComponent(link.getAttribute("href")!.slice(6));
+                  const ref = article.epub?.targets[key];
+                  if (ref) {
+                    pauseListening(true);
+                    if (ref.note) setFootnote(key);
+                    else explore({b:ref.block,o:0});
+                  }
+                  return;
+                }
                 if (window.getSelection()?.toString()) return;
                 const target = e.target as HTMLElement,
                   g = target.closest<HTMLElement>("[data-g]"),
@@ -413,6 +461,13 @@ export function BookReader({ article }: { article: Article }) {
             </div>
           </div>
         </main>
+        {root && viewport.current && <BookPagination chapters={chapters} viewport={viewport.current} layoutKey={JSON.stringify(settings)} onCounts={setPageCounts} />}
+        {noteTarget && <BookFootnote blocks={noteBlocks} onClose={closeNote} onLink={key=>{
+          const ref=article.epub?.targets[key];
+          if (!ref) return;
+          if (ref.note) setFootnote(key);
+          else { setFootnote(null); if (chapterForPoint(chapters,{b:ref.block,o:0})===chapter) resumeAfterStudy(); else explore({b:ref.block,o:0}); }
+        }} onOpen={()=>{explore({b:noteTarget.block,o:0});setFootnote(null);}} />}
         <footer className="book-footer">
           <button
             aria-label="Previous page"
@@ -421,14 +476,22 @@ export function BookReader({ article }: { article: Article }) {
           >
             <ChevronLeft size={20} />
           </button>
-          <span aria-live="polite">
-            {page + 1} / {pages}
-            <span className="book-progress">
-              {" "}
-              · Chapter {chapter + 1} of {chapters.length} ·{" "}
-              {Math.round(pct * 100)}%
-            </span>
-          </span>
+          <div className="book-footer-return">{returnPoint && <button onClick={backToReading}><ArrowLeft size={13}/> Back to reading</button>}</div>
+          <Popover label="Reading progress" description={globalPage ? `Page ${globalPage} of ${totalPages}` : `${chapters[chapter]?.title}, page ${page+1} of ${pages}`} triggerClass="book-page-trigger" width={280} trigger={globalPage ? `Page ${globalPage} of ${totalPages}` : `${chapters[chapter]?.title} · Page ${page+1}`}>
+            {(close) => <div className="book-progress-panel">
+              <p>{pct > 0 && pct < .01 ? "Less than 1" : Math.round(pct*100)}% into the book</p>
+              <p>{chapters[chapter]?.title} · Page {page+1} of {pages}</p>
+              {pageCounts ? <form onSubmit={e=>{
+                e.preventDefault();
+                const at=locateBookPage(pageCounts,Number(pageInput));
+                if (!at) return;
+                explore({b:chapters[at.chapter].blocks[0].id,o:0});
+                pendingPage.current=at.page;
+                setPageInput(""); close();
+              }}><label htmlFor="book-go-page">Go to page</label><div><input id="book-go-page" type="number" min={1} max={totalPages} required value={pageInput} onChange={e=>setPageInput(e.target.value)} /><button type="submit">Go</button></div></form> : <p role="status">Calculating pages for your reading settings…</p>}
+            </div>}
+          </Popover>
+          <span className="book-remaining">{pages-page-1 === 0 ? "Last page in section" : `${pages-page-1} ${pages-page-1 === 1 ? "page" : "pages"} left in ${/^introduction$/i.test(chapters[chapter]?.title ?? "") ? "introduction" : "section"}`}</span>
           <button
             aria-label={
               chapter === chapters.length - 1 && page === pages - 1

@@ -2142,3 +2142,38 @@ a.desk-tile:focus-visible {
   .book-reader .study-panel { top:106px; }
   .book-toolbar-center .study-player-menu .pop { right:0; }
 }
+
+/* Book navigation: one quiet location, with details on demand. */
+.book-measure { position:fixed; left:-100000px; top:0; visibility:hidden; pointer-events:none; contain:layout style paint; }
+.book-footer { left:24px; right:24px; transform:none; gap:12px; justify-content:center; }
+.book-footer .book-page-trigger { width:auto; padding:0 12px; border-radius:8px; font-size:11px; max-width:45vw; overflow:hidden; text-overflow:ellipsis; display:block; }
+.book-footer-return { position:absolute; left:0; }
+.book-footer-return button { width:auto; display:flex; gap:6px; padding:0 10px; border-radius:8px; font-size:11px; }
+.book-remaining { position:absolute; right:0; font-size:10px; pointer-events:none; }
+.book-footer .pop { top:auto; bottom:calc(100% + 10px); left:50%; right:auto; transform:translateX(-50%); --origin:bottom center !important; white-space:normal; }
+.book-progress-panel { line-height:1.6; font-size:12px; color:var(--ink-2); }
+.book-progress-panel p + p { margin-top:6px; color:var(--ink-3); }
+.book-progress-panel form { margin-top:14px; }
+.book-progress-panel form > div { display:flex; gap:8px; margin-top:6px; }
+.book-progress-panel input { width:100%; min-width:0; padding:6px 10px; border:1px solid var(--rule); border-radius:6px; }
+.book-progress-panel form button { width:auto; padding:0 12px; border-radius:6px; background:var(--bg-sunk); }
+.book-toc-group > button { display:flex; width:100%; padding:10px; border-radius:8px; text-align:left; font-size:13px; }
+.book-mark-chapter { display:block; color:var(--ink-3); font-size:10px; margin-bottom:4px; }
+.book-upgrade { padding:10px; font-size:12px; line-height:1.5; }
+.book-upgrade button { padding:8px 10px; margin-top:8px; border:1px solid var(--rule); border-radius:8px; }
+.book-note-ref { display:inline; font-size:.65em; vertical-align:super; line-height:0; text-decoration:none; cursor:pointer; color:var(--rubric); }
+.book-note-ref::after { content:attr(data-note-label); }
+.book-footnote { position:fixed; inset:0; margin:auto; width:min(540px,calc(100vw - 32px)); max-height:75dvh; border:1px solid var(--rule); border-radius:18px; padding:22px; background:var(--bg); color:var(--ink); box-shadow:0 20px 80px #0002; }
+.book-footnote::backdrop { background:#0003; }
+.book-footnote header,.book-footnote footer { display:flex; align-items:center; justify-content:space-between; gap:16px; font-size:12px; }
+.book-footnote header button { font-size:24px; min-width:32px; }
+.book-footnote-text { max-height:48dvh; overflow:auto; margin:16px 0; font-size:18px; line-height:1.6; }
+.book-footnote footer button { padding:8px 12px; border-radius:8px; background:var(--bg-sunk); }
+.book-pages.prose-read .blk[data-type=h2]:first-child { padding-top:clamp(12px,3dvh,28px); margin-bottom:1.7em; line-height:1.2; }
+.book-pages.prose-read .blk-text { overflow-wrap:break-word; }
+@media(max-width:760px) {
+  .book-footer { left:12px; right:12px; }
+  .book-remaining { display:none; }
+  .book-footer-return { bottom:auto; }
+  .book-footer-return button { font-size:0; gap:0; width:28px; padding:0; justify-content:center; }
+}

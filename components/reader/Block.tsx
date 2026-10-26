@@ -10,6 +10,7 @@ export type Mark = { from: number; to: number; kind: "gloss" | "hl" | "pending";
 type Props = {
   block: BlockT;
   n?: number;
+  measuring?: boolean;
   first?: boolean;
   marks: Mark[];
   activeGloss: string | null;
@@ -24,13 +25,14 @@ type Props = {
 };
 
 function wrapRun(run: Run, text: string, key: string): ReactNode {
+  if (run.noteLabel) return <a key={key} href={run.href} className="book-note-ref" data-note-label={run.noteLabel} aria-label={`Footnote ${run.noteLabel}`} />;
   let node: ReactNode = text;
   if (run.code) node = <code>{node}</code>;
   if (run.strong) node = <strong>{node}</strong>;
   if (run.em) node = <em>{node}</em>;
   if (run.href)
     node = (
-      <a href={run.href} target="_blank" rel="noopener noreferrer">
+      <a href={run.href} target={run.href.startsWith("#epub-") ? undefined : "_blank"} rel="noopener noreferrer">
         {node}
       </a>
     );
@@ -64,6 +66,7 @@ function segments(block: BlockT, marks: Mark[], activeGloss: string | null, hove
   for (let i = 0; i < sorted.length - 1; i++) {
     const a = sorted[i];
     const b = sorted[i + 1];
+    for (let r = 0; r < runs.length; r++) if (runs[r].noteLabel && bounds[r] === a) out.push(wrapRun(runs[r], "", `note-${r}`));
     if (b <= a) continue;
     while (ri < runs.length - 1 && bounds[ri + 1] <= a) ri++;
     const run = runs[ri];
@@ -99,6 +102,7 @@ function segments(block: BlockT, marks: Mark[], activeGloss: string | null, hove
     const noted = hls.find((m) => m.note && m.to === b);
     if (noted) out.push(<span key={`${key}n`} className="note-dot" data-h={noted.id} aria-hidden />);
   }
+  for (let r = 0; r < runs.length; r++) if (runs[r].noteLabel && bounds[r] === len) out.push(wrapRun(runs[r], "", `note-${r}`));
   return out;
 }
 
@@ -120,14 +124,14 @@ function repairSrc(src: string): string {
   }
 }
 
-function Picture({ src, alt }: { src: string; alt?: string }) {
+function Picture({ src, alt, eager }: { src: string; alt?: string; eager?: boolean }) {
   const [state, setState] = useState<"loading" | "ok" | "gone">("loading");
   if (state === "gone") return null;
   return (
     <img
       src={repairSrc(src)}
       alt={alt ?? ""}
-      loading="lazy"
+      loading={eager ? "eager" : "lazy"}
       decoding="async"
       referrerPolicy="no-referrer"
       draggable={false}
@@ -168,13 +172,13 @@ function Table({ rows, head }: { rows: string[][]; head?: boolean }) {
   );
 }
 
-function BlockImpl({ block, n, first, marks, activeGloss, hoverGloss, activeHighlight, fresh, cursor, hasAt, onAsk }: Props) {
+function BlockImpl({ block, n, measuring, first, marks, activeGloss, hoverGloss, activeHighlight, fresh, cursor, hasAt, onAsk }: Props) {
   const Tag = block.type === "h2" ? "h2" : block.type === "h3" ? "h3" : block.type === "figure" ? "figure" : "div";
   const content = segments(block, marks, activeGloss, hoverGloss, activeHighlight, fresh);
   return (
     <Tag
       className={`blk${first ? " is-first" : ""}${cursor ? " is-cursor" : ""}`}
-      data-block={block.id}
+      data-block={measuring ? undefined : block.id}
       data-type={block.type}
       data-n={n}
     >
@@ -194,7 +198,7 @@ function BlockImpl({ block, n, first, marks, activeGloss, hoverGloss, activeHigh
           {n}
         </button>
       )}
-      {block.type === "figure" && block.src && <Picture src={block.src} alt={block.alt} />}
+      {block.type === "figure" && block.src && <Picture src={block.src} alt={block.alt} eager={measuring} />}
       {block.type === "table" && block.rows ? (
         <Table rows={block.rows} head={block.head} />
       ) : block.type === "figure" ? (
@@ -207,7 +211,7 @@ function BlockImpl({ block, n, first, marks, activeGloss, hoverGloss, activeHigh
 }
 
 export const Block = memo(BlockImpl, (a, b) => {
-  if (a.block !== b.block || a.n !== b.n || a.first !== b.first || a.cursor !== b.cursor || a.hasAt !== b.hasAt) return false;
+  if (a.measuring !== b.measuring || a.block !== b.block || a.n !== b.n || a.first !== b.first || a.cursor !== b.cursor || a.hasAt !== b.hasAt) return false;
   if (a.onAsk !== b.onAsk) return false;
   if (a.marks.length !== b.marks.length) return false;
   for (let i = 0; i < a.marks.length; i++) {

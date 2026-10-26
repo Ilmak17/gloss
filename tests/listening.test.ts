@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { indexArticle } from "../lib/doc";
-import { pauseListening, resumeAfterStudy, resumeListening, seekListening, startListening, stopListening, useListen } from "../lib/listening";
+import { listeningSessionId, pauseListening, resumeAfterStudy, resumeListening, seekListening, startListening, stopListening, useListen } from "../lib/listening";
 
 test("study interruptions preserve audio and cannot revive an obsolete session", async t => {
   class FakeAudio {
@@ -24,9 +24,11 @@ test("study interruptions preserve audio and cannot revive an obsolete session",
     await settle();
     assert.equal(useListen.getState().status, "playing");
     a.currentTime = 9;
+    const identity = listeningSessionId();
     const url = a.src;
     pauseListening(true);
     pauseListening(true);
+    assert.equal(listeningSessionId(), identity, 'pausing keeps the navigation playback identity');
     assert.equal(useListen.getState().status, "paused");
     assert.equal(useListen.getState().studyPaused, true);
     resumeAfterStudy();

@@ -2,8 +2,9 @@
 import { useMemo, useState } from "react";
 import { List, Search, Bookmark, Trash2 } from "lucide-react";
 import type { Article } from "@/lib/article";
-import { searchBook, type BookChapter } from "@/lib/books";
+import { searchBook, chapterForPoint, type BookChapter } from "@/lib/books";
 import type { Point } from "@/lib/store";
+import { BookUpgrade } from "./BookUpgrade";
 import { Popover, barBtn } from "@/components/ui/Popover";
 export type BookMark = { point: Point; excerpt: string };
 export function BookNavigation({
@@ -35,19 +36,18 @@ export function BookNavigation({
         {(close) => (
           <div className="book-navigation">
             <p className="book-menu-label">Contents</p>
-            {chapters.map((chapter, i) => (
-              <button
-                key={i}
-                aria-current={current === i ? "location" : undefined}
-                onClick={() => {
-                  go({ b: chapter.blocks[0].id, o: 0 });
-                  close();
-                }}
-              >
-                <span>{chapter.title}</span>
-                <span>{i + 1}</span>
-              </button>
-            ))}
+            {(["main", "front", "back"] as const).map(kind => {
+              const entries = article.epub?.toc.length ? article.epub.toc.filter(t => t.kind === kind) : kind === "main" ? chapters.map(c => ({title:c.title, block:c.blocks[0].id, depth:0, kind})) : [];
+              if (!entries.length) return null;
+              const buttons = entries.map((entry, i) => <button key={`${entry.block}-${i}`}
+                  aria-current={chapterForPoint(chapters, {b:entry.block,o:0}) === current ? "location" : undefined}
+                  onClick={() => { go({b:entry.block,o:0}); close(); }}>
+                  <span>{entry.title}</span>
+                </button>);
+              return kind === "main" ? <div className="book-toc-group" key={kind}>{buttons}</div> :
+                <details className="book-toc-group" key={kind}><summary className="book-menu-label">{kind === "front" ? "Opening pages" : "Reference"}</summary>{buttons}</details>;
+            })}
+            {!article.epub && <BookUpgrade article={article} />}
             <p className="book-menu-label">
               <Bookmark size={13} /> Bookmarks
             </p>
@@ -67,7 +67,7 @@ export function BookNavigation({
                     close();
                   }}
                 >
-                  {mark.excerpt}
+                  <span><small className="book-mark-chapter">{chapters[chapterForPoint(chapters, mark.point)]?.title}</small>{mark.excerpt}</span>
                 </button>
                 <button
                   aria-label={`Remove bookmark: ${mark.excerpt}`}
@@ -110,7 +110,7 @@ export function BookNavigation({
                   close();
                 }}
               >
-                {hit.excerpt}
+                <small className="book-mark-chapter">{chapters[chapterForPoint(chapters, hit.point)]?.title}</small>{hit.excerpt}
               </button>
             ))}
           </div>

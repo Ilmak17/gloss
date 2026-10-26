@@ -317,3 +317,6 @@ function highlightSpeech() {
   if (range) { CSS.highlights.set("speech", new Highlight(range)); lastHighlight = key; }
 }
 
+
+/** Identity only: lets navigation restore follow for the same playback session. */
+export function listeningSessionId(): number { return session; }
