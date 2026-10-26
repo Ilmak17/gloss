@@ -1991,35 +1991,39 @@ a.desk-tile:focus-visible {
 .study-context summary { cursor: pointer; }
 .study-context textarea { width: 100%; height: 100px; margin-top: 8px; padding: 8px; border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink); font-size: 11px; resize: vertical; max-height: 25dvh; }
 .study-handoff { background: color-mix(in oklab, var(--bg-raised) 70%, var(--bg)); }
-.handoff-heading { display: flex; align-items: center; justify-content: space-between; padding: 20px 26px 18px; }
-.handoff-heading h2 { font-family: var(--font-serif); font-size: 25px; font-weight: 430; letter-spacing: -.025em; }
-.handoff-body { padding: 0 26px 20px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-.handoff-source { padding: 0 0 18px; border-bottom: 1px solid var(--rule); }
-.handoff-source-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; color: var(--ink-3); font-size: 11px; }
-.handoff-source-title button { display: flex; align-items: center; gap: 3px; padding: 3px; }
-.handoff-quote { color: var(--ink-2); }
-.handoff-quote summary { list-style: none; cursor: pointer; }
-.handoff-quote summary::-webkit-details-marker { display: none; }
-.handoff-quote summary > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-family: var(--font-serif); font-size: 17px; line-height: 1.45; }
-.handoff-quote small { display: block; margin-top: 9px; color: var(--ink-3); font-size: 10px; }
-.handoff-quote[open] summary > span { display: none; }
-.handoff-quote[open] small { font-size: 0; }
-.handoff-quote[open] small::after { content: "Collapse passage"; font-size: 10px; }
-.handoff-quote blockquote { margin-top: 10px; max-height: 25dvh; overflow: auto; font-family: var(--font-serif); font-size: 17px; line-height: 1.5; white-space: pre-wrap; }
-.handoff-book-title { font-family: var(--font-serif); font-size: 20px; line-height: 1.4; }
-.handoff-question-label { display: block; margin: 20px 0 10px; font-size: 13px; font-weight: 500; }
-.handoff-question { display: block; width: 100%; height: 96px; min-height: 76px; max-height: 32dvh; resize: vertical; padding: 12px 14px; font-size: 14px; line-height: 1.6; background: var(--bg); border: 1px solid var(--rule); border-radius: 10px; color: var(--ink); outline-offset: 3px; }
-.handoff-question::placeholder { color: var(--ink-4); }
-.handoff-suggestions { display: flex; flex-direction: column; align-items: flex-start; gap: 0; margin-top: 12px; }
-.handoff-suggestions button { display: flex; align-items: center; gap: 7px; padding: 5px 0; color: var(--ink-3); font-size: 12px; }
-.handoff-suggestions button svg { opacity: .5; }
-.handoff-suggestions button:hover { color: var(--ink); }
-.handoff-saved { display: flex; gap: 5px; align-items: center; margin-top: 14px; font-size: 10px; color: var(--ink-3); }
-.handoff-footer { padding: 14px 26px max(14px, env(safe-area-inset-bottom)); background: inherit; }
-.handoff-copy { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; min-height: 43px; border-radius: 9px; background: var(--ink); color: var(--bg); font-size: 13px; }
+.handoff-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 24px 18px; }
+.handoff-heading h2 { font-family: var(--font-serif); font-size: 25px; font-weight: 450; letter-spacing: -.025em; line-height: 1.15; }
+.handoff-heading p { margin-top: 5px; color: var(--ink-3); font-size: 12px; }
+.handoff-heading .study-icon { margin: -3px -7px 0 0; }
+.handoff-body { padding: 0 24px 24px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.handoff-source { padding: 12px 14px; border: 1px solid var(--rule); border-radius: 12px; background: color-mix(in oklab, var(--bg) 65%, var(--bg-raised)); }
+.handoff-source-title { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; color: var(--ink-3); font-size: 10px; }
+.handoff-source-title button { display: flex; align-items: center; gap: 3px; padding: 2px 0; }
+.handoff-source-title button:hover { color: var(--ink); }
+.handoff-quote { margin: 0; color: var(--ink-2); font-family: var(--font-serif); font-size: 17px; line-height: 1.55; white-space: pre-wrap; max-height: 28dvh; overflow: auto; }
+.handoff-quote.is-collapsed { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.handoff-expand { display: block; margin-top: 8px; color: var(--ink-3); font-size: 11px; text-decoration: underline; text-underline-offset: 3px; }
+.handoff-source-book { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 12px; color: var(--ink-3); font-size: 10px; }
+.handoff-book-title { font-family: var(--font-serif); font-size: 18px; line-height: 1.4; }
+.handoff-intent { margin: 18px 0 0; padding: 0; border: 0; min-width: 0; }
+.handoff-intent legend { padding: 0; margin-bottom: 10px; font-size: 12px; font-weight: 500; }
+.handoff-modes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+.handoff-modes button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 54px; padding: 8px 3px; border: 1px solid transparent; border-radius: 9px; color: var(--ink-3); font-size: 11px; transition: background .15s, color .15s, border-color .15s; }
+.handoff-modes button:hover { background: var(--bg); color: var(--ink); }
+.handoff-modes button[aria-pressed="true"] { border-color: var(--rule-strong); background: var(--bg); color: var(--ink); }
+.handoff-mode-description { margin-top: 10px; color: var(--ink-3); font-size: 11px; line-height: 1.5; }
+.handoff-question-label { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 16px 0 8px; font-size: 12px; font-weight: 500; }
+.handoff-question-label span { color: var(--ink-3); font-size: 10px; font-weight: 400; }
+.handoff-question { display: block; width: 100%; min-height: 88px; max-height: 26dvh; resize: vertical; padding: 11px 12px; font-size: 13px; line-height: 1.6; background: var(--bg-raised); border: 1px solid var(--rule-strong); border-radius: 10px; color: var(--ink); }
+.handoff-question::placeholder { color: var(--ink-3); }
+.study-handoff :is(button, textarea, summary):focus-visible { outline: 2px solid var(--ink-3); outline-offset: 3px; }
+.handoff-transfer { margin-top: 18px; }
+.handoff-copy { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 42px; border-radius: 9px; background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 500; }
 .handoff-copy:hover { opacity: .88; }
-.handoff-footer > p { margin: 10px 0 16px; text-align: center; font-size: 11px; line-height: 1.5; color: var(--ink-3); }
-.handoff-return { display: flex; align-items: center; justify-content: center; gap: 6px; margin-inline: auto; padding: 6px; color: var(--ink-2); font-size: 12px; }
+.handoff-transfer > p { margin: 9px 4px 0; text-align: center; font-size: 10px; line-height: 1.5; color: var(--ink-3); }
+.handoff-footer { padding: 12px 24px max(14px, env(safe-area-inset-bottom)); border-top: 1px solid var(--rule); background: inherit; }
+.handoff-return { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; padding: 5px; color: var(--ink-2); font-size: 12px; }
+
 .handoff-history { margin-top: 24px; font-size: 12px; color: var(--ink-3); }
 .handoff-history summary { cursor: pointer; }
 .handoff-history > div { margin-top: 14px; font-size: 14px; color: var(--ink); }
