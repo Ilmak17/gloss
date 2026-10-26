@@ -5,7 +5,7 @@ import { Headphones, LoaderCircle, Square, RotateCcw, MessageCircle, Locate, Ell
 import { blockEl } from "@/lib/anchor";
 import { useStore } from "@/lib/store";
 import { openVoiceSettings } from "@/lib/voice-settings";
-import { useListen, startListening, stopListening, toggleListening, cycleRate, pauseListening, seekListening } from "@/lib/listening";
+import { useListen, startListening, startPageListening, stopListening, toggleListening, cycleRate, pauseListening, seekListening } from "@/lib/listening";
 import { startStudy } from "@/lib/study-draft";
 import { studyBlock } from "@/lib/study";
 import { barBtn, Popover } from "@/components/ui/Popover";
@@ -45,8 +45,8 @@ const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.fl
 
 /** One dock for narration and the transition from reading to discussion. */
 export function ListenBar({ from }: { from: () => string | null }) {
-  const { ix, jumpToBlock, paged, readingPoint, goToPoint, chooseListeningStart, cancelListeningStart } = useReader();
-  const { status, block, rate, elapsed, duration, error, needKey, follow, studyPaused, cache } = useListen();
+  const { ix, jumpToBlock, paged, readingPoint, readingPage, goToPoint, chooseListeningStart, cancelListeningStart } = useReader();
+  const { status, block, rate, elapsed, duration, error, needKey, follow, studyPaused, cache, scope } = useListen();
   const on = useStore(s => s.settings.listen);
   const activeGloss = useStore(s => s.activeGloss);
   const pending = useStore(s => s.pending);
@@ -84,7 +84,16 @@ export function ListenBar({ from }: { from: () => string | null }) {
     useListen.setState({ follow: true });
     startListening(ix, point?.b ?? from(), point?.o ?? 0);
   };
+  const startPage = () => {
+    const range = readingPage?.();
+    if (!range) return startHere();
+    cancelListeningStart?.();
+    setUI({ activeGloss: null, notebookOpen: false, pending: null });
+    useListen.setState({ follow: true });
+    startPageListening(ix, range);
+  };
   const active = status !== "idle";
+  const pageAudio = scope === "page";
   const n = block ? ix.numbers.get(block) : undefined;
 
   return <section className={`study-player ${active ? "is-active" : "is-idle"}`} aria-label="Reading player">
@@ -95,23 +104,24 @@ export function ListenBar({ from }: { from: () => string | null }) {
         cancelListeningStart?.();
         if (status === "loading") { stopListening(); return; }
         setUI({ activeGloss: null, notebookOpen: false });
-        if (status === "idle") startHere(); else toggleListening();
+        if (status === "idle" || (status === "error" && pageAudio)) { if (readingPage) startPage(); else startHere(); } else toggleListening();
       }}>{status === "loading" ? <LoaderCircle size={15} className="animate-spin" aria-hidden /> : <svg key={status === "playing" ? "pause" : "play"} className="study-play-glyph" width="16" height="16" viewBox="0 0 16 16" aria-hidden>
         {status === "playing" ? <><rect x="4" y="3" width="2.5" height="10" rx="1.25" fill="currentColor" /><rect x="9.5" y="3" width="2.5" height="10" rx="1.25" fill="currentColor" /></> : <path d="M5 3.5 12 8l-7 4.5z" fill="currentColor" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />}
       </svg>}</button>}
       <div className="study-timeline">
         {active && !error && duration > 0 ? <>
-          <input aria-label="Position in current passage" aria-valuetext={`${clock(elapsed)} of ${clock(duration)}`} type="range" min={0} max={duration} step={.1} value={elapsed} onChange={e => seekListening(Number(e.target.value))} style={{ backgroundImage: `linear-gradient(to right, var(--study-accent) ${Math.min(100, elapsed / duration * 100)}%, var(--rule-strong) 0%)` }} />
-          <span className="study-time" title={`Current passage${n ? ` · ¶${n}` : ""}${studyPaused ? " · paused for discussion" : ""}`}>{clock(elapsed)}<span> / {clock(duration)}</span></span>
+          <input aria-label={pageAudio ? "Position in current page" : "Position in current passage"} aria-valuetext={`${clock(elapsed)} of ${clock(duration)}`} type="range" min={0} max={duration} step={.1} value={elapsed} onChange={e => seekListening(Number(e.target.value))} style={{ backgroundImage: `linear-gradient(to right, var(--study-accent) ${Math.min(100, elapsed / duration * 100)}%, var(--rule-strong) 0%)` }} />
+          <span className="study-time" title={`${pageAudio ? "Current page" : "Current passage"}${!pageAudio && n ? ` · ¶${n}` : ""}${studyPaused ? " · paused for discussion" : ""}`}>{clock(elapsed)}<span> / {clock(duration)}</span></span>
         </> : !active && on && chooseListeningStart ? <div className="listen-start-menu">
           <Popover label="Choose where to listen" trigger={<><span>Listen</span><ChevronDown size={12} /></>} triggerClass="listen-start-trigger" width={230}>
             {close => <div className="study-audio-options">
+              {readingPage && <button onClick={() => { close(); startPage(); }}>Listen to this page</button>}
               <button onClick={() => { close(); startHere(); }}>From current reading position</button>
               <button onClick={() => { close(); chooseListeningStart(); }}>Choose starting point…</button>
               <p className="listen-start-help">Or select text and choose “Listen from here”.</p>
             </div>}
           </Popover>
-        </div> : <span className="study-idle-label">{error ? "Audio unavailable" : status === "loading" ? "Preparing audio…" : on ? "Listen" : "Reading"}</span>}
+        </div> : <span className="study-idle-label">{error ? "Audio unavailable" : status === "loading" ? (pageAudio ? "Preparing page…" : "Preparing audio…") : on ? "Listen" : "Reading"}</span>}
       </div>
       <span className="study-player-divider" aria-hidden />
       <button type="button" className="study-discuss" aria-label="Discuss paragraph" data-tip="Discuss this paragraph" onClick={explain}><MessageCircle size={15} strokeWidth={1.6} /><span>Discuss</span></button>
@@ -119,12 +129,13 @@ export function ListenBar({ from }: { from: () => string | null }) {
         <Popover label="Playback options" trigger={<Ellipsis size={18} />} triggerClass="study-icon" width={244}>
           {close => <div className="study-audio-options">
             <p className="study-audio-heading">Audio{n ? ` · ¶${n}` : ""}</p>
-            <p className="text-xs text-ink-3 px-2 pb-2">The next passage prepares while you listen. All prepared audio is saved.</p>
+            <p className="text-xs text-ink-3 px-2 pb-2">{pageAudio ? "One track for this page. Playback stops at the end of the page." : "The next passage prepares while you listen. All prepared audio is saved."}</p>
             {active && (cache === "hit" || cache === "saved") && <p className="text-xs text-ink-3 px-2 pb-2">{cache === "hit" ? "Saved audio · no new charge" : "Audio saved on this Mac"}</p>}
+            {on && readingPage && <button type="button" onClick={() => { close(); startPage(); }}>Listen to this page</button>}
             {on && chooseListeningStart && <button type="button" onClick={() => { close(); chooseListeningStart(); }}><Locate size={15} /> Choose starting point…</button>}
             {on && active && <button type="button" onClick={() => { close(); startHere(); }}>From current reading position</button>}
             <button type="button" onClick={cycleRate}><span>Speed</span><strong>{rate}×</strong></button>
-            {active && <button type="button" onClick={() => { seekListening(0); close(); }}><RotateCcw size={15} /> Replay passage</button>}
+            {active && <button type="button" onClick={() => { seekListening(0); close(); }}><RotateCcw size={15} /> {pageAudio ? "Replay page" : "Replay passage"}</button>}
             {block && <button type="button" onClick={() => { useListen.setState({follow:true}); if (goToPoint) goToPoint({b:block,o:useListen.getState().offset}); else jumpToBlock(block, { flash: false }); close(); }}><Locate size={15} /> Jump to audio</button>}
             {on && <label><input type="checkbox" checked={follow} onChange={e => useListen.setState({ follow: e.target.checked })} /> Follow along</label>}
             <div className="study-audio-rule" />

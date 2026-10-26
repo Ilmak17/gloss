@@ -2,7 +2,9 @@
 
 import { create } from "zustand";
 import { anchorToRange } from "./anchor";
-import { blockText, type Block } from "./article";
+import { blockText } from "./article";
+import { SPOKEN_BLOCKS, pageSpeech, pageSpeechPoint, type PageRange, type SpeechSpan } from "./listen-page";
+import { assemblePageAudio, type SpeechAudio, type PageAudioPart } from "./page-audio";
 import { readApiKey } from "./ask";
 import type { DocIndex } from "./doc";
 import { speechChunks, type TimedWord } from "./speech";
@@ -15,14 +17,13 @@ import { readVoiceSettings } from "./voice-settings";
  */
 
 type Status = "idle" | "loading" | "playing" | "paused" | "error";
-type ListenState = { status: Status; block: string | null; offset: number; rate: number; elapsed: number; duration: number; studyPaused: boolean; follow: boolean; error?: string; needKey?: boolean; cache?: string };
+type ListenState = { status: Status; block: string | null; offset: number; rate: number; elapsed: number; duration: number; studyPaused: boolean; follow: boolean; error?: string; needKey?: boolean; cache?: string; scope?: "page" };
 
 const RATES = [1, 1.2, 1.4, 1.7, 2, 0.8];
 const RATE_KEY = "gloss:listen-rate";
 
 export const useListen = create<ListenState>(() => ({ status: "idle", block: null, offset: 0, rate: 1, elapsed: 0, duration: 0, studyPaused: false, follow: true }));
 
-const SPOKEN = new Set<Block["type"]>(["p", "quote", "li", "note"]);
 
 /** A few hundred milliseconds of silence, played inside the click so phones let the voice play later. */
 function silence(): string {
@@ -48,7 +49,7 @@ function silence(): string {
 
 /* ---------------- the engine: one voice at a time ---------------- */
 
-let items: { block: string; text: string; start: number }[] = [];
+let items: { block: string; text: string; start: number; spans?: SpeechSpan[] }[] = [];
 let activeWords: TimedWord[] = [];
 let wantedPaused = false;
 let studySession: number | null = null;
@@ -76,37 +77,59 @@ function prepareNext() {
   void clip(next).catch(() => {});
 }
 
+async function fetchSpeech(text: string, signal?: AbortSignal): Promise<SpeechAudio> {
+  const voice = readVoiceSettings();
+  const r = await fetch("/api/speak", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, provider: voice.provider, voiceId: voice.voiceId || undefined, apiKey: (voice.provider === "together" ? readApiKey() : voice.apiKey) || undefined }),
+    signal,
+  });
+  if (!r.ok) {
+    const j = (await r.json().catch(() => ({}))) as { error?: string; code?: string };
+    throw Object.assign(new Error(j.error ?? "The voice did not answer."), { needKey: j.code === "need_key" });
+  }
+  if (r.headers.get("content-type")?.includes("application/json")) {
+    const data = await r.json() as { audio: string; words: TimedWord[]; cache?: string };
+    return { blob: new Blob([Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))], { type: "audio/mpeg" }), words: data.words, cache: data.cache };
+  }
+  return { blob: await r.blob(), words: [] };
+}
+
+async function fetchPage(text: string, signal?: AbortSignal): Promise<SpeechAudio> {
+  const chunks = speechChunks(text);
+  const parts: PageAudioPart[] = new Array(chunks.length);
+  let next = 0;
+  const pending = new AbortController();
+  const requestSignal = signal ? AbortSignal.any([signal, pending.signal]) : pending.signal;
+  // Two bounded requests at a time; never prepare text outside the selected page.
+  try {
+    await Promise.all(Array.from({ length: Math.min(2, chunks.length) }, async () => {
+      while (next < chunks.length) {
+        requestSignal.throwIfAborted();
+        const i = next++, chunk = chunks[i];
+        parts[i] = { ...await fetchSpeech(chunk.text, requestSignal), start: chunk.start };
+      }
+    }));
+    return await assemblePageAudio(parts, requestSignal);
+  } catch (error) {
+    pending.abort();
+    throw error;
+  }
+}
+
 function clip(i: number): Promise<Clip> {
   let p = clips.get(i);
   if (!p) {
     const signal = ctrl?.signal;
     const requestSession = session;
-    const voice = readVoiceSettings();
-    p = fetch("/api/speak", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: items[i].text, provider: voice.provider, voiceId: voice.voiceId || undefined, apiKey: (voice.provider === "together" ? readApiKey() : voice.apiKey) || undefined }),
-      signal,
-    }).then(async (r) => {
-      if (!r.ok) {
-        const j = (await r.json().catch(() => ({}))) as { error?: string; code?: string };
-        throw Object.assign(new Error(j.error ?? "The voice did not answer."), { needKey: j.code === "need_key" });
-      }
-      let blob: Blob;
-      let words: TimedWord[] = [];
-      let cache: string | undefined;
-      if (r.headers.get("content-type")?.includes("application/json")) {
-        const data = await r.json() as { audio: string; words: TimedWord[]; cache?: string };
-        blob = new Blob([Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))], { type: "audio/mpeg" });
-        words = data.words;
-        cache = data.cache;
-      } else blob = await r.blob();
+    const item = items[i];
+    p = (item.spans ? fetchPage(item.text, signal) : fetchSpeech(item.text, signal)).then(result => {
       if (requestSession !== session || signal?.aborted) throw new DOMException("Stopped", "AbortError");
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(result.blob);
       urls.set(i, url);
-      return { url, words, cache };
+      return { url, words: result.words, cache: result.cache };
     });
-    // A failed clip is forgotten, so "Try again" fetches it afresh.
     p.catch(() => clips.get(i) === p && clips.delete(i));
     clips.set(i, p);
   }
@@ -166,7 +189,7 @@ export function startListening(ix: DocIndex, fromBlock: string | null, fromOffse
   const at = Math.max(0, fromBlock ? blocks.findIndex((b) => b.id === fromBlock) : 0);
   items = [];
   for (const b of blocks.slice(at)) {
-    if (!SPOKEN.has(b.type)) continue;
+    if (!SPOKEN_BLOCKS.has(b.type)) continue;
     const t = blockText(b);
     if (!t) continue;
     for (const c of speechChunks(t)) {
@@ -177,6 +200,25 @@ export function startListening(ix: DocIndex, fromBlock: string | null, fromOffse
   if (!items.length) return;
   if (items[0].block !== fromBlock) initialOffset = 0;
 
+  beginPlayback(ix);
+}
+
+/** Snapshot page boundaries before following the voice can move the reading cursor. */
+export function startPageListening(ix: DocIndex, range: PageRange) {
+  stopListening();
+  const page = pageSpeech(ix.article.blocks, range);
+  useListen.setState({ scope: "page" });
+  if (!page.spans.length) {
+    useListen.setState({ status: "error", error: "This page has no text to read. Turn to a text page." });
+    return;
+  }
+  const first = page.spans[0];
+  items = [{ block: first.block, start: first.sourceStart, text: page.text, spans: page.spans }];
+  initialOffset = first.sourceStart;
+  beginPlayback(ix);
+}
+
+function beginPlayback(ix: DocIndex) {
   wantedPaused = false;
   audio ??= new Audio();
   audio.ontimeupdate = () => { updatePosition(); highlightSpeech(); prepareNext(); };
@@ -234,7 +276,7 @@ export function stopListening() {
   clips.clear();
   prefetched.clear();
   items = [];
-  useListen.setState({ status: "idle", block: null, offset: 0, elapsed: 0, duration: 0, studyPaused: false, error: undefined, needKey: false, cache: undefined });
+  useListen.setState({ status: "idle", block: null, offset: 0, elapsed: 0, duration: 0, studyPaused: false, error: undefined, needKey: false, cache: undefined, scope: undefined });
 }
 
 /** Pause is idempotent, including while the first clip is still being fetched. */
@@ -320,13 +362,16 @@ function highlightSpeech() {
   const word = activeWords.find(w => w.from <= audio!.currentTime && w.to > audio!.currentTime);
   if (!word) { clearSpeechHighlight(); return; }
   const item = items[idx];
-  const offset = item.start + word.start;
-  if (useListen.getState().offset !== offset) useListen.setState({ offset });
+  const point = item.spans ? pageSpeechPoint(item.spans, word.start) : { b: item.block, o: item.start + word.start };
+  if (!point) { clearSpeechHighlight(); return; }
+  if (useListen.getState().offset !== point.o || useListen.getState().block !== point.b) useListen.setState({ block: point.b, offset: point.o });
   if (typeof Highlight === "undefined" || typeof CSS === "undefined" || !("highlights" in CSS)) return;
   const key = `${idx}:${word.start}`;
   if (key === lastHighlight) return;
 
-  const range = anchorToRange({ start: { b: item.block, o: item.start + word.start }, end: { b: item.block, o: item.start + word.end } });
+  const end = item.spans ? pageSpeechPoint(item.spans, word.end - 1) : { b: item.block, o: item.start + word.end - 1 };
+  if (!end) return;
+  const range = anchorToRange({ start: point, end: { b: end.b, o: end.o + 1 } });
   if (range) { CSS.highlights.set("speech", new Highlight(range)); lastHighlight = key; }
 }
 

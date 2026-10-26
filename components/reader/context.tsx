@@ -8,6 +8,7 @@ export type ReaderApi = {
   paged?: boolean;
   chooseListeningStart?: () => void;
   cancelListeningStart?: () => void;
+  readingPage?: () => import("@/lib/listen-page").PageRange | null;
   readingPoint?: () => import("@/lib/store").Point;
   goToPoint?: (point: import("@/lib/store").Point) => void;
   /** Scroll a paragraph into view and flash it. */

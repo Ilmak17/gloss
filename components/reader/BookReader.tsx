@@ -301,6 +301,15 @@ export function BookReader({ article }: { article: Article }) {
       },
       cancelListeningStart: () => setChoosingStart(false),
       readingPoint: () => point.current,
+      readingPage: () => {
+        const vp = viewport.current, last = blocks.at(-1);
+        if (!vp || !last) return null;
+        const current = Math.round(vp.scrollLeft / pageStride(vp));
+        return {
+          start: firstPointOnPage(vp, blocks, current),
+          end: current + 1 < pageCount(vp) ? firstPointOnPage(vp, blocks, current + 1) : { b: last.id, o: blockText(last).length },
+        };
+      },
       goToPoint: (target) => go(target, false),
       jumpToBlock: (b) => explore({ b, o: 0 }),
       jumpTo: (n) => {
@@ -309,7 +318,7 @@ export function BookReader({ article }: { article: Article }) {
       },
       peek: (n, rect) => setPeek(n !== null && rect ? { n, rect } : null),
     }),
-    [ix, go, explore, setUI],
+    [ix, go, explore, setUI, blocks],
   );
   const saveMarks = (next: BookMark[]) => {
     try {
