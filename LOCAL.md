@@ -8,7 +8,11 @@ No Clerk account or database is needed for local reading. Keep `.env.local` out 
 
 ## Books
 
-The home page opens your library. Choose **Add a book → Books & files**. EPUB, PDF, Markdown and plain text are supported. The reader's **Contents** button moves between EPUB spine sections. Reading position is restored when the document opens again.
+The home page opens your library. **Books → Add a book** imports EPUB and PDF. **Articles → Add an article** accepts web links; **Paste text** accepts text, Markdown and .txt/.md files. Existing imports are classified automatically.
+
+EPUB opens as a single-page reader. Use the footer arrows, ← / →, Page Up / Page Down or a horizontal swipe. Only the current chapter is mounted. Contents and bookmarks are in the top-left menu; search covers the entire book. Appearance controls font, spacing and width. A source block and character offset are saved, so resizing or changing the font keeps the same passage visible. The final-page check button marks a book finished. PDF continues to use extracted-text scrolling; original PDF page rendering is not included.
+
+Bookmark storage is local to this browser. Discuss overlays the page without repaginating it; close or resume to return to reading.
 
 EPUB import runs in the browser. It preserves reading order, prose, headings, emphasis, supported tables and packaged PNG/JPEG/GIF/WebP images. This is a reading view, not a reproduction of the publisher's page layout. DRM-encrypted chapters are unsupported; SVG, embedded media and book CSS are not rendered. Internal footnote navigation and nested publisher navigation are not implemented yet.
 
@@ -26,7 +30,7 @@ Restart the local server after editing environment settings. Michael is the defa
 
 ElevenLabs remains an explicit alternative, using `ELEVENLABS_API_KEY` and optionally `ELEVENLABS_VOICE_ID`. Together uses its separate AI key. Browser settings store each provider's key separately; legacy ElevenLabs settings are retained when Kokoro becomes the default. No provider failure automatically switches to another paid provider. Kokoro's English voices refuse Cyrillic input with an actionable message.
 
-Use **Read aloud** in the bottom player to begin at the current paragraph. Pause, resume, stop, speed, repeat, seek and follow-voice controls remain in **⋯**. Time is for the current passage. Kokoro and ElevenLabs timestamps drive word highlighting where the CSS Custom Highlight API is available. Missing or mismatched words (including normalized numbers) fall back to paragraph tracking instead of guessing offsets.
+Use **Read aloud** in the bottom player to begin at the current paragraph (or the saved source position inside an EPUB page). Pause, resume, stop, speed, repeat, seek and follow-voice controls remain in **⋯**. Turning a book page manually suspends audio following; **Jump to audio** restores it. Time is for the current passage. Kokoro and ElevenLabs timestamps drive word highlighting where the CSS Custom Highlight API is available. Missing or mismatched words (including normalized numbers) fall back to paragraph tracking instead of guessing offsets.
 
 ### Persistent audio
 

@@ -4,13 +4,13 @@ import { SignInButton } from "@/components/account/auth";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { BookOpen, BookmarkPlus, Check, Copy, Loader2, Plus, Trash2, X } from "lucide-react";
-import { importFromFile, importFromUrl, keep, looksLikeUrl } from "@/lib/import";
+import { importFromText, importFromFile, importFromUrl, keep, looksLikeUrl } from "@/lib/import";
 import { normalizeUrl } from "@/lib/links";
 import { useStore } from "@/lib/store";
 import { Mark, type AgentMark } from "./AgentMarks";
 import { Glyph } from "./Book";
 
-export type AddTab = "links" | "agent" | "files";
+export type AddTab = "links" | "agent" | "files" | "text";
 
 /**
  * Adding to the library: paste links (one or many), or connect an agent that
@@ -39,16 +39,17 @@ export function AddPanel({ tab, onTab, onClose, signedIn }: { tab: AddTab; onTab
       <section role="dialog" aria-modal aria-label="Add to the library" className="add-panel">
         <header className="flex items-center justify-between gap-3">
           <div className="lib-sort !ml-0 flex-wrap" role="tablist" aria-label="Add">
-            <button type="button" role="tab" aria-selected={tab === "files"} aria-checked={tab === "files"} onClick={() => onTab("files")}>Books & files</button>
+            <button type="button" role="tab" aria-selected={tab === "files"} aria-checked={tab === "files"} onClick={() => onTab("files")}>Books</button>
             <button type="button" role="tab" aria-selected={tab === "links"} aria-checked={tab === "links"} onClick={() => onTab("links")}>
-              Web links
+              Article links
             </button>
+            <button type="button" role="tab" aria-selected={tab === "text"} aria-checked={tab === "text"} onClick={() => onTab("text")}>Paste text</button>
           </div>
           <button type="button" aria-label="Close" data-tip="Close" data-tip-kbd="Esc" onClick={onClose} className="grid size-9 place-items-center rounded-full text-ink-3 transition-colors hover:bg-sunk hover:text-ink">
             <X size={17} />
           </button>
         </header>
-        {tab === "files" ? <Files /> : tab === "links" ? <Links /> : <Agent signedIn={signedIn} />}
+        {tab === "files" ? <Files /> : tab === "links" ? <Links /> : tab === "text" ? <PasteText /> : <Agent signedIn={signedIn} />}
       </section>
     </div>,
     document.body
@@ -60,12 +61,12 @@ export function AddPanel({ tab, onTab, onClose, signedIn }: { tab: AddTab; onTab
  * do it for you. On hover the marks fan out to the right from Grok, which
  * holds its place, and the plus turns.
  */
-export function AddButton({ onClick, compact }: { onClick: () => void; compact?: boolean }) {
+export function AddButton({ onClick, compact, label = "Add a book" }: { onClick: () => void; compact?: boolean; label?: string }) {
   return (
     <button type="button" onClick={onClick} className={`lib-add${compact ? " is-compact" : ""}`}>
       <Plus size={compact ? 18 : 20} />
       <span className="min-w-0 text-left">
-        <span className="lib-add-title">Add a book</span>
+        <span className="lib-add-title">{label}</span>
 
       </span>
 
@@ -447,12 +448,18 @@ function Files() {
   }
   return <div className="mt-5">
     <h2 className="font-serif text-xl">Open a book</h2>
-    <p className="mt-2 text-sm text-ink-3">Import EPUB, PDF, Markdown or plain text. EPUB books keep their chapter order and reading position. Files stay in this browser.</p>
+    <p className="mt-2 text-sm text-ink-3">EPUB opens as a paged book with chapters. PDFs open as extracted text. Files stay in this browser.</p>
     <label className="mt-5 block rounded-xl border border-dashed border-rule-strong p-6 text-sm">
       Choose books or documents
-      <input aria-label="Choose books or documents" type="file" multiple disabled={busy} accept=".epub,.pdf,.txt,.md,.markdown" className="mt-3 block w-full text-sm" onChange={e => { const files = e.target.files; void add(files); e.target.value = ""; }} />
+      <input aria-label="Choose books or documents" type="file" multiple disabled={busy} accept=".epub,.pdf" className="mt-3 block w-full text-sm" onChange={e => { const files = e.target.files; void add(files); e.target.value = ""; }} />
     </label>
     <p role="status" className="mt-3 text-sm text-ink-3">{status}</p>
     <ul className="mt-2 max-h-64 overflow-y-auto">{results.map((r, i) => <li key={i} className="py-2 text-sm"><span>{r.name}</span><span className="block text-ink-3">{r.error || "Saved to your library"}</span></li>)}</ul>
   </div>;
+}
+
+function PasteText() {
+  const [text,setText]=useState(''), [message,setMessage]=useState(''), [busy,setBusy]=useState(false);
+  const save=async()=>{setBusy(true);setMessage('');try {const result=importFromText(text);const error=result.ok?await keep(result.article):result.error;setMessage(error??'Saved to Articles');if(!error)setText('');} catch {setMessage('Could not save. Please try again.');} finally {setBusy(false);}};
+  return <div className="mt-5"><p className="text-sm text-ink-3">Paste an essay, article or notes. Use a heading on the first line for the title.</p><textarea aria-label="Article text" placeholder="# Article title" className="mt-4 min-h-56 w-full rounded-xl border border-rule p-4 text-sm" value={text} onChange={e=>setText(e.target.value)}/><button className="add-btn mt-3" disabled={busy||!text.trim()} onClick={()=>void save()}>{busy?'Saving…':'Save article'}</button><p role="status" className="mt-3 text-sm text-ink-3">{message}</p><label className="mt-4 block text-sm text-ink-3">Or import a text file<input type="file" accept=".txt,.md,.markdown" aria-label="Import article text" disabled={busy} onChange={async e=>{const file=e.target.files?.[0];if(file) setText(await file.text());e.target.value='';}}/></label></div>;
 }

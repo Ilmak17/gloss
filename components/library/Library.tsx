@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState, ViewTransition } from "react";
 import { ArrowRight, BookOpen as BookIcon, ChevronLeft, ChevronRight, Ellipsis, LayoutGrid, Library as LibraryIcon, Search, X } from "lucide-react";
 import { TopBar } from "@/components/ui/TopBar";
+import { documentKind } from "@/lib/books";
 import { readingMinutes, tidyTitle, wordCount } from "@/lib/article";
 import { forgetCover, paintAll } from "@/lib/covers";
 import { SAMPLE_SHELF } from "@/lib/classics";
@@ -46,6 +47,7 @@ export function Library() {
   const removeFromLibrary = useStore((s) => s.removeFromLibrary);
   const prefs = useLibraryPrefs();
 
+  const [kind, setKind] = useState<"book" | "article">("book");
   const [view, setView] = useState<View>("shelf");
   const [topic, setTopic] = useState<TopicKey | null>(null);
   const [only, setOnly] = useState<TopicKey | null>(null);
@@ -178,9 +180,9 @@ export function Library() {
     (b: Book) => {
       const words = q.toLowerCase().trim().split(/\s+/).filter(Boolean);
       const t = tag ? TAGS.find((x) => x.key === tag)! : null;
-      return (!t || t.test(b)) && words.every((w) => `${b.title} ${b.author} ${TOPIC[b.topic].name} ${b.tags.join(" ")} ${b.year ?? ""}`.toLowerCase().includes(w));
+      return documentKind(library.find(x => x.id === b.id) ?? {origin:"sample"}) === kind && (!t || t.test(b)) && words.every((w) => `${b.title} ${b.author} ${TOPIC[b.topic].name} ${b.tags.join(" ")} ${b.year ?? ""}`.toLowerCase().includes(w));
     },
-    [q, tag]
+    [q, tag, kind, library]
   );
   const shown = useMemo(() => new Set(sorted.filter((b) => (!only || b.topic === only) && match(b)).map((b) => b.id)), [sorted, only, match]);
 
@@ -298,7 +300,7 @@ export function Library() {
                   )}
                 </p>
               </div>
-              <AddButton onClick={() => setAdding("files")} />
+              <AddButton label={kind === "book" ? "Add a book" : "Add an article"} onClick={() => setAdding(kind === "book" ? "files" : "links")} />
             </div>
             {fromAgent.length > 0 && (
               <button type="button" className="lib-news" onClick={() => (setTag("agent"), setOnly(null), go({ view: "shelf" }))}>
@@ -314,10 +316,11 @@ export function Library() {
             <button type="button" onClick={() => go({ view: "topics" })} className="lib-back">
               <ChevronLeft size={16} /> All topics
             </button>
-            <AddButton compact onClick={() => setAdding("files")} />
+            <AddButton compact label={kind === "book" ? "Add a book" : "Add an article"} onClick={() => setAdding(kind === "book" ? "files" : "links")} />
           </div>
         ) : (
           <div className="lib-tools">
+            <div className="lib-sort !ml-0" role="tablist" aria-label="Library section">{(["book","article"] as const).map(k => <button key={k} role="tab" aria-selected={kind===k} aria-checked={kind===k} onClick={()=>{setKind(k);setOnly(null);setTag(null);setView("shelf");}}>{k==='book'?'Books':'Articles'} <span className="lib-n">{books.filter(b=>documentKind(library.find(x=>x.id===b.id)??{origin:"sample"})===k).length}</span></button>)}</div>
             {(books.length > 6 || view !== "shelf") && <ViewSwitch view={view} onChange={(v) => go({ view: v })} />}
             {searchBox}
             {view === "shelf" && books.length > 1 && (
@@ -374,7 +377,7 @@ export function Library() {
                   </div>)}
                 </div>}
                 {hydrated && shown.size === 0 && books.length > 0 && (
-                  <p className="py-6 text-center text-[14px] text-ink-3">No books match{q ? <> &ldquo;{q}&rdquo;</> : ""}.</p>
+                  <p className="py-6 text-center text-[14px] text-ink-3">No {kind === "book" ? "books" : "articles"} here yet. Add one above{q ? " or clear your search" : ""}{q ? <> &ldquo;{q}&rdquo;</> : ""}.</p>
                 )}
                 {hydrated && own.length === 0 && <p className="lib-hint">Add an EPUB or PDF to start reading.</p>}
               </>
