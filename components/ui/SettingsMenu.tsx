@@ -4,7 +4,7 @@ import { useState, type MouseEvent, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { AlignJustify, AlignLeft, Focus, Headphones, Map as MapIcon, Minus, Paintbrush, Pilcrow, Plus, RotateCcw } from "lucide-react";
 import { MODELS, type ModelKey } from "@/lib/models";
-import { applySettings, DEFAULT_SETTINGS, FACES, MARKERS, PENS, resolveTheme, THEMES, type Settings } from "@/lib/settings";
+import { applySettings, DEFAULT_SETTINGS, READING_PRESETS, readingPreset, FACES, MARKERS, PENS, resolveTheme, THEMES, type Settings } from "@/lib/settings";
 import { useStore } from "@/lib/store";
 import { Popover, barBtn } from "./Popover";
 import { setLibraryPrefs, useLibraryPrefs } from "@/lib/library-prefs";
@@ -126,7 +126,7 @@ export function SettingsMenu({ compact = false, readingOnly = false, book = fals
   const setSettings = useStore((s) => s.setSettings);
   const focusMode = useStore((s) => s.focusMode);
   const setUI = useStore((s) => s.setUI);
-  const [tab, setTab] = useState<"look" | "text" | "answers">("look");
+  const [tab, setTab] = useState<"look" | "text" | "answers">(book ? "text" : "look");
 
   const set = (patch: Partial<Settings>) => {
     setSettings(patch);
@@ -274,6 +274,15 @@ export function SettingsMenu({ compact = false, readingOnly = false, book = fals
 
           {!compact && tab === "text" && (
             <div className="space-y-3.5">
+              {book && <div className="border-b border-rule pb-3.5">
+                <Row label="Layout">
+                  <Seg label="Reading layout" value={readingPreset(settings)} onChange={v => { if (v !== "custom") set(READING_PRESETS[v]); }} options={[
+                    { key: "comfort", label: "Comfort" },
+                    { key: "compact", label: "More text" },
+                  ]} />
+                </Row>
+                <p className="mt-2 text-[11px] leading-snug text-ink-3">{readingPreset(settings) === "custom" ? "Custom settings · choose a layout or adjust below." : readingPreset(settings) === "compact" ? "Closer spacing, smaller headings and more text per page." : "A little more space for relaxed reading."}</p>
+              </div>}
               <div>
                 <p className="mb-2.5 text-[12.5px] text-ink-3">Typeface</p>
                 <div className="grid grid-cols-4 gap-2">
@@ -361,7 +370,7 @@ export function SettingsMenu({ compact = false, readingOnly = false, book = fals
                   ]}
                 />
               </Row>
-              {(["face", "size", "leading", "width", "align", "paras"] as const).some((k) => settings[k] !== DEFAULT_SETTINGS[k]) && (
+              {(["face", "size", "leading", "width", "align", "paras", "bookDensity"] as const).some((k) => settings[k] !== DEFAULT_SETTINGS[k]) && (
                 <button
                   type="button"
                   onClick={() =>
@@ -372,6 +381,7 @@ export function SettingsMenu({ compact = false, readingOnly = false, book = fals
                       width: DEFAULT_SETTINGS.width,
                       align: DEFAULT_SETTINGS.align,
                       paras: DEFAULT_SETTINGS.paras,
+                      bookDensity: DEFAULT_SETTINGS.bookDensity,
                     })
                   }
                   className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 transition-colors hover:text-ink"

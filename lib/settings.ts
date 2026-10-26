@@ -27,6 +27,7 @@ export type Settings = {
   width: "narrow" | "normal" | "wide";
   align: "left" | "justify";
   paras: "spaced" | "indented";
+  bookDensity: "comfort" | "compact";
   marker: Marker;
   length: "short" | "normal" | "long";
   model: ModelKey;
@@ -50,6 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
   width: "normal",
   align: "left",
   paras: "spaced",
+  bookDensity: "comfort",
   marker: "yellow",
   length: "normal",
   model: "flash",
@@ -58,6 +60,20 @@ export const DEFAULT_SETTINGS: Settings = {
   rail: true,
   listen: true,
 };
+
+/** Only reading typography changes; voice, theme, typeface and column width stay personal. */
+export const READING_PRESETS = {
+  comfort: { bookDensity: "comfort", size: 21, leading: "normal", align: "left", paras: "spaced" },
+  compact: { bookDensity: "compact", size: 20, leading: "tight", align: "left", paras: "spaced" },
+} as const satisfies Record<Settings["bookDensity"], Partial<Settings>>;
+
+export function readingPreset(settings: Settings): Settings["bookDensity"] | "custom" {
+  for (const mode of ["comfort", "compact"] as const) {
+    const preset = READING_PRESETS[mode];
+    if ((Object.keys(preset) as (keyof typeof preset)[]).every(key => settings[key] === preset[key])) return mode;
+  }
+  return "custom";
+}
 
 /** Swatch colours for the settings panel. The real palettes live in globals.css. */
 export const THEMES: { key: Settings["theme"]; label: string; bg: string; fg: string; dark: boolean }[] = [
@@ -94,6 +110,7 @@ export function applySettings(s: Settings) {
   el.dataset.face = s.face;
   el.dataset.align = s.align;
   el.dataset.paras = s.paras;
+  el.dataset.bookDensity = s.bookDensity ?? "comfort";
   el.style.setProperty("--read-size", `${s.size}px`);
   el.style.setProperty("--leading", String(LEADING[s.leading]));
   el.style.setProperty("--measure-k", String(MEASURE[s.width]));
@@ -103,4 +120,4 @@ export function applySettings(s: Settings) {
  * The same thing as applySettings, as an inline script for <head>, so the
  * first paint already has the reader's theme, pen and type. Kept in sync by hand.
  */
-export const BOOT_SCRIPT = `try{var s=JSON.parse(localStorage.getItem("${SETTINGS_KEY}")||"{}"),e=document.documentElement,t=s.theme||"auto";if(t==="auto")t=matchMedia("(prefers-color-scheme: dark)").matches?"night":"paper";e.dataset.theme=t;e.dataset.pen=s.pen||"vermilion";e.dataset.face=s.face||"book";e.dataset.align=s.align||"left";e.dataset.paras=s.paras||"spaced";if(s.size)e.style.setProperty("--read-size",s.size+"px");var L={tight:1.5,normal:1.64,loose:1.82},M={narrow:28,normal:32,wide:37};if(s.leading)e.style.setProperty("--leading",L[s.leading]);if(s.width)e.style.setProperty("--measure-k",M[s.width])}catch(x){}`;
+export const BOOT_SCRIPT = `try{var s=JSON.parse(localStorage.getItem("${SETTINGS_KEY}")||"{}"),e=document.documentElement,t=s.theme||"auto";if(t==="auto")t=matchMedia("(prefers-color-scheme: dark)").matches?"night":"paper";e.dataset.theme=t;e.dataset.pen=s.pen||"vermilion";e.dataset.face=s.face||"book";e.dataset.align=s.align||"left";e.dataset.paras=s.paras||"spaced";e.dataset.bookDensity=s.bookDensity||"comfort";if(s.size)e.style.setProperty("--read-size",s.size+"px");var L={tight:1.5,normal:1.64,loose:1.82},M={narrow:28,normal:32,wide:37};if(s.leading)e.style.setProperty("--leading",L[s.leading]);if(s.width)e.style.setProperty("--measure-k",M[s.width])}catch(x){}`;
