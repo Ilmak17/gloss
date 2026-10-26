@@ -17,7 +17,7 @@ import {
   NotebookPen,
 } from "lucide-react";
 import { blockText, type Article } from "@/lib/article";
-import { bookChapters, bookProgress, chapterForPoint } from "@/lib/books";
+import { bookChapters, bookProgress, chapterForPoint, isCoverChapter } from "@/lib/books";
 import {
   firstPointOnPage,
   pageCount,
@@ -412,7 +412,7 @@ export function BookReader({ article }: { article: Article }) {
           >
             <div
               ref={setRoot}
-              className="book-pages prose-read"
+              className={`book-pages prose-read${isCoverChapter(chapters[chapter]) ? " is-cover-page" : ""}`}
               onClick={(e) => {
                 const link = (e.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="#epub-"]');
                 if (link) {

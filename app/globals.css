@@ -2185,3 +2185,42 @@ a.desk-tile:focus-visible {
   .book-footer-return { bottom:auto; }
   .book-footer-return button { font-size:0; gap:0; width:28px; padding:0; justify-content:center; }
 }
+
+/* Book images use the available page, and open without disturbing text pagination. */
+.fig-trigger { display:block; width:fit-content; max-width:100%; margin-inline:auto; padding:0; border:0; background:none; color:inherit; }
+button.fig-trigger { cursor:zoom-in; border-radius:2px; }
+button.fig-trigger:focus-visible { outline:2px solid var(--ink-2); outline-offset:6px; }
+.prose-read .fig-img { border-radius:0; }
+.fig-unavailable { display:block; padding:24px; border:1px solid var(--rule); font:13px/1.5 var(--font-sans); color:var(--ink-3); text-align:center; }
+.book-viewport { container-type:size; }
+.book-pages .fig-img { max-height:min(72dvh, calc(100cqh - 5em)); }
+.book-pages.prose-read .blk[data-type=figure] { margin-block:1em; break-inside:avoid; }
+.book-pages.prose-read.is-cover-page { columns:auto; display:flex; align-items:center; justify-content:center; position:relative; }
+/* Keep the heading's anchor addressable for saved positions and the EPUB contents. */
+.book-pages.prose-read.is-cover-page .blk[data-type=h2], .book-pages.prose-read.is-cover-page .blk[data-type=h3] { position:absolute; top:0; left:0; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); margin:0; padding:0; }
+.book-pages.prose-read.is-cover-page .blk[data-type=figure] { width:100%; height:100%; margin:0; padding:12px 0 18px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.book-pages.is-cover-page .fig-trigger { height:100%; width:100%; display:flex; align-items:center; justify-content:center; }
+.book-pages.is-cover-page .fig-img { width:auto; height:auto; max-width:100%; max-height:100%; object-fit:contain; box-shadow:0 5px 20px -8px rgb(0 0 0 / .2); }
+.book-pages.is-cover-page figcaption { display:none; }
+.image-viewer { position:fixed; inset:0; width:100dvw; height:100dvh; max-width:none; max-height:none; margin:0; padding:0; border:0; background:var(--bg); color:var(--ink); overflow:hidden; }
+.image-viewer[open] { display:flex; flex-direction:column; }
+.image-viewer::backdrop { background:rgb(0 0 0 / .65); }
+.image-viewer-toolbar { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:14px 24px; border-bottom:1px solid var(--rule); flex-shrink:0; }
+.image-viewer-title { display:flex; flex-direction:column; min-width:0; font:14px/1.5 var(--font-sans); }
+.image-viewer-title > span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.image-viewer-title small { font-size:11px; color:var(--ink-3); }
+.image-viewer-toolbar nav { display:flex; gap:4px; align-items:center; }
+.image-viewer-toolbar button { display:grid; place-items:center; min-width:36px; height:36px; padding:0 10px; border-radius:8px; font:13px var(--font-sans); white-space:nowrap; }
+.image-viewer-toolbar button:hover, .image-viewer-toolbar button[aria-pressed=true] { background:var(--bg-sunk); }
+.image-viewer-toolbar button:disabled { opacity:.3; }
+.image-viewer-percent { width:48px; text-align:center; font:12px var(--font-sans); color:var(--ink-3); font-variant-numeric:tabular-nums; }
+.image-viewer-stage { flex:1; min-height:0; overflow:auto; padding:24px; overscroll-behavior:contain; }
+.image-viewer-stage img { display:block; margin:auto; max-width:none; flex-shrink:0; }
+.image-viewer-stage.is-fit { display:flex; align-items:center; justify-content:center; }
+.image-viewer-stage.is-fit img { width:auto; height:auto; max-width:100%; max-height:100%; object-fit:contain; }
+@media(max-width:640px) {
+  .image-viewer-toolbar { padding:10px 12px; gap:8px; }
+  .image-viewer-title { max-width:32%; font-size:12px; }
+  .image-viewer-percent { display:none; }
+  .image-viewer-stage { padding:14px; }
+}

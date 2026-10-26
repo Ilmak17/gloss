@@ -1,6 +1,7 @@
 "use client";
 
-import { memo, useState, type ReactNode } from "react";
+import { memo, useRef, useState, type ReactNode } from "react";
+import { ImageViewer } from "./ImageViewer";
 import { MessageCirclePlus } from "lucide-react";
 import type { Block as BlockT, Run } from "@/lib/article";
 
@@ -126,20 +127,23 @@ function repairSrc(src: string): string {
 
 function Picture({ src, alt, eager }: { src: string; alt?: string; eager?: boolean }) {
   const [state, setState] = useState<"loading" | "ok" | "gone">("loading");
-  if (state === "gone") return null;
-  return (
-    <img
-      src={repairSrc(src)}
-      alt={alt ?? ""}
-      loading={eager ? "eager" : "lazy"}
-      decoding="async"
-      referrerPolicy="no-referrer"
-      draggable={false}
-      className={`fig-img${state === "ok" ? " is-loaded" : ""}`}
-      onLoad={(e) => (e.currentTarget.naturalWidth < 48 ? setState("gone") : setState("ok"))}
-      onError={() => setState("gone")}
-    />
-  );
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const source = repairSrc(src);
+  if (state === "gone") return <span className="fig-unavailable">Image unavailable{alt && alt !== "image" ? `: ${alt}` : ""}</span>;
+  const picture = <img
+    src={source} alt={alt ?? ""} loading={eager ? "eager" : "lazy"} decoding="async"
+    referrerPolicy="no-referrer" draggable={false}
+    className={`fig-img${state === "ok" ? " is-loaded" : ""}`}
+    onLoad={() => setState("ok")} onError={() => setState("gone")}
+  />;
+  // Measurement must have exactly the same box geometry, but no focusable controls.
+  return <>
+    {eager ? <span className="fig-trigger">{picture}</span> :
+      <button ref={trigger} type="button" className="fig-trigger" aria-label={alt && alt !== "image" ? `Enlarge image: ${alt}` : "Enlarge illustration"}
+        onClick={e => { e.stopPropagation(); setOpen(true); }}>{picture}</button>}
+    {open && <ImageViewer src={source} alt={alt ?? ""} onClose={() => { setOpen(false); requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true })); }} />}
+  </>;
 }
 
 function Table({ rows, head }: { rows: string[][]; head?: boolean }) {

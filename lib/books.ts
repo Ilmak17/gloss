@@ -71,3 +71,10 @@ export function searchBook(
   }
   return hits;
 }
+
+/** Only the dedicated cover section gets a full-page image; source anchors stay intact. */
+export function isCoverChapter(chapter: BookChapter | undefined): boolean {
+  if (!chapter || !/^(cover|front cover|обложка)$/i.test(chapter.title.trim())) return false;
+  const figures = chapter.blocks.filter(b => b.type === "figure" && b.src);
+  return figures.length === 1 && figures[0].runs.length === 0 && chapter.blocks.every(b => b.type === "figure" || b.type === "h2" || b.type === "h3");
+}

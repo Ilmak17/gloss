@@ -82,3 +82,15 @@ test("search preserves UTF-16 offsets when Unicode case conversion changes lengt
   };
   assert.equal(searchBook(doc, "word")[0].point.o, 9);
 });
+
+test("full-page cover layout does not swallow prose or unrelated figure chapters", async () => {
+  const { isCoverChapter } = await import("../lib/books");
+  const blocks: Article["blocks"] = [
+    { id: "title", type: "h2", runs: [{ text: "The book" }] },
+    { id: "cover", type: "figure", runs: [], src: "data:image/png;base64,AA==" },
+  ];
+  assert.equal(isCoverChapter({ title: "Cover", blocks }), true);
+  assert.equal(isCoverChapter({ title: "Chapter one", blocks }), false);
+  assert.equal(isCoverChapter({ title: "Cover", blocks: [...blocks, { id: "text", type: "p", runs: [{ text: "Actual prose" }] }] }), false);
+  assert.equal(isCoverChapter({ title: "Cover", blocks: [blocks[0]] }), false);
+});

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { BookChapter } from '@/lib/books';
+import { isCoverChapter, type BookChapter } from '@/lib/books';
 import { pageCount } from '@/lib/book-pages';
 import { Block } from './Block';
 
@@ -43,7 +43,7 @@ function MeasureBook({chapters,size,onCounts}: {chapters:BookChapter[];size:{w:n
   if (index >= chapters.length) return null;
   return <div className="book-measure" aria-hidden inert>
     <div ref={vp} className="book-viewport" style={{width:size.w,height:size.h}}>
-      <div className="book-pages prose-read">
+      <div className={`book-pages prose-read${isCoverChapter(chapters[index]) ? " is-cover-page" : ""}`}>
         {chapters[index].blocks.map(b=><Block key={b.id} block={b} measuring first={false} marks={[]} activeGloss={null} hoverGloss={null} activeHighlight={null} fresh={null} cursor={false} hasAt={false} onAsk={()=>{}} />)}
       </div>
     </div>
