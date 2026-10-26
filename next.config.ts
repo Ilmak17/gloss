@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   devIndicators: false,
+  // Private local books, narration and credentials must never enter deploy bundles.
+  outputFileTracingExcludes: { "/*": ["./.data/**/*", "./.env*"] },
   serverExternalPackages: ["linkedom"],
   poweredByHeader: false,
   async headers() {

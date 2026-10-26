@@ -1,3 +1,4 @@
+import { BackupAgent } from "@/components/BackupAgent";
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Atkinson_Hyperlegible_Next, Newsreader, Schibsted_Grotesk } from "next/font/google";
@@ -89,6 +90,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
           <SyncAgent />
         </ClerkProvider> : children}
+        <BackupAgent />
         <Tooltips />
         {/* Plausible: cookieless page views, from the production site only, so previews and local runs never count. */}
         {process.env.VERCEL_ENV === "production" && <Script defer data-domain="usegloss.io" src="https://plausible.io/js/script.js" strategy="afterInteractive" />}

@@ -28,6 +28,7 @@ export function TopBar({ here, onLibrary }: { here?: "library"; onLibrary?: () =
           <Library size={17} />
           <span className="max-sm:hidden">Library</span>
         </Link>
+        <Link href="/backups" className="rounded-full px-3 py-2 text-sm text-ink-3 hover:bg-sunk">Backups</Link>
         <SettingsMenu compact readingOnly />
         <Account />
       </nav>

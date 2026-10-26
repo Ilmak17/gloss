@@ -516,3 +516,16 @@ async function dropDoc(id: string) {
 const EMPTY: never[] = [];
 export const useGlosses = (articleId: string) => useStore((s) => s.glosses[articleId] ?? EMPTY);
 export const useHighlights = (articleId: string) => useStore((s) => s.highlights[articleId] ?? EMPTY);
+
+/** Restore a batch atomically; resolve only after IndexedDB commits it. */
+export async function restoreDocuments(docs: Article[], originals: { id: string; blob: Blob }[]): Promise<void> {
+  const db = await idb();
+  await new Promise<void>((resolve, reject) => {
+    const t = db.transaction([DOCS, FILES], "readwrite");
+    t.oncomplete = () => resolve();
+    t.onabort = () => reject(t.error ?? new Error("Restore was interrupted."));
+    t.onerror = () => reject(t.error);
+    for (const doc of docs) t.objectStore(DOCS).put(doc, doc.id);
+    for (const file of originals) t.objectStore(FILES).put(file.blob, file.id);
+  });
+}

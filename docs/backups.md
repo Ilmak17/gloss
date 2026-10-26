@@ -1,0 +1,11 @@
+# Personal library backups
+
+`/backups` exports a portable versioned JSON snapshot and restores it without deleting existing reading data. Keys, login sessions, billing details and arbitrary browser storage are excluded. The `sha256` field covers `data` and is checked before importing. Original files are base64 encoded; EPUB images are already present inside parsed documents.
+
+GitHub backup is an opt-in **local server** feature. Set `GLOSS_BACKUP_REPOSITORY=owner/private-repo` in `.env.local`, clone the private repository to `.data/github-backup` (main branch, HTTPS origin), and configure Git author identity and `gh` authentication. The endpoint refuses non-loopback hosts, cross-origin writes and public repositories. It accepts at most 60 MB. It writes only `backup.json` and validated audio-cache JSON files, commits changed files, pushes and checks the remote commit. Git preserves previous snapshots. Do not store `.env.local` or credentials in the backup repository.
+
+After a successful manual backup, a five-minute timer runs while the app is visible. It is not an OS background service and cannot read browser data when the browser is closed. Check the Backups page for the last successful upload and errors. Automatic backup refuses a snapshot that omits an already backed-up library item; restore missing data before retrying. Provider failures leave a local commit to retry on the next backup.
+
+Restore from `backup.json` on the Backups page. A safety copy downloads first. Missing documents/originals are restored in one IndexedDB transaction; existing documents are retained. Notes merge by ID with existing edits winning. Newer reading positions win. Settings are restored only to an empty library. For an exact historical restoration, use a new browser profile. Audio recovery: copy the private repository's `audio/*.json` to `.data/audio` (or the configured cache path). Cache keys include credentials, so reconnect the same provider key to reuse cached narration.
+
+Not included: browser session/cookies, provider keys, account credentials, transient playback seconds, custom painted-cover cache. Existing imported cover images remain inside the saved documents. These backups belong in a private repository; the app's source code can stay public.
