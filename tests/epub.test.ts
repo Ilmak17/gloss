@@ -53,3 +53,40 @@ test("EPUB refuses remote images while preserving their surrounding text", async
   assert.equal(result.blocks.filter(b => b.type === "figure").length, 0);
   assert.ok(result.blocks.some(b => b.runs.some(r => r.text === "Text survives.")));
 });
+
+test("NCX titles and internal notes preserve legacy block coordinates", async () => {
+  const archive = book([
+    { name: 'OPS/book.opf', text: '<package><metadata><title>Navigation</title></metadata><manifest><item id="a" href="one.xhtml"/><item id="b" href="two.xhtml"/><item id="toc" href="toc.ncx" media-type="application/x-dtbncx+xml"/></manifest><spine toc="toc"><itemref idref="a"/><itemref idref="b"/></spine></package>' },
+    { name: 'OPS/toc.ncx', text: '<ncx><navMap><navPoint><navLabel><text>1. Real chapter name</text></navLabel><content src="one.xhtml#chapter"/></navPoint><navPoint><navLabel><text>Notes</text></navLabel><content src="two.xhtml"/></navPoint></navMap></ncx>' },
+    { name: 'OPS/one.xhtml', text: '<html><body><h1 id="chapter">1</h1><p>Before<sup><a href="two.xhtml#note1">1</a></sup> after.</p></body></html>' },
+    { name: 'OPS/two.xhtml', text: '<html><body><h1>Notes</h1><p id="note1">The note.</p></body></html>' },
+  ]);
+  const result = await epubToArticle(new File([archive], 'navigation.epub'));
+  assert.equal(result.chapters?.[0].title, '1. Real chapter name');
+  assert.equal(result.blocks[1].runs.map(r => r.text).join(''), 'Before after.');
+  assert.equal(result.blocks[1].id, 'b2');
+  assert.ok(result.blocks[1].runs.some(r => r.noteLabel === '1' && r.href?.startsWith('#epub-')));
+  assert.equal(result.epub?.targets['OPS/two.xhtml#note1'].block, 'b4');
+  assert.equal(result.epub?.toc[0].block, 'b1');
+});
+
+test("EPUB3 TOC resolves nested fragment links without importing remote targets", async () => {
+  const archive = book([
+    { name: 'OPS/book.opf', text: '<package><metadata/><manifest><item id="a" href="one.xhtml"/><item id="b" href="two.xhtml"/><item id="nav" href="nav.xhtml" properties="nav"/></manifest><spine><itemref idref="a"/><itemref idref="b"/></spine></package>' },
+    { name: 'OPS/nav.xhtml', text: '<html xmlns:epub="http://www.idpf.org/2007/ops"><body><nav epub:type="toc"><ol><li><a href="one.xhtml">First real title</a><ol><li><a href="two.xhtml#second">Second real title</a></li></ol></li><li><a href="https://bad.invalid/">Remote</a></li></ol></nav></body></html>' },
+    { name: 'OPS/two.xhtml', text: '<html><body><h1 id="second">2</h1><p>Content</p></body></html>' },
+  ]);
+  const result = await epubToArticle(new File([archive], 'nav.epub'));
+  assert.deepEqual(result.epub?.toc.map(t => t.title), ['First real title', 'Second real title']);
+  assert.equal(result.chapters?.[1].title, 'Second real title');
+});
+
+test('semantic EPUB3 footnotes preserve their complete container boundary', async () => {
+  const archive=book([{name:'OPS/one.xhtml',text:'<html xmlns:epub="http://www.idpf.org/2007/ops"><body><h1>Chapter</h1><p>Text<a epub:type="noteref" href="#n1">1</a></p><aside id="n1" epub:type="footnote"><p>First note paragraph.</p><p>Second note paragraph.</p></aside><p>Unrelated prose.</p></body></html>'}]);
+  const a=await epubToArticle(new File([archive],'semantic.epub'));
+  const note=a.epub?.targets['OPS/one.xhtml#n1'];
+  assert.equal(note?.note,true);
+  assert.equal(note?.block,'b3');
+  assert.equal(note?.endBlock,'b4');
+  assert.equal(a.blocks[1].runs.map(r=>r.text).join(''),'Text1');
+});

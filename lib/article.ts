@@ -2,7 +2,7 @@
 
 import { texToText } from "./tex";
 
-export type Run = { text: string; em?: boolean; strong?: boolean; code?: boolean; href?: string };
+export type Run = { text: string; em?: boolean; strong?: boolean; code?: boolean; href?: string; noteLabel?: string; noteReference?: boolean };
 
 export type BlockType = "p" | "h2" | "h3" | "quote" | "li" | "pre" | "note" | "figure" | "table";
 
@@ -34,6 +34,11 @@ export type Article = {
   format?: "epub" | "pdf" | "text";
   blocks: Block[];
   chapters?: { title: string; block: string }[];
+  epub?: {
+    version: 2;
+    toc: { title: string; block: string; depth: number; kind: "main" | "front" | "back" }[];
+    targets: Record<string, { block: string; note?: boolean; endBlock?: string }>;
+  };
   /** The page's own lead picture (og:image), by its original URL: the library shows it on the cover. */
   image?: string;
   /** Where it came from: the bundled shelf, a link, pasted text, or a file. */

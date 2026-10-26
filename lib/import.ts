@@ -29,7 +29,7 @@ export async function importFromFile(file: File, onProgress?: (p: number, label?
   try {
     if (name.endsWith(".epub") || file.type === "application/epub+zip") {
       const { epubToArticle } = await import("./epub");
-      return { ok: true, article: await epubToArticle(file) };
+      return { ok: true, article: await epubToArticle(file), file };
     }
     if (name.endsWith(".pdf") || file.type === "application/pdf") {
       const { pdfToArticle, PdfError } = await import("./pdf");

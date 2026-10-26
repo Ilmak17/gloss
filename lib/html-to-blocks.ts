@@ -118,7 +118,7 @@ function tableOf(table: El): { rows: string[][]; head: boolean } | null {
   return { rows: rows.map((r) => [...r, ...Array(cols - r.length).fill("")]), head };
 }
 
-function inlineRuns(node: El, marks: Omit<Run, "text"> = {}, out: Run[] = []): Run[] {
+function inlineRuns(node: El, marks: Omit<Run, "text"> = {}, out: Run[] = [], resolveLink?: (href: string) => string | undefined): Run[] {
   for (const child of Array.from(node.childNodes)) {
     if (child.nodeType === 3) {
       const t = (child.textContent ?? "").replace(/\s+/g, " ");
@@ -132,16 +132,22 @@ function inlineRuns(node: El, marks: Omit<Run, "text"> = {}, out: Run[] = []): R
       out.push({ text: " ", ...marks });
       continue;
     }
-    if (tag === "SUP" && /^\[?\d+\]?$/.test((child.textContent ?? "").trim())) continue; // footnote markers
+    if (tag === "SUP" && /^\[?\d+\]?$/.test((child.textContent ?? "").trim())) {
+      const a = descendants(child, "A")[0];
+      const href = resolveLink?.(a?.getAttribute?.("href") ?? marks.href ?? "");
+      if (href) out.push({ text: "", href, noteLabel: (child.textContent ?? "").trim() });
+      continue;
+    }
     const next = { ...marks };
     if (tag === "EM" || tag === "I" || tag === "CITE") next.em = true;
     if (tag === "STRONG" || tag === "B") next.strong = true;
     if (tag === "CODE" || tag === "KBD") next.code = true;
     if (tag === "A") {
       const href = child.getAttribute?.("href");
-      if (href && /^https?:/i.test(href)) next.href = href;
+      if (resolveLink && /(?:^|\s)(?:noteref|doc-noteref)(?:$|\s)/.test(`${child.getAttribute?.("epub:type") ?? ""} ${child.getAttribute?.("role") ?? ""}`)) next.noteReference = true;
+      if (href) next.href = /^https?:/i.test(href) ? href : resolveLink?.(href);
     }
-    inlineRuns(child, next, out);
+    inlineRuns(child, next, out, resolveLink);
   }
   return out;
 }
@@ -151,7 +157,7 @@ function tidyRuns(runs: Run[]): Run[] {
   const merged: Run[] = [];
   for (const r of runs) {
     const prev = merged[merged.length - 1];
-    if (prev && prev.em === r.em && prev.strong === r.strong && prev.code === r.code && prev.href === r.href) prev.text += r.text;
+    if (prev && prev.em === r.em && prev.strong === r.strong && prev.code === r.code && prev.href === r.href && prev.noteReference === r.noteReference && !prev.noteLabel && !r.noteLabel) prev.text += r.text;
     else merged.push({ ...r });
   }
   // Typographic quotes, using the previous run's last character as context.
@@ -170,10 +176,11 @@ function tidyRuns(runs: Run[]): Run[] {
     } else if (t) prev = t[t.length - 1];
     r.text = t;
   }
-  if (merged[0]) merged[0].text = merged[0].text.trimStart();
-  const last = merged[merged.length - 1];
+  const first = merged.find(r => r.text.length > 0);
+  if (first) first.text = first.text.trimStart();
+  const last = [...merged].reverse().find(r => r.text.length > 0);
   if (last) last.text = last.text.trimEnd();
-  return merged.filter((r) => r.text.length > 0);
+  return merged.filter((r) => r.text.length > 0 || !!r.noteLabel);
 }
 
 /** Query parameters that only resize or re-encode a picture. */
@@ -195,7 +202,7 @@ export function sameImage(src: string): string {
   }
 }
 
-export function htmlToBlocks(root: El, base?: string, options?: { preserveBookContent?: boolean; resolveImage?: (src: string) => string | undefined }): Block[] {
+export function htmlToBlocks(root: El, base?: string, options?: { preserveBookContent?: boolean; resolveImage?: (src: string) => string | undefined; resolveLink?: (href: string) => string | undefined; onBlock?: (el: El, block: Block) => void }): Block[] {
   const blocks: Block[] = [];
   let i = 0;
   const seen = new Set<string>();
@@ -264,9 +271,13 @@ export function htmlToBlocks(root: El, base?: string, options?: { preserveBookCo
         }
       }
       if (type) {
-        const runs = tidyRuns(inlineRuns(child));
+        const runs = tidyRuns(inlineRuns(child, {}, [], options?.resolveLink));
         const text = runs.map((r) => r.text).join("");
-        if (text.trim().length > 0) blocks.push({ id: `b${++i}`, type, runs });
+        if (text.trim().length > 0) {
+          const block = { id: `b${++i}`, type, runs };
+          blocks.push(block);
+          options?.onBlock?.(child, block);
+        }
         // Images inside a paragraph (often its only content) stand on their own after it.
         for (const img of descendants(child, "IMG")) figure(img);
         // So do data tables: Readability turns a div that only wraps one (arXiv's HTML papers) into a paragraph.
