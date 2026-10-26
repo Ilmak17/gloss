@@ -31,6 +31,7 @@ export type Article = {
   dek?: string;
   source?: string;
   sourceUrl?: string;
+  format?: "epub" | "pdf" | "text";
   blocks: Block[];
   chapters?: { title: string; block: string }[];
   /** The page's own lead picture (og:image), by its original URL: the library shows it on the cover. */

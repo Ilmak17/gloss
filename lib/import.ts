@@ -34,7 +34,7 @@ export async function importFromFile(file: File, onProgress?: (p: number, label?
     if (name.endsWith(".pdf") || file.type === "application/pdf") {
       const { pdfToArticle, PdfError } = await import("./pdf");
       try {
-        return { ok: true, article: await pdfToArticle(file, onProgress), file };
+        return { ok: true, article: { ...await pdfToArticle(file, onProgress), format: "pdf" }, file };
       } catch (e) {
         if (e instanceof PdfError) return { ok: false, error: e.message, needKey: e.needKey };
         throw e;
@@ -44,6 +44,7 @@ export async function importFromFile(file: File, onProgress?: (p: number, label?
       const a = textToArticle(await file.text(), { origin: "file" });
       if (a.title === "Untitled") a.title = file.name.replace(/\.(txt|md|markdown|text)$/i, "").replace(/[_-]+/g, " ");
       a.source = file.name;
+      a.format = "text";
       return { ok: true, article: a };
     }
     return { ok: false, error: "Gloss reads EPUB, PDF, .txt and .md files." };

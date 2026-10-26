@@ -75,5 +75,6 @@ export async function epubToArticle(file: File): Promise<Article> {
     blocks.push(...chapter);
   }
   if (!blocks.length) throw new Error("This EPUB has no readable text or supported pictures.");
-  return { id: `${slugify(title)}-${crypto.randomUUID().slice(0, 8)}`, title, author, blocks, chapters, origin: "file", source: file.name, addedAt: Date.now() };
+  return { id: `${slugify(title)}-${crypto.randomUUID().slice(0, 8)}`, title, author, blocks, chapters, origin: "file",
+    format: "epub", source: file.name, addedAt: Date.now() };
 }
