@@ -4,6 +4,7 @@ import { memo, useRef, useState, type ReactNode } from "react";
 import { ImageViewer } from "./ImageViewer";
 import { MessageCirclePlus } from "lucide-react";
 import type { Block as BlockT, Run } from "@/lib/article";
+import { typesetDashes } from "@/lib/typeset";
 
 /** `note`: a highlight with the reader's note, set only in the block where it ends. */
 export type Mark = { from: number; to: number; kind: "gloss" | "hl" | "pending"; id: string; color?: string; note?: boolean };
@@ -46,7 +47,7 @@ function wrapRun(run: Run, text: string, key: string): ReactNode {
  * coordinates anchors use, so highlights never drift.
  */
 function segments(block: BlockT, marks: Mark[], activeGloss: string | null, hoverGloss: string | null, activeHighlight: string | null, fresh: string | null) {
-  const runs = block.runs;
+  const runs = block.type === "pre" ? block.runs : block.runs.map((r) => (r.code ? r : { ...r, text: typesetDashes(r.text) }));
   if (!marks.length) return runs.map((r, i) => wrapRun(r, r.text, String(i)));
 
   const bounds: number[] = [];
