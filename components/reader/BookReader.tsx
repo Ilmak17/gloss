@@ -85,6 +85,8 @@ export function BookReader({ article }: { article: Article }) {
   const lastPage = useRef(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const pageSwipe = useRef(createPageSwipe());
+  const turnDirection = useRef(0);
+  const pageAnimation = useRef<Animation | null>(null);
   const glosses = useGlosses(article.id),
     highlights = useHighlights(article.id);
   const activeGloss = useStore((s) => s.activeGloss),
@@ -203,6 +205,22 @@ export function BookReader({ article }: { article: Article }) {
       root.removeEventListener("load", layout, true);
     };
   }, [root, chapter, revision, settings, blocks, persist]);
+  useLayoutEffect(() => {
+    const direction = turnDirection.current;
+    turnDirection.current = 0;
+    if (!direction || !viewport.current) return;
+    pageAnimation.current?.cancel();
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Move the viewport and its contents together: text-to-page measurements stay stable.
+    pageAnimation.current = viewport.current.animate(
+      [
+        { transform: `translateX(${direction * 24}px)`, opacity: 0.4 },
+        { transform: "translateX(0)", opacity: 1 },
+      ],
+      { duration: 240, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+    );
+  }, [page, chapter]);
+  useEffect(() => () => pageAnimation.current?.cancel(), []);
   useEffect(() => {
     if (audioBlock && follow && status === "playing")
       go({ b: audioBlock, o: audioOffset }, false);
@@ -215,6 +233,7 @@ export function BookReader({ article }: { article: Article }) {
         useListen.setState({ follow: false });
       const next = page + direction;
       if (next >= 0 && next < pages) {
+        turnDirection.current = direction;
         point.current = firstPointOnPage(vp, blocks, next);
         vp.scrollLeft = next * pageStride(vp);
         setPage(next);
@@ -222,6 +241,7 @@ export function BookReader({ article }: { article: Article }) {
       } else {
         const nextChapter = chapter + direction;
         if (nextChapter < 0 || nextChapter >= chapters.length) return;
+        turnDirection.current = direction;
         point.current = { b: chapters[nextChapter].blocks[0].id, o: 0 };
         lastPage.current = direction < 0;
         setChapter(nextChapter);
