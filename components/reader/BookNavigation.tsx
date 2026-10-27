@@ -29,7 +29,7 @@ export function BookNavigation({
       <Popover
         align="left"
         label="Contents and bookmarks"
-        trigger={<List size={19} />}
+        trigger={<List size={18} strokeWidth={1.75} />}
         triggerClass={barBtn}
         width={320}
       >
@@ -83,7 +83,7 @@ export function BookNavigation({
       <Popover
         align="left"
         label="Search in book"
-        trigger={<Search size={18} />}
+        trigger={<Search size={18} strokeWidth={1.75} />}
         triggerClass={barBtn}
         width={340}
       >

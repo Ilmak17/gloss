@@ -2156,10 +2156,26 @@ a.desk-tile:focus-visible {
 
 /* EPUBs are a quiet, single-page surface. The source text remains intact in columns. */
 .book-reader.study-reader { --study-left:0px; --study-right:0px; position:fixed; inset:0; overflow:hidden; background:var(--bg); }
-.book-toolbar { position:absolute; inset:0 0 auto; height:64px; display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:16px; padding:0 24px; z-index:50; background:var(--bg); transition:opacity .18s ease-out, transform .18s ease-out; }
-.book-toolbar nav { display:flex; align-items:center; gap:4px; }
+/* The book's bar: getting around on the left, the book's title in the middle
+   (the player while you listen), tools for this page on the right. */
+.book-toolbar { position:absolute; inset:0 0 auto; height:64px; display:grid; grid-template-columns:1fr minmax(0,480px) 1fr; align-items:center; gap:16px; padding:0 20px; z-index:50; background:var(--bg); transition:opacity .18s ease-out, transform .18s ease-out; }
+.book-toolbar nav { display:flex; align-items:center; gap:2px; }
 .book-toolbar nav:last-child { justify-content:flex-end; }
-.book-toolbar h1 { font-size:13px; font-weight:500; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+/* On: listening, the notebook open. A saved page shows in its filled bookmark instead. */
+.book-toolbar nav [aria-pressed=true]:not(.book-bookmark) { background:var(--bg-sunk); color:var(--ink); }
+.book-bar-middle { min-width:0; display:flex; justify-content:center; }
+.book-title { min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:var(--font-serif); font-size:14px; font-weight:450; color:var(--ink-3); }
+.book-player { position:relative; display:flex; align-items:center; gap:6px; width:min(440px,100%); animation:fade .2s var(--ease-out) both; }
+.book-player-play { display:grid; place-items:center; width:32px; height:32px; flex:none; border-radius:50%; background:var(--bg-sunk); color:var(--ink); transition:background .15s, transform .12s var(--ease-out); }
+.book-player-play:hover { background:color-mix(in oklab, var(--ink) 10%, var(--bg)); }
+.book-player-play:active { transform:scale(.94); }
+.book-player-play:focus-visible { outline:2px solid var(--ink-3); outline-offset:2px; }
+.book-player .study-timeline { gap:10px; margin-inline:4px; }
+.book-player .study-icon { width:32px; height:32px; border-radius:50%; color:var(--ink-3); }
+.book-player .study-icon:hover { color:var(--ink); }
+.book-player .study-player-menu .pop { top:calc(100% + 12px); bottom:auto; right:0; --origin:top right !important; }
+.book-player .study-player-error { top:calc(100% + 10px); bottom:auto; }
+.book-player:has(.study-player-menu [aria-expanded=true]) .study-player-error { display:none; }
 .book-reader.is-quiet .book-toolbar:not(:hover):not(:has(:focus-visible)):not(:has([role=dialog])):not(:has([aria-expanded=true])):not(:has(details[open])) { opacity:0; pointer-events:none; transform:translateY(-8px); }
 .book-controls-reveal { position:absolute; z-index:51; inset:0 0 auto; height:20px; width:100%; background:transparent; }
 .book-controls-reveal span { display:none; }
@@ -2192,14 +2208,7 @@ a.desk-tile:focus-visible {
 .book-footer button { display:grid; place-items:center; width:36px; height:36px; border-radius:50%; color:var(--ink-2); }
 .book-footer button:hover:not(:disabled) { background:var(--bg-sunk); }
 .book-footer button:disabled { opacity:.2; }
-.book-toolbar-center { min-width:0; display:flex; justify-content:center; }
-.book-reader .study-player { position:relative; inset:auto; transform:none; width:min(420px,100%); padding:4px; border:0; background:transparent; backdrop-filter:none; box-shadow:none; }
-.book-reader .study-player.is-idle { width:260px; }
-.book-reader .study-player-main { gap:10px; }
-.book-reader .study-player-menu .pop { top:calc(100% + 12px); bottom:auto; --origin:top right !important; }
-.book-reader .study-player-error { top:calc(100% + 10px); bottom:auto; }
 .book-reader .study-panel { width:min(380px,100%); top:64px; z-index:55; box-shadow:-16px 0 50px rgb(0 0 0 / .08); }
-.book-reader.study-reader.is-studying .study-player { display:block; }
 .book-navigation { max-height:min(65dvh,560px); overflow:auto; padding:8px; }
 .book-navigation > button, .book-mark-row > button:first-child { display:flex; align-items:center; justify-content:space-between; gap:14px; width:100%; text-align:left; padding:10px; border-radius:8px; font-size:13px; color:var(--ink-2); }
 .book-navigation button:hover, .book-navigation button[aria-current=location] { background:var(--bg-sunk); color:var(--ink); }
@@ -2211,18 +2220,19 @@ a.desk-tile:focus-visible {
 .book-navigation input { width:100%; border:1px solid var(--rule); border-radius:10px; padding:10px 12px; outline-offset:2px; font-size:13px; }
 .book-navigation .book-search-hit { display:block; line-height:1.5; border-bottom:1px solid var(--rule); }
 .book-save-error { position:fixed; bottom:114px; left:50%; transform:translateX(-50%); padding:12px; background:var(--bg); border:1px solid var(--rule); z-index:60; }
+/* Phones: one row, no title. While you listen, the player gets a row of its own. */
 @media(max-width:640px) {
-  .book-toolbar { padding:0 10px; gap:6px; grid-template-columns:auto minmax(0,1fr) auto; }
+  .book-toolbar { height:52px; padding:0 6px; gap:4px; grid-template-columns:auto minmax(0,1fr) auto; }
   .book-toolbar nav { gap:0; }
-  .book-toolbar h1 { font-size:11px; }
+  .book-title { display:none; }
   .book-stage { width:calc(100% - 44px); top:44px; bottom:50px; }
   .book-progress { display:none; }
-  .book-toolbar { height:106px; grid-template-columns:1fr 1fr; grid-template-rows:48px 48px; }
-  .book-toolbar-center { grid-column:1 / -1; grid-row:2; }
-  .book-toolbar nav:last-child { grid-column:2; grid-row:1; }
-  .book-reader .study-player { width:min(420px,calc(100% - 20px)); }
-  .book-reader .study-panel { top:106px; }
-  .book-toolbar-center .study-player-menu .pop { right:0; }
+  .book-reader .study-panel { top:52px; }
+  .book-reader:has(.book-player) .book-toolbar { height:100px; grid-template-rows:52px 48px; }
+  .book-reader:has(.book-player) .book-bar-middle { grid-column:1 / -1; grid-row:2; padding:0 6px; }
+  .book-reader:has(.book-player) .book-toolbar nav:last-child { grid-column:3; grid-row:1; }
+  .book-reader:has(.book-player) .study-panel { top:100px; }
+  .book-player { width:100%; }
 }
 
 /* Book navigation: one quiet location, with details on demand. */

@@ -12,6 +12,8 @@ export type ReaderApi = {
   readingPage?: () => import("@/lib/listen-page").PageRange | null;
   readingPoint?: () => import("@/lib/store").Point;
   goToPoint?: (point: import("@/lib/store").Point) => void;
+  /** A book's note on the page in view, written in the margin. */
+  writePageNote?: () => void;
   /** Scroll a paragraph into view and flash it. */
   jumpTo: (n: number, opts?: { flash?: boolean; instant?: boolean }) => void;
   jumpToBlock: (blockId: string, opts?: { flash?: boolean; instant?: boolean }) => void;

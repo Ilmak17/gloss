@@ -43,7 +43,7 @@ import { barBtn } from "@/components/ui/Popover";
 import { Block, type Mark } from "./Block";
 import { BookNavigation, type BookMark } from "./BookNavigation";
 import { ReaderContext, type ReaderApi } from "./context";
-import { ListenBar } from "./Listen";
+import { BookPlayer, ListenButton } from "./Listen";
 import { discussionQuestion } from "@/lib/discussion-options";
 import { StudyPanel } from "./StudyPanel";
 import { Notebook } from "./Notebook";
@@ -407,11 +407,14 @@ export function BookReader({ article }: { article: Article }) {
   }, [blocks, ix, highlights, glosses, pending]);
   // A new challenge adds a dot; opening or closing one hides or shows it.
   useLayoutEffect(measureDots, [marks, activeGloss, measureDots]);
+  // The notebook writes a page note through the reader; the note's state lives below.
+  const pageNote = useRef<() => void>(() => {});
   const api = useMemo<ReaderApi>(
     () => ({
       ix,
       paged: true,
       openNote: pinNote,
+      writePageNote: () => { setUI({ notebookOpen: false }); pageNote.current(); },
       chooseListeningStart: () => {
         pauseListening();
         setUI({ activeGloss: null, notebookOpen: false, pending: null });
@@ -486,6 +489,7 @@ export function BookReader({ article }: { article: Article }) {
     pauseListening(true);
     pinNote(id);
   };
+  useLayoutEffect(() => { pageNote.current = openPageNote; });
   return (
     <ReaderContext.Provider value={api}>
       <title>{article.title}</title>
@@ -495,8 +499,8 @@ export function BookReader({ article }: { article: Article }) {
         <button type="button" className="book-controls-reveal" aria-label="Show reading controls" aria-controls="book-reading-controls" onPointerEnter={awaken} onFocus={awaken} onClick={awaken}><span aria-hidden>···</span></button>
         <header id="book-reading-controls" className="book-toolbar">
           <nav aria-label="Book navigation">
-            <Link href="/" aria-label="Library" className={barBtn}>
-              <ArrowLeft size={18} />
+            <Link href="/" aria-label="Library" data-tip="Library" className={barBtn}>
+              <ArrowLeft size={18} strokeWidth={1.75} />
             </Link>
             <BookNavigation
               article={article}
@@ -507,46 +511,23 @@ export function BookReader({ article }: { article: Article }) {
               remove={removeMark}
             />
           </nav>
-          <div className="book-toolbar-center">
-            <h1 className="sr-only">{article.title}</h1>
-            <ListenBar from={() => point.current.b} />
-          </div>
+          <BookPlayer title={article.title} from={() => point.current.b} />
           <nav aria-label="Reading tools">
+            <ListenButton from={() => point.current.b} />
             <SettingsMenu readingOnly book />
-            <button type="button" className={barBtn} aria-label="Write a margin note" data-tip="Write a note" onClick={openPageNote}><PenLine size={17} /></button>
-            <button
-              className={barBtn}
-              aria-label="Notebook"
-              onClick={() => setUI({ notebookOpen: !notebookOpen })}
-            >
-              <NotebookPen size={18} />
+            <button type="button" className={barBtn} aria-label="Notebook" aria-pressed={notebookOpen} aria-keyshortcuts="N" data-tip="Notebook" data-tip-kbd="N"
+              onClick={() => setUI({ notebookOpen: !notebookOpen })}>
+              <NotebookPen size={18} strokeWidth={1.75} />
             </button>
-            <button
-              className={barBtn}
-              aria-label={
-                currentMark ? "Remove bookmark" : "Bookmark this page"
-              }
-              aria-pressed={!!currentMark}
+            <button type="button" className={`${barBtn} book-bookmark`} aria-label={currentMark ? "Remove bookmark" : "Bookmark this page"} data-tip={currentMark ? "Remove bookmark" : "Bookmark this page"} aria-pressed={!!currentMark}
               onClick={() => {
                 if (currentMark) removeMark(currentMark.point);
-                else
-                  saveMarks([
-                    ...bookmarks,
-                    {
-                      point: { ...point.current },
-                      excerpt: (
-                        ix.texts.get(point.current.b) ??
-                        chapters[chapter]?.title ??
-                        "Page"
-                      ).slice(point.current.o, point.current.o + 90),
-                    },
-                  ]);
-              }}
-            >
-              <Bookmark
-                size={18}
-                fill={currentMark ? "currentColor" : "none"}
-              />
+                else saveMarks([...bookmarks, {
+                  point: { ...point.current },
+                  excerpt: (ix.texts.get(point.current.b) ?? chapters[chapter]?.title ?? "Page").slice(point.current.o, point.current.o + 90),
+                }]);
+              }}>
+              <Bookmark size={18} strokeWidth={1.75} fill={currentMark ? "currentColor" : "none"} />
             </button>
           </nav>
         </header>

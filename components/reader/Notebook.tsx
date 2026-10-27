@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Show, SignInButton } from "@/components/account/auth";
-import { Check, Copy, Download, Trash2, X } from "lucide-react";
+import { Check, Copy, Download, SquarePen, Trash2, X } from "lucide-react";
 import { GlossMark } from "@/components/brand/Gloss";
 import { cmp } from "@/lib/anchor";
 import { undash } from "@/lib/article";
@@ -23,7 +23,7 @@ type Filter = "all" | "q" | "hl";
 
 /** Everything you marked and asked, in reading order, as questions and answers you can scan. */
 export function Notebook() {
-  const { ix } = useReader();
+  const { ix, writePageNote } = useReader();
   const open = useStore((s) => s.notebookOpen);
   const setUI = useStore((s) => s.setUI);
   const glosses = useGlosses(ix.article.id);
@@ -75,6 +75,11 @@ export function Notebook() {
             <h2 className="font-serif text-[23px] font-[420] leading-none tracking-[-0.015em] text-ink [font-variation-settings:'opsz'_36]">Notebook</h2>
             <p className="mt-1.5 text-[12.5px] leading-none text-ink-3">{summary || "Empty for now"}</p>
           </div>
+          {writePageNote && (
+            <HeadBtn label="Write a note on this page" onClick={writePageNote}>
+              <SquarePen size={16} />
+            </HeadBtn>
+          )}
           <HeadBtn
             label={copied ? "Copied" : "Copy as Markdown"}
             disabled={!entries.length}
