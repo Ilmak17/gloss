@@ -88,7 +88,8 @@ function segments(block: BlockT, marks: Mark[], activeGloss: string | null, hove
       h.length && activeHighlight && h.includes(activeHighlight) ? "is-active" : "",
       fresh && (g.includes(fresh) || h.includes(fresh)) ? "is-new" : "",
       g.length ? "m-gloss" : "",
-      g.length && activeGloss && g.includes(activeGloss) ? "is-active" : "",
+      // Its own name: an open highlight must not also light up a discussion on the same words.
+      g.length && activeGloss && g.includes(activeGloss) ? "is-gloss-active" : "",
       g.length && hoverGloss && g.includes(hoverGloss) ? "is-hover" : "",
       pending ? "m-pending" : "",
     ]

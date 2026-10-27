@@ -683,12 +683,13 @@ kbd,
   }
 }
 
-/* The model's underline is a background line so it can be drawn on. */
+/* A discussed passage. The underline is a background line so it can be drawn on.
+   It stays faint while reading and comes up while its discussion is open (or hovered, in articles). */
 .m-gloss {
-  --ul: var(--rubric-line);
+  --ul: color-mix(in oklab, var(--rubric) 28%, transparent);
   background-image: linear-gradient(var(--ul), var(--ul));
   background-repeat: no-repeat;
-  background-size: 100% 1.5px;
+  background-size: 100% 1px;
   background-position: 0 calc(100% - 0.08em);
   cursor: pointer;
   border-radius: 2px;
@@ -698,12 +699,19 @@ kbd,
 }
 
 .m-gloss.is-hover {
+  --ul: var(--rubric-line);
   background-color: var(--rubric-wash);
 }
 
-.m-gloss.is-active {
+.m-gloss.is-gloss-active {
   --ul: var(--rubric);
+  background-size: 100% 1.5px;
   background-color: var(--rubric-wash);
+}
+
+/* One mark per passage: your highlight already marks it, so the underline shows only while its discussion is open or hovered. */
+.m-hl.m-gloss:not(.is-hover):not(.is-gloss-active):not(.is-new) {
+  background-image: none;
 }
 
 .m-gloss.is-new {
