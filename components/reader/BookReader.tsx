@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Check,
   NotebookPen,
+  PenLine,
 } from "lucide-react";
 import { blockText, type Article } from "@/lib/article";
 import { bookChapters, bookProgress, chapterForPoint, isCoverChapter } from "@/lib/books";
@@ -32,7 +33,9 @@ import {
   useStore,
   type Anchor,
   type Point,
+  uid,
 } from "@/lib/store";
+import { studyBlock } from "@/lib/study";
 import { useListen, startListening, pauseListening, resumeAfterStudy, listeningSessionId } from "@/lib/listening";
 import { SettingsMenu } from "@/components/ui/SettingsMenu";
 import { barBtn } from "@/components/ui/Popover";
@@ -43,6 +46,7 @@ import { ListenBar } from "./Listen";
 import { discussionQuestion } from "@/lib/discussion-options";
 import { StudyPanel } from "./StudyPanel";
 import { Notebook } from "./Notebook";
+import { MarginNote } from "./MarginNote";
 import { BookPagination } from "./BookPagination";
 import { BookFootnote } from "./BookFootnote";
 import { locateBookPage } from "@/lib/book-pagination";
@@ -79,6 +83,8 @@ export function BookReader({ article }: { article: Article }) {
   const pendingPage = useRef<number | null>(null);
   const [saveError, setSaveError] = useState("");
   const [openHl, setOpenHl] = useState<OpenHighlight | null>(null);
+  const [pinnedNoteId, setPinnedNoteId] = useState<string | null>(null);
+  const [noteFocus, setNoteFocus] = useState(0);
   const [peek, setPeek] = useState<{ n: number; rect: DOMRect } | null>(null);
   const [quiet, setQuiet] = useState(true);
   const [choosingStart, setChoosingStart] = useState(false);
@@ -103,6 +109,21 @@ export function BookReader({ article }: { article: Article }) {
     follow = useListen((s) => s.follow);
   const blocks = chapters[chapter]?.blocks ?? [];
   const bookmarkKey = `gloss:bookmarks:${article.id}`;
+  const pinnedNoteKey = `gloss:pinned-note:${article.id}`;
+  useEffect(() => {
+    try { setPinnedNoteId(localStorage.getItem(pinnedNoteKey)); } catch { setPinnedNoteId(null); }
+  }, [pinnedNoteKey]);
+  const pinNote = useCallback((id: string | null) => {
+    setPinnedNoteId(id);
+    try {
+      if (id) localStorage.setItem(pinnedNoteKey, id);
+      else localStorage.removeItem(pinnedNoteKey);
+    } catch { /* The note still saves through the regular notebook store. */ }
+    if (id) {
+      setUI({ activeGloss: null, notebookOpen: false, pending: null });
+      setNoteFocus(n => n + 1);
+    }
+  }, [pinnedNoteKey, setUI]);
 
   useEffect(() => {
     setUI({
@@ -334,6 +355,7 @@ export function BookReader({ article }: { article: Article }) {
     () => ({
       ix,
       paged: true,
+      openNote: pinNote,
       chooseListeningStart: () => {
         pauseListening();
         setUI({ activeGloss: null, notebookOpen: false, pending: null });
@@ -359,7 +381,7 @@ export function BookReader({ article }: { article: Article }) {
       },
       peek: (n, rect) => setPeek(n !== null && rect ? { n, rect } : null),
     }),
-    [ix, go, explore, setUI, blocks],
+    [ix, go, explore, setUI, blocks, pinNote],
   );
   const saveMarks = (next: BookMark[]) => {
     try {
@@ -390,11 +412,25 @@ export function BookReader({ article }: { article: Article }) {
   const noteEnd = explicitEnd >= noteStart && explicitEnd >= 0 ? explicitEnd + 1 : noteStart < 0 ? -1 : Math.min(article.blocks.length, ...Object.values(article.epub?.targets ?? {}).map(t=>article.blocks.findIndex(b=>b.id===t.block)).filter(i=>i>noteStart));
   const noteBlocks = noteStart < 0 ? [] : article.blocks.slice(noteStart, noteEnd);
   const closeNote = () => { setFootnote(null); resumeAfterStudy(); };
+  const pinnedNote = highlights.find(h => h.id === pinnedNoteId);
+  const showMarginNote = !!pinnedNote && !activeGloss && !notebookOpen;
+  const openPageNote = () => {
+    if (pinnedNote) { pinNote(pinnedNote.id); return; }
+    const b = studyBlock(ix, point.current.b);
+    if (!b) return;
+    const existing = [...highlights].reverse().find(h => h.anchor.start.b === b && h.note);
+    if (existing) { pinNote(existing.id); return; }
+    const quote = ix.texts.get(b) ?? "";
+    const id = uid();
+    useStore.getState().addHighlight({ id, articleId: article.id, anchor: { start: { b, o: 0 }, end: { b, o: quote.length }, quote }, createdAt: Date.now(), color: settings.marker });
+    pauseListening(true);
+    pinNote(id);
+  };
   return (
     <ReaderContext.Provider value={api}>
       <title>{article.title}</title>
       <div
-        className={`book-reader study-reader hide-nums ${quiet ? "is-quiet" : ""} ${activeGloss && !notebookOpen && discussionQuestion(glosses.find(g => g.id === activeGloss)?.question ?? "").mode !== "challenge" ? "is-studying" : ""} ${notebookOpen ? "nb-open" : ""} ${choosingStart ? "is-picking-start" : ""}`}
+        className={`book-reader study-reader hide-nums ${quiet ? "is-quiet" : ""} ${showMarginNote ? "has-margin-note" : ""} ${activeGloss && !notebookOpen && discussionQuestion(glosses.find(g => g.id === activeGloss)?.question ?? "").mode !== "challenge" ? "is-studying" : ""} ${notebookOpen ? "nb-open" : ""} ${choosingStart ? "is-picking-start" : ""}`}
       >
         <button type="button" className="book-controls-reveal" aria-label="Show reading controls" aria-controls="book-reading-controls" onPointerEnter={awaken} onFocus={awaken} onClick={awaken}><span aria-hidden>···</span></button>
         <header id="book-reading-controls" className="book-toolbar">
@@ -417,6 +453,7 @@ export function BookReader({ article }: { article: Article }) {
           </div>
           <nav aria-label="Reading tools">
             <SettingsMenu readingOnly book />
+            <button type="button" className={barBtn} aria-label="Write a margin note" data-tip="Write a note" onClick={openPageNote}><PenLine size={17} /></button>
             <button
               className={barBtn}
               aria-label="Notebook"
@@ -608,6 +645,9 @@ export function BookReader({ article }: { article: Article }) {
           </p>
         )}
         <Lens rootEl={root} openHighlight={openHl} />
+        {showMarginNote && <MarginNote key={pinnedNote.id} highlight={pinnedNote}
+          chapter={chapters[chapterForPoint(chapters, pinnedNote.anchor.start)]?.title ?? "Passage"}
+          focusRequest={noteFocus} onClose={() => pinNote(null)} />}
         <StudyPanel />
         <Notebook />
         <Peek peek={peek} />

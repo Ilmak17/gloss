@@ -32,7 +32,7 @@ const STARTERS = {
 export type OpenHighlight = { id: string; ids?: string[]; anchor: Anchor; at: number; note?: boolean };
 
 export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; openHighlight: OpenHighlight | null }) {
-  const { ix } = useReader();
+  const { ix, openNote } = useReader();
   const [lens, setLens] = useState<LensState | null>(null);
   const [pos, setPos] = useState<{ x: number; y: number; below: boolean; arrow: number; docked: boolean } | null>(null);
   const [draft, setDraft] = useState("");
@@ -214,11 +214,18 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
     const l = lensRef.current;
     if (!l) return;
     const existing = l.highlightId ? useStore.getState().highlights[ix.article.id]?.find((h) => h.id === l.highlightId) : undefined;
+    if (openNote) {
+      const id = existing?.id ?? uid();
+      if (!existing) addHighlight({ id, articleId: ix.article.id, anchor: l.anchor, createdAt: Date.now(), color: marker });
+      close();
+      openNote(id);
+      return;
+    }
     setDraft(existing?.note ?? "");
     setLens({ ...l, mode: "note" });
     if (!l.highlightId) setUI({ pending: l.anchor });
     window.getSelection()?.removeAllRanges();
-  }, [ix, setUI]);
+  }, [ix, setUI, openNote, addHighlight, marker, close]);
 
   const asking = lens?.mode === "ask";
   const noting = lens?.mode === "note";
@@ -340,7 +347,7 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
       }}
     >
       <div className="lens-surface relative text-lens-fg">
-        {lens.mode === "actions" && existing?.note && (
+        {lens.mode === "actions" && existing?.note && !openNote && (
           <button
             type="button"
             onClick={toNote}

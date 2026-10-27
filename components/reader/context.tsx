@@ -6,6 +6,7 @@ import type { DocIndex } from "@/lib/doc";
 export type ReaderApi = {
   ix: DocIndex;
   paged?: boolean;
+  openNote?: (highlightId: string) => void;
   chooseListeningStart?: () => void;
   cancelListeningStart?: () => void;
   readingPage?: () => import("@/lib/listen-page").PageRange | null;

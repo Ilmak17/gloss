@@ -2380,3 +2380,64 @@ button.fig-trigger:focus-visible { outline:2px solid var(--ink-2); outline-offse
 }
 .highlight-undo button { min-height: 32px; padding: 0 6px; font-weight: 600; }
 .highlight-undo button:last-child { color: var(--ink-3); font-size: 18px; }
+
+/* A pinned thought has its own margin, never floating over the printed page. */
+.book-reader.has-margin-note { --note-width: 310px; }
+.has-margin-note .book-stage {
+  left: calc((100% - var(--note-width)) / 2);
+  width: min(calc(100% - var(--note-width) - 80px), calc(var(--read-size) * var(--measure-k)), 780px);
+}
+.has-margin-note .book-toolbar { right: var(--note-width); gap: 8px; }
+.has-margin-note .book-footer { right: calc(var(--note-width) + 24px); }
+.has-margin-note .book-remaining { display: none; }
+.margin-note {
+  position: absolute;
+  z-index: 40;
+  top: 72px;
+  right: 24px;
+  bottom: 60px;
+  width: calc(var(--note-width) - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  color: var(--ink);
+  animation: margin-note-in .24s var(--ease-out);
+}
+.margin-note-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 0 3px 0 8px; }
+.margin-note-heading > span { display: flex; align-items: center; gap: 7px; font-size: 9px; letter-spacing: .12em; color: var(--ink-3); }
+.margin-note button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: var(--ink-3); }
+.margin-note button:hover { background: var(--bg-sunk); color: var(--ink); }
+.margin-note-paper {
+  padding: 20px;
+  background: var(--bg-raised);
+  border: 1px solid var(--rule);
+  border-radius: 5px 15px 15px 15px;
+  box-shadow: 0 3px 12px rgb(0 0 0 / .025);
+}
+.margin-note-location { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -6px -7px 10px 0; }
+.margin-note-location > span { font-size: 11px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.margin-note-source { margin-bottom: 24px; padding-left: 11px; border-left: 2px solid var(--rule); color: var(--ink-3); }
+.margin-note-source summary { cursor: pointer; font-family: var(--font-serif); font-size: 13px; line-height: 1.6; list-style: none; }
+.margin-note-source summary::-webkit-details-marker { display: none; }
+.margin-note-source summary > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.margin-note-source[open] summary { font-size: 0; }
+.margin-note-source[open] summary::after { content: "Hide passage"; font-family: var(--font-sans); font-size: 11px; }
+.margin-note-source blockquote { max-height: 160px; overflow: auto; font-family: var(--font-serif); font-size: 13px; line-height: 1.6; padding-top: 8px; }
+.margin-note h2 { font-family: var(--font-serif); font-size: 24px; font-weight: 450; letter-spacing: -.025em; margin-bottom: 12px; }
+.margin-note textarea { display: block; width: 100%; min-height: 160px; resize: none; overflow: hidden; background: transparent; color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 1.75; border: 0; padding: 0; border-radius: 2px; }
+.margin-note textarea:focus-visible { outline: 1px solid var(--rule); outline-offset: 6px; }
+.margin-note textarea::placeholder { color: var(--ink-3); }
+.margin-note footer { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 10px; color: var(--ink-3); }
+@keyframes margin-note-in { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
+@media (max-width: 800px) {
+  .has-margin-note .book-stage { left: 50%; width: calc(100% - 40px); bottom: 350px; }
+  .has-margin-note .book-toolbar { right: 0; }
+  .has-margin-note .book-footer { right: 24px; bottom: 310px; }
+  .margin-note { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; height: 284px; border: 1px solid var(--rule); border-radius: 14px; padding: 12px 18px; background: var(--bg-raised); }
+  .margin-note-heading { margin-bottom: 2px; padding: 0; }
+  .margin-note-paper { border: 0; padding: 0; box-shadow: none; }
+  .margin-note-source { margin-bottom: 14px; }
+  .margin-note h2 { font-size: 22px; }
+  .margin-note textarea { min-height: 100px; }
+}
+@media (prefers-reduced-motion: reduce) { .margin-note { animation: none; } }
