@@ -2075,6 +2075,10 @@ a.desk-tile:focus-visible {
 .study-player-divider { flex: none; width: 1px; height: 16px; background: var(--rule); }
 .study-discuss { display: flex; align-items: center; gap: 7px; padding: 8px 2px; border-radius: 6px; font-size: 12px; color: var(--ink-2); flex: none; }
 .study-discuss:hover { background: var(--bg-sunk); }
+.study-stop { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:36px; padding:6px 10px; flex:none; border:1px solid var(--rule); border-radius:18px; color:var(--ink-2); font-size:12px; }
+.study-stop:hover { background:var(--bg-sunk); color:var(--ink); border-color:var(--rule-strong); }
+.study-stop:focus-visible { outline:2px solid var(--ink-3); outline-offset:2px; }
+
 .study-player-menu { flex: none; }
 .study-player-menu .study-icon { color: var(--ink-3); border-radius: 50%; }
 .study-player-menu .pop { top: auto; bottom: calc(100% + 16px); padding: 8px; max-height: min(420px, calc(100dvh - 160px)); overflow-y: auto; --origin: bottom right !important; }

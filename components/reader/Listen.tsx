@@ -58,6 +58,21 @@ export function ListenBar({ from }: { from: () => string | null }) {
   useEffect(() => { if (!on) stopListening(); }, [on]);
   useEffect(() => { if (activeGloss || pending || notebook) pauseListening(true); }, [activeGloss, pending, notebook]);
   useEffect(() => {
+    const stopOnEscape = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.repeat || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || useListen.getState().status === "idle") return;
+      const ui = useStore.getState();
+      // Escape belongs to editors and open overlays before it belongs to playback.
+      if (ui.activeGloss || ui.pending || ui.notebookOpen || ui.shortcutsOpen ||
+        (e.target instanceof Element && e.target.closest("input,textarea,select,[contenteditable=true]")) ||
+        document.querySelector("dialog[open],[role=dialog],.lens")) return;
+      e.preventDefault();
+      e.stopPropagation();
+      stopListening();
+    };
+    window.addEventListener("keydown", stopOnEscape, true);
+    return () => window.removeEventListener("keydown", stopOnEscape, true);
+  }, []);
+  useEffect(() => {
     if (paged) return;
     if (!block) { prev.current = null; return; }
     if (status !== "playing" || !follow) return;
@@ -123,6 +138,7 @@ export function ListenBar({ from }: { from: () => string | null }) {
           </Popover>
         </div> : <span className="study-idle-label">{error ? "Audio unavailable" : status === "loading" ? (pageAudio ? "Preparing page…" : "Preparing audio…") : on ? "Listen" : "Reading"}</span>}
       </div>
+      {active && <button type="button" className="study-stop" aria-label="Stop listening" aria-keyshortcuts="Escape" title="Stop listening (Esc)" onClick={stopListening}><Square size={12} fill="currentColor" strokeWidth={0} aria-hidden /><span>Stop</span></button>}
       <span className="study-player-divider" aria-hidden />
       <button type="button" className="study-discuss" aria-label="Discuss paragraph" data-tip="Discuss this paragraph" onClick={explain}><MessageCircle size={15} strokeWidth={1.6} /><span>Discuss</span></button>
       <div className="study-player-menu">
@@ -140,7 +156,6 @@ export function ListenBar({ from }: { from: () => string | null }) {
             {on && <label><input type="checkbox" checked={follow} onChange={e => useListen.setState({ follow: e.target.checked })} /> Follow along</label>}
             <div className="study-audio-rule" />
             <button type="button" onClick={() => { close(); openVoiceSettings(); }}><SlidersHorizontal size={15} /> Voice settings</button>
-            {active && <button type="button" onClick={() => { stopListening(); close(); }}><Square size={14} /> Stop listening</button>}
           </div>}
         </Popover>
       </div>
