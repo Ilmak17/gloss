@@ -4,15 +4,17 @@ Select a passage and choose **Challenge**, or use **Discuss → Challenge this i
 
 The floating card has three steps:
 
-1. **Recall** — reconstruct the claim in your own words. Reveal the passage when ready to check it.
-2. **Challenge** — write an objection, alternative explanation or question. **Copy for Codex** prepares the source, nearby context, your thinking and coaching instructions. Paste it into your Codex conversation manually.
-3. **Reflect** — record a provisional conclusion and an optional unresolved question. Drafts are kept in Notebook; **Save & return to book** also applies the review choice.
+1. **What’s the author saying?** — write a sentence or two, then optionally reveal the passage. The writing area grows with your answer.
+2. **What would you question?** — optional Evidence, Limits and Another explanation starters append to your question without replacing it. **Copy for Codex** prepares the source, nearby context and your thinking for an English discussion. Paste it into Codex manually.
+3. **Where do you stand now?** — keep a provisional conclusion and an optional unresolved question. **Pin in margin** creates a separate passage note; repeating it updates that copy without overwriting other notes.
+
+Every step is optional. Use the back arrow, skip to a conclusion, or return to reading at any time. All writing and review choices autosave to Notebook.
 
 The coach is asked to check the reconstruction before explaining, address objections fairly, distinguish source claims from its own reconstruction, and ask one question at a time. Answers are not generated or imported automatically in the reader.
 
 ## Returning to an idea
 
-Enable **Revisit this thought** after writing a conclusion. A card appears in the library when due, with the earlier conclusion hidden until **Reveal my takeaway**. **Revisit later** advances the existing highlight-review schedule: 3, 7, 16, 35, 75, 160 days. **Done with this thought** removes it from review without deleting the note. These are practical defaults, not a claimed optimal schedule.
+Enable **Revisit later** after writing a conclusion. A card appears in the library when due, with the earlier conclusion hidden until **Reveal my takeaway**. **Revisit later** advances the existing highlight-review schedule: 3, 7, 16, 35, 75, 160 days. **Done with this thought** removes it from review without deleting the note. These are practical defaults, not a claimed optimal schedule.
 
 Notebook retains the claim, objection, conclusion and open question. Markdown export and the existing serialized backup retain the reader-authored fields separately from AI answers. No new service or API request is needed for the cards.
 

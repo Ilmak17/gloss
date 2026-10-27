@@ -23,8 +23,8 @@ export function studyContext(ix: DocIndex, gloss: Gloss): string {
     .map(t => `${t.role === "user" ? "My question" : "Saved AI answer (verify its claims)"}: ${t.content.slice(0, 2000)}`).join("\n\n");
   const challenge = discussionQuestion(gloss.question ?? "").mode === "challenge";
   const coaching = challenge
-    ? "Discuss this passage with me in Russian, one question at a time. Start with my reconstruction of the author's claim; if I have not provided one, ask me to try before explaining. Check it against the excerpt. Examine my objection fairly, offer the strongest defensible reply, and sometimes ask me to defend the author. Do not reward disagreement for its own sake. Distinguish the actual text, your reconstruction, and outside evidence. Ask for my provisional conclusion and what would change my mind. Later, test the idea with a new example. Do not invent my views or the author's reply."
-    : "Help me understand this passage. Explain in Russian: meaning, mechanism, then an example. Go deeper when useful. Distinguish the author's claims from additional knowledge.";
+    ? "Discuss this passage with me in English, one question at a time. Start with my reconstruction of the author's claim; if I have not provided one, ask me to try before explaining. Check it against the excerpt. Examine my objection fairly, offer the strongest defensible reply, and sometimes ask me to defend the author. Do not reward disagreement for its own sake. Distinguish the actual text, your reconstruction, and outside evidence. Ask for my provisional conclusion and what would change my mind. Later, test the idea with a new example. Do not invent my views or the author's reply."
+    : "Help me understand this passage. Explain in English: meaning, mechanism, then an example. Go deeper when useful. Distinguish the author's claims from additional knowledge.";
   return [
     coaching,
     "This is an excerpt, not the full document. Say what additional context you need if it is insufficient.",

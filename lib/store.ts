@@ -38,7 +38,7 @@ export type Gloss = {
   action: Action;
   question?: string;
   /** Reader-authored thinking, kept separately from AI answers. */
-  reflection?: { claim?: string; takeaway?: string; openQuestion?: string };
+  reflection?: { claim?: string; takeaway?: string; openQuestion?: string; pinnedHighlightId?: string };
   review?: Review;
   turns: Turn[];
   createdAt: number;
