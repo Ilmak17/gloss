@@ -398,6 +398,14 @@ kbd,
   text-indent: 1.6em;
 }
 
+/* Abbreviations (NASA, DNA) in small capitals; Block marks them. Only Literata
+   has real small capitals. The other faces would fake them by shrinking capitals,
+   so there they keep full capitals. */
+[data-face="book"] .prose-read .sc {
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.05em;
+}
+
 @media (max-width: 640px) {
   .prose-read {
     font-size: calc(var(--read-size) * 0.9);

@@ -4,7 +4,7 @@ import { memo, useRef, useState, type ReactNode } from "react";
 import { ImageViewer } from "./ImageViewer";
 import { MessageCirclePlus } from "lucide-react";
 import type { Block as BlockT, Run } from "@/lib/article";
-import { typesetDashes } from "@/lib/typeset";
+import { abbreviations, typesetDashes } from "@/lib/typeset";
 
 /**
  * `note`: a highlight with the reader's note, set only in the block where it ends.
@@ -29,9 +29,10 @@ type Props = {
   onAsk: (blockId: string) => void;
 };
 
-function wrapRun(run: Run, text: string, key: string): ReactNode {
+/** `caps`: an abbreviation, drawn in small capitals. */
+function wrapRun(run: Run, text: string, key: string, caps = false): ReactNode {
   if (run.noteLabel) return <a key={key} href={run.href} className="book-note-ref" data-note-label={run.noteLabel} aria-label={`Footnote ${run.noteLabel}`} />;
-  let node: ReactNode = text;
+  let node: ReactNode = caps ? <span className="sc">{text}</span> : text;
   if (run.code) node = <code>{node}</code>;
   if (run.strong) node = <strong>{node}</strong>;
   if (run.em) node = <em>{node}</em>;
@@ -51,7 +52,9 @@ function wrapRun(run: Run, text: string, key: string): ReactNode {
  */
 function segments(block: BlockT, marks: Mark[], activeGloss: string | null, hoverGloss: string | null, activeHighlight: string | null, fresh: string | null) {
   const runs = block.type === "pre" ? block.runs : block.runs.map((r) => (r.code ? r : { ...r, text: typesetDashes(r.text) }));
-  if (!marks.length) return runs.map((r, i) => wrapRun(r, r.text, String(i)));
+  // Code keeps its capitals: it is blanked out, one character for each, so offsets still line up.
+  const caps = block.type === "pre" ? [] : abbreviations(runs.map((r) => (r.code ? "\0".repeat(r.text.length) : r.text)).join(""));
+  if (!marks.length && !caps.length) return runs.map((r, i) => wrapRun(r, r.text, String(i)));
 
   const bounds: number[] = [];
   let acc = 0;
@@ -60,7 +63,7 @@ function segments(block: BlockT, marks: Mark[], activeGloss: string | null, hove
     acc += r.text.length;
   }
   const len = acc;
-  const cuts = new Set<number>([0, len, ...bounds]);
+  const cuts = new Set<number>([0, len, ...bounds, ...caps.flat()]);
   for (const m of marks) {
     cuts.add(Math.max(0, Math.min(len, m.from)));
     cuts.add(Math.max(0, Math.min(len, m.to)));
@@ -80,9 +83,10 @@ function segments(block: BlockT, marks: Mark[], activeGloss: string | null, hove
     const run = runs[ri];
     const text = run.text.slice(a - bounds[ri], b - bounds[ri]);
     const covering = marks.filter((m) => m.from <= a && m.to >= b);
+    const sc = caps.some(([from, to]) => from <= a && to >= b);
     const key = `${a}`;
     if (!covering.length) {
-      out.push(wrapRun(run, text, key));
+      out.push(wrapRun(run, text, key, sc));
       continue;
     }
     const g = covering.filter((m) => m.kind === "gloss").map((m) => m.id);
@@ -105,7 +109,7 @@ function segments(block: BlockT, marks: Mark[], activeGloss: string | null, hove
       .join(" ");
     out.push(
       <span key={key} className={cls} data-g={g.length ? g.join(" ") : undefined} data-h={h.length ? h.join(" ") : undefined} data-c={color && color !== "yellow" ? color : undefined}>
-        {wrapRun(run, text, "r")}
+        {wrapRun(run, text, "r", sc)}
       </span>
     );
     // Empty and drawn by CSS, so it adds no characters and offsets stay true.

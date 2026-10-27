@@ -11,6 +11,28 @@ export function typesetDashes(text: string): string {
   return text.includes(" - ") ? text.replaceAll(" - ", " – ") : text;
 }
 
+/** Two or more capitals standing as a word, allowing a plural or possessive "s" after them. */
+const ABBREVIATION = /(?<![\p{L}\p{N}])\p{Lu}{2,}(?=s?(?![\p{L}\p{N}]))/gu;
+
+/** Roman numerals (World War II, Louis XIV) read as numbers, not abbreviations. */
+const ROMAN = /^[IVX]+$/;
+
+/**
+ * Abbreviations to set in small capitals, as [from, to) offsets into the text.
+ * Capitals that run on as words ("STOP IT NOW") are emphasis, and text with no
+ * lowercase at all is set in capitals on purpose: both keep their full height.
+ * Display-only: the letters are not changed, only how they are drawn.
+ */
+export function abbreviations(text: string): [number, number][] {
+  if (!/\p{Ll}/u.test(text)) return [];
+  const found = [...text.matchAll(ABBREVIATION)].map(m => [m.index, m.index + m[0].length] as [number, number]);
+  const runsOn = (a: [number, number], b: [number, number]) => /^\s+$/u.test(text.slice(a[1], b[0]));
+  return found.filter((m, i) =>
+    !ROMAN.test(text.slice(m[0], m[1])) &&
+    !(i > 0 && runsOn(found[i - 1], m)) &&
+    !(i < found.length - 1 && runsOn(m, found[i + 1])));
+}
+
 /**
  * The language to set a text in, so the browser hyphenates its words. Texts
  * saved before languages were kept have none: one written mostly in Cyrillic
