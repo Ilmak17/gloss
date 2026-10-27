@@ -406,6 +406,21 @@ kbd,
   letter-spacing: 0.05em;
 }
 
+/* A paragraph opening with a quote mark hangs it in the margin, so the letters
+   line up with the lines below. Safari does this itself (hanging-punctuation
+   above). The widths are each face's quote marks, measured. An indented
+   paragraph keeps its indent instead, and an opening paragraph's quote mark
+   joins its drop capital. */
+.prose-read { --hang-double: 0.51em; --hang-single: 0.31em; --hang-guillemet: 0.46em; }
+[data-face="serif"] .prose-read { --hang-double: 0.29em; --hang-single: 0.16em; --hang-guillemet: 0.32em; }
+[data-face="sans"] .prose-read { --hang-double: 0.32em; --hang-single: 0.19em; --hang-guillemet: 0.34em; }
+[data-face="legible"] .prose-read { --hang-double: 0.28em; --hang-single: 0.17em; --hang-guillemet: 0.39em; }
+@supports not (hanging-punctuation: first) {
+  .prose-read .blk[data-hang="double"]:not(.is-first) .blk-text { text-indent: calc(-1 * var(--hang-double)); }
+  .prose-read .blk[data-hang="single"]:not(.is-first) .blk-text { text-indent: calc(-1 * var(--hang-single)); }
+  .prose-read .blk[data-hang="guillemet"]:not(.is-first) .blk-text { text-indent: calc(-1 * var(--hang-guillemet)); }
+}
+
 @media (max-width: 640px) {
   .prose-read {
     font-size: calc(var(--read-size) * 0.9);
@@ -2157,9 +2172,14 @@ a.desk-tile:focus-visible {
 }
 .book-stage { position:absolute; top:24px; bottom:48px; width:min(calc(100% - 104px), calc(var(--read-size) * var(--measure-k)), 780px); left:50%; transform:translateX(-50%); }
 .book-chapter-label { font-size:11px; line-height:18px; color:var(--ink-3); text-align:center; letter-spacing:.04em; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-bottom:10px; }
-.book-viewport { width:100%; height:100%; overflow:hidden; overflow-anchor:none; touch-action:pan-y; }
+/* The page window reaches a little past the text on both sides, so a quote mark
+   hung in the margin is not cut off. Blocks step back in by the same amount: the
+   text sits where it did, and pages still turn by the window's width. */
+.book-reader { --book-bleed:16px; }
+.book-viewport { width:calc(100% + 2 * var(--book-bleed)); margin-left:calc(-1 * var(--book-bleed)); height:100%; overflow:hidden; overflow-anchor:none; touch-action:pan-y; }
 .book-pages.prose-read { height:100%; width:100%; columns:1; column-gap:64px; column-fill:auto; animation:none; overflow-wrap:anywhere; }
 .book-pages.prose-read .blk { break-inside:auto; }
+.book-pages.prose-read > .blk { margin-inline:var(--book-bleed); }
 .book-pages.prose-read .blk-text { orphans:2; widows:2; }
 .book-pages.prose-read .blk[data-type=h2], .book-pages.prose-read .blk[data-type=h3] { break-after:avoid; break-inside:avoid; }
 .book-pages.prose-read .blk:first-child { margin-top:0; }
@@ -2502,7 +2522,8 @@ button.fig-trigger:focus-visible { outline:2px solid var(--ink-2); outline-offse
 /* The book's page window clips its margins: there Block's dot only marks the spot,
    and BookReader draws the dot beside the page. */
 .book-pages .challenge-dot { visibility: hidden; pointer-events: none; animation: none; }
-.challenge-dots { position: absolute; inset: 0; pointer-events: none; }
+/* Lies over the page window, which reaches past the stage (see .book-viewport). */
+.challenge-dots { position: absolute; inset: 0 calc(-1 * var(--book-bleed, 0px)); pointer-events: none; }
 .challenge-dot-mark { position: absolute; padding: 0; border: 0; pointer-events: auto; }
 .challenge-dot-mark:focus-visible { outline: 2px solid var(--ink-3); outline-offset: 3px; }
 @keyframes challenge-dot-in { from { opacity: 0; transform: scale(.4); } }

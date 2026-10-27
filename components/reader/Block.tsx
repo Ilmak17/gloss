@@ -4,7 +4,7 @@ import { memo, useRef, useState, type ReactNode } from "react";
 import { ImageViewer } from "./ImageViewer";
 import { MessageCirclePlus } from "lucide-react";
 import type { Block as BlockT, Run } from "@/lib/article";
-import { abbreviations, typesetDashes } from "@/lib/typeset";
+import { abbreviations, openingQuote, typesetDashes } from "@/lib/typeset";
 
 /**
  * `note`: a highlight with the reader's note, set only in the block where it ends.
@@ -192,11 +192,13 @@ function Table({ rows, head }: { rows: string[][]; head?: boolean }) {
 function BlockImpl({ block, n, measuring, first, marks, activeGloss, hoverGloss, activeHighlight, fresh, cursor, hasAt, onAsk }: Props) {
   const Tag = block.type === "h2" ? "h2" : block.type === "h3" ? "h3" : block.type === "figure" ? "figure" : "div";
   const content = segments(block, marks, activeGloss, hoverGloss, activeHighlight, fresh);
+  const hang = block.type === "p" ? openingQuote(block.runs[0]?.text ?? "") : null;
   return (
     <Tag
       className={`blk${first ? " is-first" : ""}${cursor ? " is-cursor" : ""}`}
       data-block={measuring ? undefined : block.id}
       data-type={block.type}
+      data-hang={hang ?? undefined}
       data-n={n}
     >
       {n !== undefined && (

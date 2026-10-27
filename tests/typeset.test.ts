@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Article } from "../lib/article";
-import { abbreviations, readingLang, typesetDashes } from "../lib/typeset";
+import { abbreviations, openingQuote, readingLang, typesetDashes } from "../lib/typeset";
 
 test("a spaced hyphen between words reads as a dash", () => {
   assert.equal(typesetDashes("an end - either in catastrophe"), "an end – either in catastrophe");
@@ -36,6 +36,22 @@ test("capitals that are not abbreviations keep their full height", () => {
 test("capitals set for emphasis or a whole capital line are left alone", () => {
   assert.deepEqual(caps("and then he shouted STOP IT NOW at the NHS"), ["NHS"]);
   assert.deepEqual(caps("THE BEGINNING OF INFINITY"), []);
+});
+
+test("a paragraph opening with a quote mark says which mark hangs", () => {
+  assert.equal(openingQuote("“Chalk is a history of the earth,” he told"), "double");
+  assert.equal(openingQuote("„Мел“, сказал он"), "double");
+  assert.equal(openingQuote("‘Chalk,’ he said"), "single");
+  assert.equal(openingQuote("«Мел — это история земли», — сказал он"), "guillemet");
+});
+
+test("a paragraph that does not open with a quote mark does not hang", () => {
+  assert.equal(openingQuote("Chalk is “a history” of the earth"), null);
+  assert.equal(openingQuote("’Tis the season"), null);
+  // Straight quotes are a typing shortcut, not type: they have no measured width to hang by.
+  assert.equal(openingQuote('"Chalk," he said'), null);
+  assert.equal(openingQuote("'Chalk,' he said"), null);
+  assert.equal(openingQuote(""), null);
 });
 
 const doc = (text: string, lang?: string): Article => ({ id: "t", title: "T", lang, blocks: [{ id: "b1", type: "p", runs: [{ text }] }] });

@@ -33,6 +33,18 @@ export function abbreviations(text: string): [number, number][] {
     !(i < found.length - 1 && runsOn(m, found[i + 1])));
 }
 
+export type HangingQuote = "double" | "single" | "guillemet";
+
+const OPENING: Record<string, HangingQuote> = { "“": "double", "„": "double", "‘": "single", "‚": "single", "«": "guillemet" };
+
+/**
+ * The quote mark a paragraph opens with, if any. Printers hang it in the
+ * margin so the letters, not the mark, line up with the lines below.
+ */
+export function openingQuote(text: string): HangingQuote | null {
+  return OPENING[text[0]] ?? null;
+}
+
 /**
  * The language to set a text in, so the browser hyphenates its words. Texts
  * saved before languages were kept have none: one written mostly in Cyrillic
