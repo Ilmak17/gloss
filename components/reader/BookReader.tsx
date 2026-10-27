@@ -46,6 +46,7 @@ import { Notebook } from "./Notebook";
 import { BookPagination } from "./BookPagination";
 import { BookFootnote } from "./BookFootnote";
 import { locateBookPage } from "@/lib/book-pagination";
+import { createPageSwipe } from "@/lib/page-swipe";
 import { Popover } from "@/components/ui/Popover";
 import { listeningWordStart } from "@/lib/listen-start";
 import { Lens, type OpenHighlight } from "./Lens";
@@ -83,6 +84,7 @@ export function BookReader({ article }: { article: Article }) {
   const quietTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPage = useRef(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
+  const pageSwipe = useRef(createPageSwipe());
   const glosses = useGlosses(article.id),
     highlights = useHighlights(article.id);
   const activeGloss = useStore((s) => s.activeGloss),
@@ -227,6 +229,25 @@ export function BookReader({ article }: { article: Article }) {
     },
     [page, pages, chapter, chapters, blocks, persist],
   );
+  useEffect(() => {
+    const vp = viewport.current;
+    if (!vp) return;
+    const wheel = (e: WheelEvent) => {
+      const blocked = !!(
+        e.defaultPrevented || choosingStart ||
+        useStore.getState().activeGloss || useStore.getState().notebookOpen ||
+        document.querySelector('[role=dialog],dialog[open],[role=menu]') ||
+        window.getSelection()?.toString() ||
+        (e.target as Element).closest('input,textarea,select,[contenteditable=true]')
+      );
+      const result = pageSwipe.current(e, performance.now(), blocked);
+      if (result.handled) e.preventDefault();
+      if (result.direction) turn(result.direction);
+    };
+    // React's passive wheel listener cannot suppress native horizontal scrolling.
+    vp.addEventListener("wheel", wheel, { passive: false });
+    return () => vp.removeEventListener("wheel", wheel);
+  }, [turn, choosingStart]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (
