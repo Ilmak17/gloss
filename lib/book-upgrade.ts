@@ -7,5 +7,5 @@ export function upgradeBook(original: Article, parsed: Article): Article {
         b.id !== parsed.blocks[i].id || b.type !== parsed.blocks[i].type || blockText(b) !== blockText(parsed.blocks[i]))) {
     throw new Error('This file does not match the saved book. Your book and notes have not been changed. Choose the original EPUB.');
   }
-  return { ...original, blocks: parsed.blocks, chapters: parsed.chapters, epub: parsed.epub };
+  return { ...original, lang: parsed.lang ?? original.lang, blocks: parsed.blocks, chapters: parsed.chapters, epub: parsed.epub };
 }

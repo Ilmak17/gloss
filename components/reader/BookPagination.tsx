@@ -5,8 +5,8 @@ import { pageCount } from '@/lib/book-pages';
 import { Block } from './Block';
 
 /** One chapter at a time; identical renderer, no anchors or interactive surface. */
-export function BookPagination({chapters, viewport, layoutKey, onCounts}: {
-  chapters: BookChapter[]; viewport: HTMLDivElement; layoutKey: string;
+export function BookPagination({chapters, lang, viewport, layoutKey, onCounts}: {
+  chapters: BookChapter[]; lang?: string; viewport: HTMLDivElement; layoutKey: string;
   onCounts: (counts: number[] | null) => void;
 }) {
   const [size,setSize] = useState({w:viewport.clientWidth,h:viewport.clientHeight});
@@ -15,9 +15,9 @@ export function BookPagination({chapters, viewport, layoutKey, onCounts}: {
     const ro = new ResizeObserver(update); ro.observe(viewport); update();
     return ()=>ro.disconnect();
   },[viewport]);
-  return <MeasureBook key={`${layoutKey}:${size.w}:${size.h}`} chapters={chapters} size={size} onCounts={onCounts}/>;
+  return <MeasureBook key={`${layoutKey}:${size.w}:${size.h}`} chapters={chapters} lang={lang} size={size} onCounts={onCounts}/>;
 }
-function MeasureBook({chapters,size,onCounts}: {chapters:BookChapter[];size:{w:number;h:number};onCounts:(counts:number[]|null)=>void}) {
+function MeasureBook({chapters,lang,size,onCounts}: {chapters:BookChapter[];lang?:string;size:{w:number;h:number};onCounts:(counts:number[]|null)=>void}) {
   const [index,setIndex] = useState(0);
   const counts = useRef<number[]>([]);
   const vp = useRef<HTMLDivElement>(null);
@@ -43,7 +43,8 @@ function MeasureBook({chapters,size,onCounts}: {chapters:BookChapter[];size:{w:n
   if (index >= chapters.length) return null;
   return <div className="book-measure" aria-hidden inert>
     <div ref={vp} className="book-viewport" style={{width:size.w,height:size.h}}>
-      <div className={`book-pages prose-read${isCoverChapter(chapters[index]) ? " is-cover-page" : ""}`}>
+      {/* The same language as the reader: hyphenation changes where pages break. */}
+      <div className={`book-pages prose-read${isCoverChapter(chapters[index]) ? " is-cover-page" : ""}`} lang={lang}>
         {chapters[index].blocks.map(b=><Block key={b.id} block={b} measuring first={false} marks={[]} activeGloss={null} hoverGloss={null} activeHighlight={null} fresh={null} cursor={false} hasAt={false} onAsk={()=>{}} />)}
       </div>
     </div>

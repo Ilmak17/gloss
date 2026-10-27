@@ -7,6 +7,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ArrowUpRight } from "lucide-react";
 import { blockEl, selectBlock, spanIn } from "@/lib/anchor";
 import { displayArticle, readingMinutes, type Article } from "@/lib/article";
+import { readingLang } from "@/lib/typeset";
 import { ARTICLE_QUESTIONS } from "@/lib/actions";
 import { SAMPLE_QUESTIONS } from "@/lib/samples";
 import { startStudy } from "@/lib/study-draft";
@@ -111,6 +112,7 @@ export function Reader({ id, initial }: { id: string; initial: Article | null })
 
 function ReaderInner({ article }: { article: Article }) {
   const ix = useMemo(() => indexArticle(article), [article]);
+  const lang = useMemo(() => readingLang(article), [article]);
   const articleId = article.id;
   const [articleEl, setArticleEl] = useState<HTMLDivElement | null>(null);
   const composerRef = useRef<ComposerHandle>(null);
@@ -504,7 +506,7 @@ function ReaderInner({ article }: { article: Article }) {
                 </div>
               </header>
 
-              <div ref={setArticleEl} className="prose-read" onClick={onTextClick} onMouseOver={onTextOver} onMouseLeave={() => setUI({ hoverGloss: null })}>
+              <div ref={setArticleEl} className="prose-read" lang={lang} onClick={onTextClick} onMouseOver={onTextOver} onMouseLeave={() => setUI({ hoverGloss: null })}>
                 {article.blocks.map((b) => (
                   <Block
                     key={b.id}

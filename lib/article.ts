@@ -32,6 +32,8 @@ export type Article = {
   source?: string;
   sourceUrl?: string;
   format?: "epub" | "pdf" | "text";
+  /** The language it is written in, as a BCP 47 tag ("ru", "en-GB"). The reader hyphenates in it. */
+  lang?: string;
   blocks: Block[];
   chapters?: { title: string; block: string }[];
   epub?: {

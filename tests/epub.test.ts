@@ -90,3 +90,13 @@ test('semantic EPUB3 footnotes preserve their complete container boundary', asyn
   assert.equal(note?.endBlock,'b4');
   assert.equal(a.blocks[1].runs.map(r=>r.text).join(''),'Text1');
 });
+
+const withLanguage = (language: string) => book([{ name: "OPS/book.opf", text: `<package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata><dc:title>Книга</dc:title><dc:language>${language}</dc:language></metadata><manifest><item id="first" href="one.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="first"/></spine></package>` }]);
+
+test("EPUB keeps the language the book declares, so the reader hyphenates in it", async () => {
+  assert.equal((await epubToArticle(new File([withLanguage("ru")], "ru.epub"))).lang, "ru");
+  assert.equal((await epubToArticle(new File([withLanguage(" en-GB ")], "en.epub"))).lang, "en-GB");
+  assert.equal((await epubToArticle(new File([withLanguage("Russian")], "odd.epub"))).lang, undefined);
+  assert.equal((await epubToArticle(new File([withLanguage("und")], "und.epub"))).lang, undefined);
+  assert.equal((await epubToArticle(new File([book()], "none.epub"))).lang, undefined);
+});

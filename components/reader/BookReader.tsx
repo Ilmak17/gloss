@@ -18,6 +18,7 @@ import {
   PenLine,
 } from "lucide-react";
 import { blockText, type Article } from "@/lib/article";
+import { readingLang } from "@/lib/typeset";
 import { bookChapters, bookProgress, chapterForPoint, isCoverChapter } from "@/lib/books";
 import {
   firstPointOnPage,
@@ -62,6 +63,7 @@ import { pageDots, type ChallengeDot } from "@/lib/challenge-dots";
 export function BookReader({ article }: { article: Article }) {
   const ix = useMemo(() => indexArticle(article), [article]);
   const chapters = useMemo(() => bookChapters(article), [article]);
+  const lang = useMemo(() => readingLang(article), [article]);
   const saved = useRef(useStore.getState().progress[article.id]);
   const point = useRef<Point>({
     b: saved.current?.block ?? article.blocks[0]?.id ?? "",
@@ -572,6 +574,7 @@ export function BookReader({ article }: { article: Article }) {
             <div
               ref={setRoot}
               className={`book-pages prose-read${isCoverChapter(chapters[chapter]) ? " is-cover-page" : ""}`}
+              lang={lang}
               onClickCapture={(e) => {
                 if (!choosingStart || !root) return;
                 e.preventDefault(); e.stopPropagation();
@@ -641,7 +644,7 @@ export function BookReader({ article }: { article: Article }) {
               onClick={() => setUI({ activeGloss: d.id, activeHighlight: null })} />)}
           </div>
         </main>
-        {root && viewport.current && <BookPagination chapters={chapters} viewport={viewport.current} layoutKey={JSON.stringify(settings)} onCounts={setPageCounts} />}
+        {root && viewport.current && <BookPagination chapters={chapters} lang={lang} viewport={viewport.current} layoutKey={JSON.stringify(settings)} onCounts={setPageCounts} />}
         {noteTarget && <BookFootnote blocks={noteBlocks} onClose={closeNote} onLink={key=>{
           const ref=article.epub?.targets[key];
           if (!ref) return;

@@ -10,3 +10,7 @@ test('metadata upgrade keeps saved identity and offsets', () => {
 test('different edition cannot replace annotated text', () => {
   assert.throws(() => upgradeBook(a,{...a,blocks:[{...a.blocks[0],runs:[{text:'Other text'}]}]}),/does not match/);
 });
+test('an update from the original EPUB adds the language the book declares', () => {
+  assert.equal(upgradeBook(a, {...a, lang:'ru', epub:{version:2,toc:[],targets:{}}}).lang, 'ru');
+  assert.equal(upgradeBook({...a, lang:'en'}, {...a, epub:{version:2,toc:[],targets:{}}}).lang, 'en');
+});

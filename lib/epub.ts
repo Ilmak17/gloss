@@ -12,6 +12,12 @@ function pathFrom(base: string, href: string): string {
   return decodeURIComponent(url.pathname.slice(1));
 }
 
+/** A declared language, if it is a real BCP 47 tag ("ru", "en-GB"); "Russian" or "und" say nothing usable. */
+function languageTag(value: string | null | undefined): string | undefined {
+  const tag = value?.trim();
+  return tag && /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i.test(tag) && tag.toLowerCase() !== "und" ? tag : undefined;
+}
+
 /** EPUB is parsed locally into inert reader blocks. No book HTML or scripts are mounted. */
 export async function epubToArticle(file: File): Promise<Article> {
   if (file.size > MAX_FILE) throw new Error("This EPUB is too large (maximum 64 MB).");
@@ -38,6 +44,7 @@ export async function epubToArticle(file: File): Promise<Article> {
   const pkg = xml(packagePath);
   const title = nodes(pkg, "title")[0]?.textContent?.trim() || file.name.replace(/\.epub$/i, "");
   const author = nodes(pkg, "creator").map(e => e.textContent?.trim()).filter(Boolean).join(", ") || undefined;
+  const lang = languageTag(nodes(pkg, "language")[0]?.textContent);
   const manifest = new Map(nodes(pkg, "item").map(e => [e.getAttribute("id"), e]));
   const spine = nodes(pkg, "itemref");
   if (!spine.length) throw new Error("EPUB has no reading order (spine).");
@@ -147,6 +154,6 @@ export async function epubToArticle(file: File): Promise<Article> {
     const target = targets[decodeURIComponent(r.href.slice(6))];
     if (target) target.note = true;
   }
-  return { id: `${slugify(title)}-${crypto.randomUUID().slice(0, 8)}`, title, author, blocks, chapters, epub: { version: 2, toc, targets }, origin: "file",
+  return { id: `${slugify(title)}-${crypto.randomUUID().slice(0, 8)}`, title, author, lang, blocks, chapters, epub: { version: 2, toc, targets }, origin: "file",
     format: "epub", source: file.name, addedAt: Date.now() };
 }
