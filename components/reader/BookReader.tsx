@@ -78,7 +78,7 @@ export function BookReader({ article }: { article: Article }) {
   const [saveError, setSaveError] = useState("");
   const [openHl, setOpenHl] = useState<OpenHighlight | null>(null);
   const [peek, setPeek] = useState<{ n: number; rect: DOMRect } | null>(null);
-  const [quiet, setQuiet] = useState(false);
+  const [quiet, setQuiet] = useState(true);
   const [choosingStart, setChoosingStart] = useState(false);
   const quietTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPage = useRef(false);
@@ -129,7 +129,7 @@ export function BookReader({ article }: { article: Article }) {
   const awaken = useCallback(() => {
     setQuiet(false);
     if (quietTimer.current) clearTimeout(quietTimer.current);
-    quietTimer.current = setTimeout(() => setQuiet(true), 2800);
+    quietTimer.current = setTimeout(() => setQuiet(true), 900);
   }, []);
   const persist = useCallback(() => {
     setPct(bookProgress(article, point.current));
@@ -148,9 +148,8 @@ export function BookReader({ article }: { article: Article }) {
       lastPage.current = false;
       setChapter(chapterForPoint(chapters, target));
       setRevision((r) => r + 1);
-      if (manual) awaken();
     },
-    [chapters, awaken],
+    [chapters],
   );
   const explore = useCallback((target: Point) => {
     const origin = { ...point.current };
@@ -225,9 +224,8 @@ export function BookReader({ article }: { article: Article }) {
         lastPage.current = direction < 0;
         setChapter(nextChapter);
       }
-      awaken();
     },
-    [page, pages, chapter, chapters, blocks, persist, awaken],
+    [page, pages, chapter, chapters, blocks, persist],
   );
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
@@ -355,9 +353,9 @@ export function BookReader({ article }: { article: Article }) {
       <title>{article.title}</title>
       <div
         className={`book-reader study-reader hide-nums ${quiet ? "is-quiet" : ""} ${activeGloss && !notebookOpen && discussionQuestion(glosses.find(g => g.id === activeGloss)?.question ?? "").mode !== "challenge" ? "is-studying" : ""} ${notebookOpen ? "nb-open" : ""} ${choosingStart ? "is-picking-start" : ""}`}
-        onPointerMove={awaken}
       >
-        <header className="book-toolbar">
+        <button type="button" className="book-controls-reveal" aria-label="Show reading controls" aria-controls="book-reading-controls" onPointerEnter={awaken} onFocus={awaken} onClick={awaken}><span aria-hidden>···</span></button>
+        <header id="book-reading-controls" className="book-toolbar">
           <nav aria-label="Book navigation">
             <Link href="/" aria-label="Library" className={barBtn}>
               <ArrowLeft size={18} />
@@ -414,7 +412,6 @@ export function BookReader({ article }: { article: Article }) {
           </nav>
         </header>
         <main className="book-stage">
-          <div className="book-chapter-label">{article.title} · {chapters[chapter]?.title}</div>
           <div
             className="book-viewport"
             ref={viewport}
