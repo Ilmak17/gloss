@@ -40,6 +40,7 @@ import { Block, type Mark } from "./Block";
 import { BookNavigation, type BookMark } from "./BookNavigation";
 import { ReaderContext, type ReaderApi } from "./context";
 import { ListenBar } from "./Listen";
+import { discussionQuestion } from "@/lib/discussion-options";
 import { StudyPanel } from "./StudyPanel";
 import { Notebook } from "./Notebook";
 import { BookPagination } from "./BookPagination";
@@ -353,7 +354,7 @@ export function BookReader({ article }: { article: Article }) {
     <ReaderContext.Provider value={api}>
       <title>{article.title}</title>
       <div
-        className={`book-reader study-reader hide-nums ${quiet ? "is-quiet" : ""} ${activeGloss && !notebookOpen ? "is-studying" : ""} ${notebookOpen ? "nb-open" : ""} ${choosingStart ? "is-picking-start" : ""}`}
+        className={`book-reader study-reader hide-nums ${quiet ? "is-quiet" : ""} ${activeGloss && !notebookOpen && discussionQuestion(glosses.find(g => g.id === activeGloss)?.question ?? "").mode !== "challenge" ? "is-studying" : ""} ${notebookOpen ? "nb-open" : ""} ${choosingStart ? "is-picking-start" : ""}`}
         onPointerMove={awaken}
       >
         <header className="book-toolbar">

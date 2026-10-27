@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowUpRight, BookOpen, Check, Copy, Languages, Lightbulb, MessageCircle, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, BookOpen, Check, Copy, Languages, Lightbulb, MessageCircle, Scale, X } from "lucide-react";
 import { pauseListening, resumeAfterStudy, useListen } from "@/lib/listening";
 import { DISCUSSION_OPTIONS, discussionQuestion, composeDiscussionQuestion, type DiscussionMode } from "@/lib/discussion-options";
 import { studyContext } from "@/lib/study";
 import { useGlosses, useStore, type Gloss } from "@/lib/store";
+import { ChallengeCard } from "./ChallengeCard";
 import { Answer } from "./Answer";
 import { useReader } from "./context";
 
@@ -15,7 +16,9 @@ export function StudyPanel() {
   const notebook = useStore(s => s.notebookOpen);
   const glosses = useGlosses(ix.article.id);
   const g = glosses.find(g => g.id === active);
-  return g && !notebook ? <Discussion key={g.id} gloss={g} /> : null;
+  if (!g || notebook) return null;
+  return discussionQuestion(g.question ?? "").mode === "challenge"
+    ? <ChallengeCard key={g.id} gloss={g} /> : <Discussion key={g.id} gloss={g} />;
 }
 
 function Discussion({ gloss }: { gloss: Gloss }) {
@@ -33,7 +36,7 @@ function Discussion({ gloss }: { gloss: Gloss }) {
   const option = DISCUSSION_OPTIONS.find(option => option.id === mode)!;
   const quote = gloss.anchor?.quote;
   const longQuote = !!quote && quote.length > 200;
-  const icons = { explain: BookOpen, translate: Languages, example: Lightbulb, ask: MessageCircle };
+  const icons = { challenge: Scale, explain: BookOpen, translate: Languages, example: Lightbulb, ask: MessageCircle };
   const history = gloss.turns.filter(t => t.content);
 
   useEffect(() => {
@@ -72,9 +75,12 @@ function Discussion({ gloss }: { gloss: Gloss }) {
         {quote && <p className="handoff-source-book" title={ix.article.title}>{ix.article.title}</p>}
       </section>
 
+      <button type="button" className="challenge-entry" onClick={() => choose("challenge")}>
+        <Scale size={19} strokeWidth={1.5} /><span><strong>Challenge this idea</strong><small>Recall · question · form your own view</small></span><ArrowUpRight size={15} />
+      </button>
       <fieldset className="handoff-intent">
         <legend>What would help?</legend>
-        <div className="handoff-modes">{DISCUSSION_OPTIONS.map(item => {
+        <div className="handoff-modes">{DISCUSSION_OPTIONS.filter(item => item.id !== "challenge").map(item => {
           const Icon = icons[item.id];
           return <button key={item.id} type="button" aria-pressed={mode === item.id} onClick={() => choose(item.id)}><Icon size={16} strokeWidth={1.6} /><span>{item.label}</span></button>;
         })}</div>

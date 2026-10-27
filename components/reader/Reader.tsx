@@ -21,6 +21,7 @@ import { ReaderContext, type ReaderApi } from "./context";
 import { Lens, type OpenHighlight } from "./Lens";
 import { ListenBar } from "./Listen";
 import { SignInNudge } from "@/components/account/SignInNudge";
+import { discussionQuestion } from "@/lib/discussion-options";
 import { StudyPanel } from "./StudyPanel";
 import { StudyContents } from "./StudyContents";
 import { Notebook } from "./Notebook";
@@ -445,7 +446,7 @@ function ReaderInner({ article }: { article: Article }) {
 
   /* ---------------- layout ---------------- */
 
-  const studying = !!activeGloss && !notebookOpen;
+  const studying = !!activeGloss && !notebookOpen && discussionQuestion(glosses.find(g => g.id === activeGloss)?.question ?? "").mode !== "challenge";
 
   // A short line above the title: where this came from.
   const kicker = article.source ? article.source.split(/,|\(/)[0].trim() : article.origin === "paste" ? "Pasted text" : undefined;

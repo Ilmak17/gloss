@@ -8,6 +8,7 @@ import { cmp } from "@/lib/anchor";
 import { undash } from "@/lib/article";
 import { stopGloss } from "@/lib/ask";
 import { useGlosses, useHighlights, useStore, type Gloss, type Highlight, type Turn } from "@/lib/store";
+import { discussionQuestion } from "@/lib/discussion-options";
 import { ACTIONS } from "@/lib/actions";
 import { notesMarkdown, pairsOf } from "@/lib/export";
 import { Answer, Sources } from "./Answer";
@@ -207,7 +208,8 @@ function GlossEntry({ g }: { g: Gloss }) {
   const removeGloss = useStore((s) => s.removeGloss);
   const blockId = g.anchor?.start.b ?? g.at;
   const n = blockId ? ix.numbers.get(blockId) : undefined;
-  const label = g.destination === "codex" ? "For Codex" : !g.anchor ? "Whole text" : g.action === "ask" ? undefined : ACTIONS[g.action].label;
+  const challenge = discussionQuestion(g.question ?? "").mode === "challenge";
+  const label = challenge ? "Challenge" : g.destination === "codex" ? "For Codex" : !g.anchor ? "Whole text" : g.action === "ask" ? undefined : ACTIONS[g.action].label;
   const go = () => {
     setUI({ activeGloss: g.id, notebookOpen: false });
     if (blockId) jumpToBlock(blockId);
@@ -225,7 +227,18 @@ function GlossEntry({ g }: { g: Gloss }) {
       </button>
 
       <div className="mt-3.5 space-y-4">
-        {pairsOf(g).map((p, i) => (
+        {challenge ? <div className="thinking-note">
+          <p>{g.reflection?.claim || "An idea to think through"}</p>
+          {discussionQuestion(g.question ?? "").detail && <p className="thinking-objection">{discussionQuestion(g.question ?? "").detail}</p>}
+          {(g.reflection?.takeaway || g.reflection?.openQuestion) && <details>
+            <summary>Recall first · then reveal your takeaway</summary>
+            <p className="thinking-hint">Before opening: what was the idea, and where did you land? Try a new example.</p>
+            {g.reflection?.takeaway && <p>{g.reflection.takeaway}</p>}
+            {g.reflection?.openQuestion && <p><strong>Still unresolved</strong><br />{g.reflection.openQuestion}</p>}
+          </details>}
+          {g.review && !g.review.off && g.reflection?.takeaway?.trim() && <p className="thinking-hint">Next recall · {new Date(g.review.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>}
+          <button type="button" className="thinking-notebook" onClick={go}>Continue thinking →</button>
+        </div> : pairsOf(g).map((p, i) => (
           <div key={i} className={i > 0 ? "border-t border-rule pt-3.5" : ""}>
             <div className="grid grid-cols-[16px_minmax(0,1fr)] items-baseline gap-x-2">
               <span aria-hidden className="text-[11.5px] font-semibold leading-none text-rubric-text">Q</span>

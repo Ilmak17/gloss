@@ -5,6 +5,7 @@ import { ArrowUp, BadgeCheck, BookA, Check, Copy, Ellipsis, Eraser, Feather, Hig
 import { ACTIONS, isShortSelection, type Action } from "@/lib/actions";
 import { MARKERS, type Marker } from "@/lib/settings";
 import { anchorToRange, selectionToAnchor } from "@/lib/anchor";
+import { composeDiscussionQuestion } from "@/lib/discussion-options";
 import { startStudy } from "@/lib/study-draft";
 import { pauseListening, startListening, useListen } from "@/lib/listening";
 import { uid, useStore, type Anchor } from "@/lib/store";
@@ -407,6 +408,7 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
                 </button>
               );
             })}
+            <button type="button" className="lens-btn gap-1.5 px-2.5" onClick={() => run("counter", composeDiscussionQuestion("challenge", ""))}><Scale size={15} /> Challenge</button>
             {paged && <>
               <button type="button" className="lens-btn px-2.5" onClick={() => run("ask", "Translate this passage into Russian, preserving the meaning. Briefly explain any idioms or ambiguous terms.")}>Translate</button>
               <button type="button" className="lens-btn px-2.5" onClick={() => { const from = lens.anchor.start; close(); useListen.setState({ follow: true }); startListening(ix, from.b, from.o); }}>Listen from here</button>

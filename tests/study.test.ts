@@ -58,3 +58,19 @@ test("reader answers default to Russian without changing original quoted source"
   assert.match(messages.at(-1)!.content ?? "", /An original idea\./);
   assert.doesNotMatch(messages.at(-1)!.content ?? "", /modern English/);
 });
+
+test("reader reflections survive reopening and export without being passed off as AI answers", () => {
+  const ix = indexArticle({ id: "reflection", title: "Book", blocks: [{ id: "p", type: "p", runs: [{ text: "An argument." }] }] });
+  useStore.setState({ glosses: {} });
+  const id = startStudy(ix, { action: "ask", at: "p" });
+  const reflection = { claim: "The claim in my words", takeaway: "My revised view", openQuestion: "What evidence would settle this?" };
+  useStore.getState().updateGloss(ix.article.id, id, g => ({ ...g, reflection }));
+  assert.equal(startStudy(ix, { action: "ask", at: "p" }), id);
+  const saved = useStore.getState().glosses[ix.article.id];
+  assert.deepEqual(JSON.parse(JSON.stringify(saved))[0].reflection, reflection);
+  assert.deepEqual(saved[0].turns, []);
+  const markdown = notesMarkdown({ title: "Book" }, saved, []);
+  assert.match(markdown, /### My understanding of the claim\n\nThe claim in my words/);
+  assert.match(markdown, /### My provisional conclusion\n\nMy revised view/);
+  assert.match(markdown, /### Still unresolved\n\nWhat evidence would settle this/);
+});

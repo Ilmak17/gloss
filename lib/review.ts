@@ -1,4 +1,4 @@
-import type { Highlight, Review } from "./store";
+import type { Gloss, Highlight, Review } from "./store";
 
 /**
  * The daily review: a few of your own highlights each day, spaced out the way
@@ -32,12 +32,22 @@ export function todaysReview(all: Highlight[], now = Date.now()): { deck: Highli
 }
 
 /** Seen and kept: it comes back later, each time a little later than the last. */
-export function keepInRotation(h: Highlight, now = Date.now()): Review {
+export function keepInRotation(h: { review?: Review }, now = Date.now()): Review {
   const step = (h.review?.step ?? -1) + 1;
   return { step, last: now, due: startOfDay(now) + STEPS[Math.min(step, STEPS.length - 1)] * DAY };
 }
 
 /** Seen and done with: it stays a highlight, but leaves the review. */
-export function retire(h: Highlight, now = Date.now()): Review {
+export function retire(h: { review?: Review }, now = Date.now()): Review {
   return { step: h.review?.step ?? 0, due: h.review?.due ?? now, last: now, off: true };
+}
+
+/** Only explicitly enrolled thoughts with a saved conclusion enter the review deck. */
+export function todaysThoughts(all: Gloss[], now = Date.now()): { deck: Gloss[]; done: number } {
+  const today = startOfDay(now);
+  const enrolled = all.filter(g => g.review && !g.review.off && g.reflection?.takeaway?.trim());
+  const done = all.filter(g => g.review && g.review.last >= today && g.reflection?.takeaway?.trim()).length;
+  const due = enrolled.filter(g => g.review!.last < today && g.review!.due <= now)
+    .sort((a, b) => a.review!.due - b.review!.due);
+  return { deck: due.slice(0, Math.max(0, DAILY - done)), done };
 }

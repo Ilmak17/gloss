@@ -77,6 +77,11 @@ export function notesMarkdown(meta: NotesMeta, glosses: Gloss[], highlights: Hig
     const n = num(g.anchor?.start.b ?? g.at);
     lines.push(`## ${g.anchor ? ACTIONS[g.action].label : "Question"}${n ? ` (¶${n})` : ""}`);
     if (g.anchor) lines.push(`> ${g.anchor.quote.replace(/\n+/g, " ")}`, "");
+    if (g.reflection) {
+      for (const [label, value] of [["My understanding of the claim", g.reflection.claim], ["My provisional conclusion", g.reflection.takeaway], ["Still unresolved", g.reflection.openQuestion]]) {
+        if (value?.trim()) lines.push(`### ${label}`, "", value.trim(), "");
+      }
+    }
     for (const p of pairsOf(g)) {
       lines.push(`**${p.q}**`, "");
       if (p.a?.content) lines.push(undash(p.a.content), "");

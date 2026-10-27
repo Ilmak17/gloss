@@ -2247,3 +2247,79 @@ button.fig-trigger:focus-visible { outline:2px solid var(--ink-2); outline-offse
 .book-reader.is-picking-start .book-chapter-label { visibility:hidden; }
 .book-reader.is-picking-start .book-pages .blk-text { cursor:crosshair; }
 @media(max-width:640px) { .listen-start-hint { top:110px; font-size:11px; gap:10px; } }
+
+
+/* Thinking cards: one question, one writing surface, one next action. */
+.challenge-entry { display:flex; align-items:center; gap:12px; width:100%; padding:16px 0; margin-top:8px; border-bottom:1px solid var(--rule); text-align:left; color:var(--ink-2); }
+.challenge-entry > span { flex:1; }
+.challenge-entry strong { display:block; font-size:14px; font-weight:500; }
+.challenge-entry small { display:block; margin-top:4px; font-size:12px; color:var(--ink-3); }
+.challenge-entry:hover { color:var(--ink); }
+.thought-card { position:fixed; inset:0; width:min(560px, calc(100vw - 32px)); max-width:none; max-height:calc(100dvh - 48px); margin:auto; padding:0; color:var(--ink); background:var(--bg-raised); border:1px solid var(--rule-strong); border-radius:20px; box-shadow:0 24px 90px #00000024, 0 2px 8px #00000009; overflow:hidden; }
+.thought-card::backdrop { background:rgb(25 23 19 / 24%); backdrop-filter:blur(5px); }
+.thought-card[open] { animation:thought-enter .2s ease-out; }
+.thought-shell { display:flex; flex-direction:column; max-height:calc(100dvh - 50px); }
+.thought-top { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 24px 4px 32px; }
+.thought-top > span { font-size:10px; letter-spacing:.12em; color:var(--ink-3); }
+.thought-top > button { display:grid; place-items:center; width:44px; height:44px; border-radius:50%; color:var(--ink-3); }
+.thought-top > button:hover { background:var(--bg); color:var(--ink); }
+.thought-tabs { display:flex; gap:24px; padding:0 32px; border-bottom:1px solid var(--rule); }
+.thought-tabs button { display:flex; align-items:center; gap:7px; min-height:44px; border-bottom:2px solid transparent; margin-bottom:-1px; font-size:13px; color:var(--ink-3); }
+.thought-tabs button > span { font-size:10px; font-variant-numeric:tabular-nums; opacity:.7; }
+.thought-tabs button[aria-current] { border-color:var(--ink); color:var(--ink); }
+.thought-tabs button:hover { color:var(--ink); }
+.thought-body { padding:24px 32px 18px; overflow-y:auto; overscroll-behavior:contain; min-height:0; }
+.thought-book { font-size:12px; color:var(--ink-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.thought-body h2, .thought-review h2 { font-family:var(--font-serif); font-size:34px; font-weight:450; letter-spacing:-.025em; line-height:1.15; margin-top:10px; text-wrap:balance; }
+.thought-lead { font-size:14px; color:var(--ink-2); line-height:1.5; margin:12px 0 22px; }
+.thought-label { display:block; font-size:12px; font-weight:500; color:var(--ink-2); margin:18px 0 8px; }
+.thought-card textarea { display:block; width:100%; resize:vertical; min-height:112px; max-height:220px; padding:16px; background:var(--bg); border:1px solid var(--rule-strong); border-radius:10px; font-size:16px; line-height:1.6; color:var(--ink); }
+.thought-card textarea::placeholder { color:var(--ink-3); }
+.thought-card textarea:focus-visible { outline:2px solid var(--ink-3); outline-offset:3px; }
+.thought-source { margin-top:12px; font-size:12px; color:var(--ink-2); }
+.thought-source summary { cursor:pointer; padding-block:10px; min-height:40px; }
+.thought-source blockquote { margin:8px 0; font-family:var(--font-serif); font-size:17px; line-height:1.6; max-height:180px; overflow-y:auto; white-space:pre-wrap; }
+.thought-recap { margin:0 0 16px; font-family:var(--font-serif); font-size:17px; line-height:1.5; color:var(--ink-2); display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
+.thought-copy-status { font-size:12px; line-height:1.6; color:var(--ink-2); margin-top:12px; }
+.thought-footer { padding:16px 32px 20px; border-top:1px solid var(--rule); flex-shrink:0; }
+.thought-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.thought-primary { display:inline-flex; justify-content:center; align-items:center; gap:10px; padding:12px 20px; min-height:44px; border-radius:10px; background:var(--ink); color:var(--bg); font-size:14px; font-weight:500; transition:opacity .15s, transform .15s; }
+.thought-primary:hover { opacity:.88; }
+.thought-primary:active { transform:translateY(1px); }
+.thought-back { display:inline-flex; align-items:center; gap:6px; min-height:44px; font-size:13px; color:var(--ink-2); }
+.thought-back:hover { color:var(--ink); text-decoration:underline; text-underline-offset:4px; }
+.thought-after { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:44px; margin-top:8px; font-size:12px; color:var(--ink-2); }
+.thought-after:hover { color:var(--ink); }
+.thought-autosave { margin:14px 0 0; text-align:center; color:var(--ink-3); font-size:12px; }
+.thought-autosave button { text-decoration:underline; text-underline-offset:3px; }
+.thought-repeat { display:flex; align-items:flex-start; gap:10px; padding:16px 0 0; font-size:14px; color:var(--ink-2); cursor:pointer; }
+.thought-repeat input { margin-top:3px; width:16px; height:16px; accent-color:var(--ink); }
+.thought-repeat small { display:block; margin-top:5px; font-size:12px; line-height:1.5; color:var(--ink-3); }
+.thought-review { padding:28px 32px; border:1px solid var(--rule); border-radius:16px; background:var(--bg-raised); }
+.thought-review h2 { font-size:28px; }
+.thought-review-claim { font-family:var(--font-serif); font-size:19px; line-height:1.5; margin-top:20px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.thought-review-answer { border-top:1px solid var(--rule); padding-top:18px; margin:20px 0; }
+.thought-review-answer span { font-size:12px; color:var(--ink-3); }
+.thought-review-answer p { font-size:16px; line-height:1.6; margin:8px 0 16px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.thought-book-link { display:flex; gap:6px; align-items:center; margin-top:18px; min-height:40px; font-size:12px; color:var(--ink-2); }
+.thinking-note > p { font-size:14px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
+.thinking-objection { color:var(--ink-3); margin-top:8px; }
+.thinking-note details { border-top:1px solid var(--rule); margin-top:14px; padding-top:12px; }
+.thinking-note summary { cursor:pointer; font-size:12px; color:var(--ink-2); }
+.thinking-note details > p { font-size:14px; line-height:1.6; margin-top:10px; white-space:pre-wrap; }
+.thinking-note .thinking-hint { color:var(--ink-3); font-size:12px; }
+.thinking-notebook { display:flex; align-items:center; min-height:44px; font-size:12px; color:var(--ink-2); }
+@keyframes thought-enter { from { opacity:0; transform:translateY(8px) scale(.99); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce) { .thought-card[open] { animation:none; } .thought-primary { transition:none; } }
+@media (max-width:600px) {
+  .thought-card { width:calc(100vw - 20px); max-height:calc(100dvh - 24px); border-radius:16px; }
+  .thought-shell { max-height:calc(100dvh - 26px); }
+  .thought-top { padding:8px 12px 0 20px; }
+  .thought-top > span { font-size:9px; }
+  .thought-tabs { padding:0 20px; gap:20px; }
+  .thought-body { padding:20px; }
+  .thought-body h2 { font-size:30px; }
+  .thought-footer { padding:12px 20px max(16px, env(safe-area-inset-bottom)); }
+  .thought-primary { padding-inline:14px; font-size:13px; }
+  .thought-review { padding:20px; }
+}

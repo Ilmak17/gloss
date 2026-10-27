@@ -1,5 +1,6 @@
 /** Compact UI choices; the complete request still travels with the Codex handoff. */
 export const DISCUSSION_OPTIONS = [
+  { id: "challenge", label: "Challenge", description: "Understand the claim. Test its limits. Form your own view.", prompt: "Help me critically examine this passage, one question at a time." },
   { id: "explain", label: "Explain", description: "Understand the meaning, with a simple example.", prompt: "Explain this passage with a simple example." },
   { id: "translate", label: "Translate", description: "Translate into Russian and unpack unfamiliar expressions.", prompt: "Translate this passage into Russian, preserving the meaning. Briefly explain any idioms or ambiguous terms." },
   { id: "example", label: "Example", description: "Make the idea concrete with a real-world example.", prompt: "Give me an example" },

@@ -8,7 +8,8 @@ import { SignInButton } from "@/components/account/auth";
 import { tidyTitle } from "@/lib/article";
 import { SAMPLES } from "@/lib/samples";
 import { useStore } from "@/lib/store";
-import { todaysReview } from "@/lib/review";
+import { DailyThought } from "./DailyThought";
+import { todaysThoughts, todaysReview } from "@/lib/review";
 import { DailyHighlight } from "./DailyHighlight";
 import { Desk, DeskLink } from "./Desk";
 
@@ -40,6 +41,7 @@ function SignInLine({ children }: { children: string }) {
 export function HomeBelow({ signedIn }: { signedIn: boolean }) {
   const hydrated = useStore((s) => s.hydrated);
   const highlights = useStore((s) => s.highlights);
+  const glosses = useStore((s) => s.glosses);
   const library = useStore((s) => s.library);
   const setUI = useStore((s) => s.setUI);
 
@@ -63,6 +65,8 @@ export function HomeBelow({ signedIn }: { signedIn: boolean }) {
   if (!hydrated) return <div className="desk is-holding" aria-hidden />;
 
   const foot = !AUTH_ENABLED ? "Books and highlights are saved in this browser." : signedIn ? null : <SignInLine>{all.length ? "These live in this browser only." : "Keep your highlights on every device."}</SignInLine>;
+
+  if (todaysThoughts(Object.values(glosses).flat().filter(g => library.some(b => b.id === g.articleId))).deck.length) return <DailyThought />;
 
   // Before any highlights: Hassan's three steps, for first-timers and anyone signed out.
   if (!all.length)
