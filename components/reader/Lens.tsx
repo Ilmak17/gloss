@@ -8,13 +8,14 @@ import { anchorToRange, selectionToAnchor } from "@/lib/anchor";
 import { composeDiscussionQuestion } from "@/lib/discussion-options";
 import { startStudy } from "@/lib/study-draft";
 import { pauseListening, startListening, useListen } from "@/lib/listening";
-import { uid, useStore, type Anchor } from "@/lib/store";
+import { uid, useStore, type Anchor, type Highlight } from "@/lib/store";
 import { useReader } from "./context";
 
 type LensState = {
   anchor: Anchor;
   mode: "actions" | "ask" | "note";
   highlightId?: string;
+  highlightIds?: string[];
   initial?: string;
 };
 
@@ -28,7 +29,7 @@ const STARTERS = {
  * The selection lens. Select text and it appears; start typing and it becomes
  * a question box; discuss it in Codex or open a critical-reading card.
  */
-export type OpenHighlight = { id: string; anchor: Anchor; at: number; note?: boolean };
+export type OpenHighlight = { id: string; ids?: string[]; anchor: Anchor; at: number; note?: boolean };
 
 export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; openHighlight: OpenHighlight | null }) {
   const { ix } = useReader();
@@ -36,6 +37,7 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
   const [pos, setPos] = useState<{ x: number; y: number; below: boolean; arrow: number; docked: boolean } | null>(null);
   const [draft, setDraft] = useState("");
   const [copied, setCopied] = useState(false);
+  const [removed, setRemoved] = useState<Highlight[]>([]);
   const marker = useStore((s) => s.settings.marker);
   const setSettings = useStore((s) => s.setSettings);
   const updateHighlight = useStore((s) => s.updateHighlight);
@@ -125,7 +127,7 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
   useEffect(() => {
     if (!openHighlight) return;
     window.getSelection()?.removeAllRanges();
-    setLens({ anchor: openHighlight.anchor, mode: openHighlight.note ? "note" : "actions", highlightId: openHighlight.id });
+    setLens({ anchor: openHighlight.anchor, mode: openHighlight.note ? "note" : "actions", highlightId: openHighlight.id, highlightIds: openHighlight.ids });
     if (openHighlight.note) setDraft(useStore.getState().highlights[ix.article.id]?.find((h) => h.id === openHighlight.id)?.note ?? "");
     setUI({ activeHighlight: openHighlight.id });
   }, [openHighlight, setUI, ix]);
@@ -263,7 +265,25 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
     return () => window.removeEventListener("keydown", onKey, true);
   }, [lens, close, toAsk]);
 
-  if (!lens) return null;
+  useEffect(() => {
+    if (!removed.length) return;
+    const timer = setTimeout(() => setRemoved([]), 8000);
+    return () => clearTimeout(timer);
+  }, [removed]);
+
+  const undoNotice = removed.length ? (
+    <div className="highlight-undo" role="status">
+      <span>{removed.length > 1 ? "Highlights removed" : "Highlight removed"}</span>
+      <button type="button" onClick={() => {
+        for (const h of removed) {
+          if (!useStore.getState().highlights[h.articleId]?.some(item => item.id === h.id)) addHighlight(h);
+        }
+        setRemoved([]);
+      }}>Undo</button>
+      <button type="button" aria-label="Dismiss notification" onClick={() => setRemoved([])}>×</button>
+    </div>
+  ) : null;
+  if (!lens) return undoNotice;
 
   const run = (action: Action, question?: string) => {
     startStudy(ix, { anchor: lens.anchor, action, question });
@@ -272,6 +292,7 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
 
   const short = isShortSelection(lens.anchor.quote);
   const existing = lens.highlightId ? useStore.getState().highlights[ix.article.id]?.find((h) => h.id === lens.highlightId) : undefined;
+  const selectedHighlights = (useStore.getState().highlights[ix.article.id] ?? []).filter(h => (lens.highlightIds ?? [lens.highlightId]).includes(h.id));
   const markerColor = MARKERS.find((m) => m.key === marker)?.color;
 
   // Captions open on the side away from the text, so they never cover what was selected.
@@ -304,6 +325,8 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
   const starters = short ? STARTERS.word : STARTERS.passage;
 
   return (
+    <>
+    {undoNotice}
     <div
       ref={boxRef}
       role={lens.mode === "actions" ? "toolbar" : "dialog"}
@@ -404,16 +427,18 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
                   <LensIcon label={existing.note ? "Edit note" : "Add a note"} tip={tipProps(existing.note ? "Edit note" : "Add a note", existing.note ? undefined : "In your own words")} onClick={toNote}>
                     <PenLine size={15} />
                   </LensIcon>
-                  <LensIcon
-                    label="Remove highlight"
-                    tip={tipProps("Remove highlight")}
+                  <button
+                    type="button"
+                    className="lens-btn gap-1.5 px-2.5"
                     onClick={() => {
-                      removeHighlight(ix.article.id, lens.highlightId!);
+                      setRemoved(selectedHighlights);
+                      for (const h of selectedHighlights) removeHighlight(ix.article.id, h.id);
                       close();
                     }}
                   >
-                    <Eraser size={15} />
-                  </LensIcon>
+                    <Eraser size={15} aria-hidden />
+                    {selectedHighlights.length > 1 ? `Remove highlights (${selectedHighlights.length})` : "Remove highlight"}
+                  </button>
                 </>
               ) : (
                 <LensIcon label="Highlight" tip={tipProps("Highlight")} onClick={() => highlight(marker)}>
@@ -496,6 +521,7 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
         )}
       </div>
     </div>
+    </>
   );
 }
 

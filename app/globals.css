@@ -2358,3 +2358,25 @@ button.fig-trigger:focus-visible { outline:2px solid var(--ink-2); outline-offse
   .book-reader:has(.book-toolbar [role=dialog]) .book-controls-reveal,
   .book-reader:has(.book-toolbar [aria-expanded=true]) .book-controls-reveal { opacity:0; pointer-events:none; }
 }
+
+/* Brief, reversible feedback stays outside the text selection toolbar. */
+.highlight-undo {
+  position: fixed;
+  z-index: 80;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: calc(100vw - 24px);
+  padding: 8px 12px 8px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--bg-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-pop);
+  font-size: 13px;
+}
+.highlight-undo button { min-height: 32px; padding: 0 6px; font-weight: 600; }
+.highlight-undo button:last-child { color: var(--ink-3); font-size: 18px; }

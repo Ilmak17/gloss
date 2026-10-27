@@ -19,6 +19,7 @@ import { Block, type Mark } from "./Block";
 import { Composer, type ComposerHandle } from "./Composer";
 import { ReaderContext, type ReaderApi } from "./context";
 import { Lens, type OpenHighlight } from "./Lens";
+import { resolveReaderMark } from "@/lib/reader-mark";
 import { ListenBar } from "./Listen";
 import { SignInNudge } from "@/components/account/SignInNudge";
 import { discussionQuestion } from "@/lib/discussion-options";
@@ -329,18 +330,15 @@ function ReaderInner({ article }: { article: Article }) {
     if (sel && !sel.isCollapsed) return;
     const t = e.target as HTMLElement;
     const g = t.closest<HTMLElement>("[data-g]");
-    if (g?.dataset.g) {
-      const ids = g.dataset.g.split(" ");
-      const next = ids.includes(activeGloss ?? "") && ids.length > 1 ? ids[(ids.indexOf(activeGloss!) + 1) % ids.length] : ids[ids.length - 1];
-      setUI({ activeGloss: next, activeHighlight: null });
-      return;
-    }
     const h = t.closest<HTMLElement>("[data-h]");
-    if (h?.dataset.h) {
-      const id = h.dataset.h.split(" ").pop()!;
-      const hl = highlights.find((x) => x.id === id);
-      if (hl) setOpenHl({ id, anchor: hl.anchor, at: Date.now() });
-    }
+    const action = resolveReaderMark(h?.dataset.h, g?.dataset.g, highlights, glosses);
+    if (action?.kind === "highlight") {
+      const hl = highlights.find((x) => x.id === action.id);
+      if (hl) {
+        setUI({ activeGloss: null });
+        setOpenHl({ id: hl.id, ids: action.ids, anchor: hl.anchor, at: Date.now() });
+      }
+    } else if (action?.kind === "gloss") setUI({ activeGloss: action.id, activeHighlight: null });
   };
 
   const onTextOver = (e: React.MouseEvent) => {

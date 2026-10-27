@@ -47,6 +47,7 @@ import { BookPagination } from "./BookPagination";
 import { BookFootnote } from "./BookFootnote";
 import { locateBookPage } from "@/lib/book-pagination";
 import { createPageSwipe } from "@/lib/page-swipe";
+import { resolveReaderMark } from "@/lib/reader-mark";
 import { Popover } from "@/components/ui/Popover";
 import { listeningWordStart } from "@/lib/listen-start";
 import { Lens, type OpenHighlight } from "./Lens";
@@ -254,9 +255,9 @@ export function BookReader({ article }: { article: Article }) {
     if (!vp) return;
     const wheel = (e: WheelEvent) => {
       const blocked = !!(
-        e.defaultPrevented || choosingStart ||
+        e.defaultPrevented || e.buttons !== 0 || choosingStart ||
         useStore.getState().activeGloss || useStore.getState().notebookOpen ||
-        document.querySelector('[role=dialog],dialog[open],[role=menu]') ||
+        document.querySelector('[role=dialog],dialog[open],[role=menu],.lens') ||
         window.getSelection()?.toString() ||
         (e.target as Element).closest('input,textarea,select,[contenteditable=true]')
       );
@@ -506,16 +507,19 @@ export function BookReader({ article }: { article: Article }) {
                 const target = e.target as HTMLElement,
                   g = target.closest<HTMLElement>("[data-g]"),
                   h = target.closest<HTMLElement>("[data-h]");
-                if (g) setUI({ activeGloss: g.dataset.g });
-                if (h) {
-                  const mark = highlights.find((x) => x.id === h.dataset.h);
-                  if (mark)
+                const action = resolveReaderMark(h?.dataset.h, g?.dataset.g, highlights, glosses);
+                if (action?.kind === "highlight") {
+                  const mark = highlights.find((x) => x.id === action.id);
+                  if (mark) {
+                    setUI({ activeGloss: null });
                     setOpenHl({
                       id: mark.id,
+                      ids: action.ids,
                       anchor: mark.anchor,
                       at: Date.now(),
                     });
-                }
+                  }
+                } else if (action?.kind === "gloss") setUI({ activeGloss: action.id });
               }}
             >
               {blocks.map((b) => (
