@@ -6,8 +6,11 @@ import { MessageCirclePlus } from "lucide-react";
 import type { Block as BlockT, Run } from "@/lib/article";
 import { typesetDashes } from "@/lib/typeset";
 
-/** `note`: a highlight with the reader's note, set only in the block where it ends. */
-export type Mark = { from: number; to: number; kind: "gloss" | "hl" | "pending"; id: string; color?: string; note?: boolean };
+/**
+ * `note`: a highlight with the reader's note, set only in the block where it ends.
+ * `challenge`: a passage the reader challenged; "start" is the block where it begins, which carries its margin dot.
+ */
+export type Mark = { from: number; to: number; kind: "gloss" | "hl" | "pending"; id: string; color?: string; note?: boolean; challenge?: "start" | "rest" };
 
 type Props = {
   block: BlockT;
@@ -69,6 +72,9 @@ function segments(block: BlockT, marks: Mark[], activeGloss: string | null, hove
     const a = sorted[i];
     const b = sorted[i + 1];
     for (let r = 0; r < runs.length; r++) if (runs[r].noteLabel && bounds[r] === a) out.push(wrapRun(runs[r], "", `note-${r}`));
+    // Empty and drawn in the margin by CSS, level with the passage's first line.
+    for (const m of marks) if (m.challenge === "start" && m.from === a)
+      out.push(<span key={`${a}c${m.id}`} className={`challenge-dot${m.id === activeGloss ? " is-open" : ""}`} data-g={m.id} aria-hidden />);
     if (b <= a) continue;
     while (ri < runs.length - 1 && bounds[ri + 1] <= a) ri++;
     const run = runs[ri];
@@ -89,6 +95,7 @@ function segments(block: BlockT, marks: Mark[], activeGloss: string | null, hove
       h.length && activeHighlight && h.includes(activeHighlight) ? "is-active" : "",
       fresh && (g.includes(fresh) || h.includes(fresh)) ? "is-new" : "",
       g.length ? "m-gloss" : "",
+      covering.some((m) => m.challenge) ? "is-challenge" : "",
       // Its own name: an open highlight must not also light up a discussion on the same words.
       g.length && activeGloss && g.includes(activeGloss) ? "is-gloss-active" : "",
       g.length && hoverGloss && g.includes(hoverGloss) ? "is-hover" : "",
@@ -223,7 +230,7 @@ export const Block = memo(BlockImpl, (a, b) => {
   for (let i = 0; i < a.marks.length; i++) {
     const x = a.marks[i];
     const y = b.marks[i];
-    if (x.from !== y.from || x.to !== y.to || x.id !== y.id || x.kind !== y.kind || x.color !== y.color || x.note !== y.note) return false;
+    if (x.from !== y.from || x.to !== y.to || x.id !== y.id || x.kind !== y.kind || x.color !== y.color || x.note !== y.note || x.challenge !== y.challenge) return false;
   }
   if (!a.marks.length) return true;
   // Only re-render for active or hover changes that touch this block's marks.

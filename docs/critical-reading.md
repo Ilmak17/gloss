@@ -1,25 +1,33 @@
-# Critical reading cards
+# Critical reading in the margin
 
 Select a passage and choose **Challenge**, or use **Discuss → Challenge this idea**.
 
-The floating card has three steps:
+The thought opens in the margin beside the passage. The page never moves for it: a vermilion pencil line runs down the passage's left edge, and the thought sits level with it. When the margin is too narrow (phones, small windows), the thought opens over the page instead, as a sheet at the bottom on phones.
 
-1. **What’s the author saying?** — write a sentence or two, then optionally reveal the passage. The writing area grows with your answer.
-2. **What would you question?** — optional Evidence, Limits and Another explanation starters append to your question without replacing it. **Copy for Codex** prepares the source, nearby context and your thinking for an English discussion. Paste it into Codex manually.
-3. **Where do you stand now?** — keep a provisional conclusion and an optional unresolved question. **Pin in margin** creates a separate passage note; repeating it updates that copy without overwriting other notes.
+Three short prompts come one at a time. Each one appears after a short pause in writing, once the one before has an answer. **Skip** moves on without one:
 
-Every step is optional. Use the back arrow, skip to a conclusion, or return to reading at any time. All writing and review choices autosave to Notebook.
+1. **In your words, what is the claim?** The caret is already in this answer when a fresh challenge opens.
+2. **Where do you doubt it?** Evidence, Limits and Alternatives are toggles. Each is saved as its question ("What supports this claim?" and so on) ahead of your own words, which the field never rewrites.
+3. **Where do you stand, for now?** Once written, **Revisit later** and an optional **What would change your mind?** appear.
 
-The coach is asked to check the reconstruction before explaining, address objections fairly, distinguish source claims from its own reconstruction, and ask one question at a time. Answers are not generated or imported automatically in the reader.
+Everything autosaves to the Notebook. **Copy for Codex** prepares the source, nearby context and your thinking for an English discussion; paste it into Codex yourself. If the clipboard is unavailable, the prepared message appears for manual copying.
+
+## Closing and returning
+
+Close with the × or Escape. The thought fades and the pencil line folds into a small dot in the margin by the passage's first line. Clicking the dot reopens the thought with everything you wrote. In a book, turning away from the passage's page closes its thought. In an article, a passage scrolled out of view leaves its thought below the top bar.
+
+A challenged passage is marked only by its dot, not by an underline. Challenges that start on the same line share one dot.
 
 ## Returning to an idea
 
-Enable **Revisit later** after writing a conclusion. A card appears in the library when due, with the earlier conclusion hidden until **Reveal my takeaway**. **Revisit later** advances the existing highlight-review schedule: 3, 7, 16, 35, 75, 160 days. **Done with this thought** removes it from review without deleting the note. These are practical defaults, not a claimed optimal schedule.
+Enable **Revisit later** after writing where you stand. A card appears in the library when due, with the earlier conclusion hidden until **Reveal my takeaway**. **Revisit later** advances the existing highlight-review schedule: 3, 7, 16, 35, 75, 160 days. **Done with this thought** removes it from review without deleting the note. These are practical defaults, not a claimed optimal schedule.
 
-Notebook retains the claim, objection, conclusion and open question. Markdown export and the existing serialized backup retain the reader-authored fields separately from AI answers. No new service or API request is needed for the cards.
+Notebook retains the claim, doubt, conclusion and open question. Markdown export and the existing serialized backup retain the reader-authored fields separately from AI answers. No new service or API request is needed.
 
-## Interaction and verification
+## Motion
 
-The native dialog keeps keyboard focus inside the card, closes with Escape or an outside click, and restores focus to the initiating control. Its body scrolls independently while the action footer remains available. Motion respects reduced-motion preferences. The book's reading layout is unchanged while the card is open.
+Opening: the pencil draws down the passage (240 ms, ease-out) while the selection wash fades; the thought fades in and slides 8 px from the right (120–360 ms). A new prompt fades in and rises 4 px (200 ms). Closing: the thought fades (160 ms) while the line folds into the dot (240 ms). With Reduce Motion on, everything appears and disappears without movement.
 
-Validated: draft persistence after reload, clipboard contents, conclusion reveal, review enrollment, Escape/focus restoration, 390-pixel viewport bounds, unit tests and production build. Due-date behavior is covered with controlled-time tests; a real three-day wait was not performed.
+## Verification
+
+Unit tests cover prompt order, doubt toggles, placement and the book's page dots. Checked in a browser on an isolated copy with backup off: book page at 1280×760 and 390×844, article at 1440×860; focus on open, prompt reveal, toggles keeping typed text, autosave across reopen, fold-to-dot alignment, dots after page turns, scroll following and Escape.

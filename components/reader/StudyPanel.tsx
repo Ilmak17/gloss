@@ -6,7 +6,7 @@ import { pauseListening, resumeAfterStudy, useListen } from "@/lib/listening";
 import { DISCUSSION_OPTIONS, discussionQuestion, composeDiscussionQuestion, type DiscussionMode } from "@/lib/discussion-options";
 import { studyContext } from "@/lib/study";
 import { useGlosses, useStore, type Gloss } from "@/lib/store";
-import { ChallengeCard } from "./ChallengeCard";
+import { ChallengeThought } from "./ChallengeThought";
 import { Answer } from "./Answer";
 import { useReader } from "./context";
 
@@ -18,7 +18,7 @@ export function StudyPanel() {
   const g = glosses.find(g => g.id === active);
   if (!g || notebook) return null;
   return discussionQuestion(g.question ?? "").mode === "challenge"
-    ? <ChallengeCard key={g.id} gloss={g} /> : <Discussion key={g.id} gloss={g} />;
+    ? <ChallengeThought key={g.id} gloss={g} /> : <Discussion key={g.id} gloss={g} />;
 }
 
 function Discussion({ gloss }: { gloss: Gloss }) {

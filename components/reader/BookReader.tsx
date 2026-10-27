@@ -57,6 +57,7 @@ import { Popover } from "@/components/ui/Popover";
 import { listeningWordStart } from "@/lib/listen-start";
 import { Lens, type OpenHighlight } from "./Lens";
 import { Peek } from "./Overlays";
+import { pageDots, type ChallengeDot } from "@/lib/challenge-dots";
 
 export function BookReader({ article }: { article: Article }) {
   const ix = useMemo(() => indexArticle(article), [article]);
@@ -89,6 +90,8 @@ export function BookReader({ article }: { article: Article }) {
   const [noteOnPage, setNoteOnPage] = useState(false);
   const [marginRoom, setMarginRoom] = useState(0);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [challengeDots, setChallengeDots] = useState<ChallengeDot[]>([]);
+  const dotLayer = useRef<HTMLDivElement>(null);
   const [peek, setPeek] = useState<{ n: number; rect: DOMRect } | null>(null);
   const [quiet, setQuiet] = useState(true);
   const [choosingStart, setChoosingStart] = useState(false);
@@ -115,6 +118,20 @@ export function BookReader({ article }: { article: Article }) {
     window.addEventListener("resize", measureMargin);
     return () => window.removeEventListener("resize", measureMargin);
   }, [measureMargin]);
+  // The page window clips its margins, so a challenged passage's dot is drawn beside
+  // it, where Block placed it in the text. Measured against the page window, which
+  // slides with its text during a page turn.
+  const measureDots = useCallback(() => {
+    const vp = viewport.current;
+    if (!vp || !root) return;
+    setChallengeDots(prev => {
+      const next = pageDots(vp.getBoundingClientRect(), [...root.querySelectorAll<HTMLElement>(".challenge-dot")].map(d => {
+        const r = d.getBoundingClientRect();
+        return { id: d.dataset.g ?? "", left: r.left, right: r.right, top: r.top, open: d.classList.contains("is-open") };
+      }));
+      return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+    });
+  }, [root]);
   const setUI = useStore((s) => s.setUI),
     setProgress = useStore((s) => s.setProgress);
   const audioBlock = useListen((s) => s.block),
@@ -228,6 +245,7 @@ export function BookReader({ article }: { article: Article }) {
       setNoteOnPage(onPage);
       if (!onPage) { setNoteOpen(false); setNoteFocus(0); }
       measureMargin();
+      measureDots();
       if (lastPage.current || pendingPage.current !== null) {
         point.current = firstPointOnPage(vp, blocks, next);
         lastPage.current = false;
@@ -249,7 +267,7 @@ export function BookReader({ article }: { article: Article }) {
       observer.disconnect();
       root.removeEventListener("load", layout, true);
     };
-  }, [root, chapter, revision, settings, blocks, persist, pinnedNoteId, article.id, chapters, measureMargin]);
+  }, [root, chapter, revision, settings, blocks, persist, pinnedNoteId, article.id, chapters, measureMargin, measureDots]);
   useLayoutEffect(() => {
     const direction = turnDirection.current;
     turnDirection.current = 0;
@@ -257,6 +275,14 @@ export function BookReader({ article }: { article: Article }) {
     pageAnimation.current?.cancel();
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     // Move the viewport and its contents together: text-to-page measurements stay stable.
+    // The margin dots ride along, so they never sit still while the text slides.
+    dotLayer.current?.animate(
+      [
+        { transform: `translateX(${direction * 24}px)`, opacity: 0.4 },
+        { transform: "translateX(0)", opacity: 1 },
+      ],
+      { duration: 240, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+    );
     pageAnimation.current = viewport.current.animate(
       [
         { transform: `translateX(${direction * 24}px)`, opacity: 0.4 },
@@ -352,6 +378,7 @@ export function BookReader({ article }: { article: Article }) {
       id: string,
       color?: string,
       note?: boolean,
+      challenge?: boolean,
     ) => {
       for (const b of blocks) {
         const span = spanIn(a, b.id, blockText(b).length, ix.order);
@@ -365,16 +392,19 @@ export function BookReader({ article }: { article: Article }) {
               id,
               color,
               note: note && b.id === a.end.b,
+              challenge: challenge ? (b.id === a.start.b ? "start" : "rest") : undefined,
             },
           ]);
       }
     };
     for (const h of highlights)
       place(h.anchor, "hl", h.id, h.color, Boolean(h.note));
-    for (const g of glosses) if (g.anchor) place(g.anchor, "gloss", g.id);
+    for (const g of glosses) if (g.anchor) place(g.anchor, "gloss", g.id, undefined, undefined, discussionQuestion(g.question ?? "").mode === "challenge");
     if (pending) place(pending, "pending", "pending");
     return map;
   }, [blocks, ix, highlights, glosses, pending]);
+  // A new challenge adds a dot; opening or closing one hides or shows it.
+  useLayoutEffect(measureDots, [marks, activeGloss, measureDots]);
   const api = useMemo<ReaderApi>(
     () => ({
       ix,
@@ -604,6 +634,11 @@ export function BookReader({ article }: { article: Article }) {
                 />
               ))}
             </div>
+          </div>
+          <div ref={dotLayer} className="challenge-dots">
+            {challengeDots.map(d => <button key={d.id} type="button" className={`challenge-dot-mark${d.open ? " is-open" : ""}`}
+              style={{ left: d.left, top: d.top }} aria-label="Reopen your challenge" title="Your challenge"
+              onClick={() => setUI({ activeGloss: d.id, activeHighlight: null })} />)}
           </div>
         </main>
         {root && viewport.current && <BookPagination chapters={chapters} viewport={viewport.current} layoutKey={JSON.stringify(settings)} onCounts={setPageCounts} />}

@@ -187,17 +187,17 @@ function ReaderInner({ article }: { article: Article }) {
       list.push(m);
       map.set(blockId, list);
     };
-    const place = (a: Anchor, kind: Mark["kind"], id: string, color?: string, note?: boolean) => {
+    const place = (a: Anchor, kind: Mark["kind"], id: string, color?: string, note?: boolean, challenge?: boolean) => {
       const si = ix.order.get(a.start.b) ?? 0;
       const ei = ix.order.get(a.end.b) ?? si;
       for (let i = si; i <= ei; i++) {
         const b = article.blocks[i];
         const span = spanIn(a, b.id, ix.texts.get(b.id)?.length ?? 0, ix.order);
-        if (span) add(b.id, { from: span[0], to: span[1], kind, id, color, ...(note && b.id === a.end.b ? { note } : {}) });
+        if (span) add(b.id, { from: span[0], to: span[1], kind, id, color, ...(note && b.id === a.end.b ? { note } : {}), ...(challenge ? { challenge: b.id === a.start.b ? "start" as const : "rest" as const } : {}) });
       }
     };
     for (const h of highlights) place(h.anchor, "hl", h.id, h.color, Boolean(h.note));
-    for (const g of glosses) if (g.anchor) place(g.anchor, "gloss", g.id);
+    for (const g of glosses) if (g.anchor) place(g.anchor, "gloss", g.id, undefined, undefined, discussionQuestion(g.question ?? "").mode === "challenge");
     if (pending) place(pending, "pending", "pending");
     return map;
   }, [glosses, highlights, pending, ix, article.blocks]);
