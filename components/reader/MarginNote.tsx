@@ -5,11 +5,13 @@ import { ArrowUpRight, Pin, X } from "lucide-react";
 import { useStore, type Highlight } from "@/lib/store";
 import { useReader } from "./context";
 
-export function MarginNote({ highlight, chapter, focusRequest, onClose }: {
+export function MarginNote({ highlight, chapter, focusRequest, onClose, width }: {
   highlight: Highlight;
   chapter: string;
   focusRequest: number;
   onClose: () => void;
+  /** Set when the note fits beside the page; otherwise it opens over the page. */
+  width?: number;
 }) {
   const { goToPoint } = useReader();
   const updateHighlight = useStore(s => s.updateHighlight);
@@ -24,7 +26,7 @@ export function MarginNote({ highlight, chapter, focusRequest, onClose }: {
   }, [focusRequest]);
 
   return (
-    <aside className="margin-note" aria-label="Pinned note">
+    <aside className={`margin-note ${width ? "is-beside" : "is-over"}`} style={width ? { width } : undefined} aria-label="Pinned note">
       <header className="margin-note-heading">
         <span><Pin size={13} aria-hidden /> IN THE MARGIN</span>
         <button type="button" aria-label="Close pinned note" title="Close · your note stays saved" onClick={onClose}><X size={16} /></button>

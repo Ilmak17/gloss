@@ -2229,6 +2229,9 @@ a.desk-tile:focus-visible {
   .book-footer-return { bottom:auto; }
   .book-footer-return button { font-size:0; gap:0; width:28px; padding:0; justify-content:center; }
   .book-footer .book-page-trigger { max-width:45vw; }
+  /* Icon only, so it stays clear of the page buttons. */
+  .margin-note-chip { right:12px; width:36px; height:36px; padding:0; justify-content:center; border-radius:50%; }
+  .margin-note-chip-label { display:none; }
 }
 
 /* Book images use the available page, and open without disturbing text pagination. */
@@ -2385,27 +2388,49 @@ button.fig-trigger:focus-visible { outline:2px solid var(--ink-2); outline-offse
 .highlight-undo button { min-height: 32px; padding: 0 6px; font-weight: 600; }
 .highlight-undo button:last-child { color: var(--ink-3); font-size: 18px; }
 
-/* A pinned thought has its own margin, never floating over the printed page. */
-.book-reader.has-margin-note { --note-width: 310px; }
-.has-margin-note .book-stage {
-  left: calc((100% - var(--note-width)) / 2);
-  width: min(calc(100% - var(--note-width) - 80px), calc(var(--read-size) * var(--measure-k)), 780px);
-}
-.has-margin-note .book-toolbar { right: var(--note-width); gap: 8px; }
-.has-margin-note .book-footer { right: calc(var(--note-width) + 24px); }
+/* A pinned note never moves the printed page: it sits beside it when the margin
+   is wide enough (width set by the reader), otherwise it opens over it on request. */
 .margin-note {
   position: absolute;
   z-index: 40;
   top: 72px;
   right: 24px;
   bottom: 60px;
-  width: calc(var(--note-width) - 40px);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   color: var(--ink);
   animation: margin-note-in .24s var(--ease-out);
 }
+.margin-note.is-over {
+  right: 16px;
+  bottom: auto;
+  width: min(320px, calc(100% - 32px));
+  max-height: calc(100% - 140px);
+  padding: 12px 16px 16px;
+  background: var(--bg-raised);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / .12);
+}
+.margin-note.is-over .margin-note-paper { border: 0; padding: 0; box-shadow: none; }
+.margin-note-chip {
+  position: absolute;
+  z-index: 40;
+  right: 20px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  background: var(--bg-raised);
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.margin-note-chip:hover { color: var(--ink); }
 .margin-note-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; padding: 0 3px 0 8px; }
 .margin-note-heading > span { display: flex; align-items: center; gap: 7px; font-size: 9px; letter-spacing: .12em; color: var(--ink-3); }
 .margin-note button { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: var(--ink-3); }
@@ -2432,15 +2457,8 @@ button.fig-trigger:focus-visible { outline:2px solid var(--ink-2); outline-offse
 .margin-note textarea::placeholder { color: var(--ink-3); }
 .margin-note footer { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 10px; color: var(--ink-3); }
 @keyframes margin-note-in { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: none; } }
-@media (max-width: 800px) {
-  .has-margin-note .book-stage { left: 50%; width: calc(100% - 40px); bottom: 350px; }
-  .has-margin-note .book-toolbar { right: 0; }
-  .has-margin-note .book-footer { right: 24px; bottom: 310px; }
-  .margin-note { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; height: 284px; border: 1px solid var(--rule); border-radius: 14px; padding: 12px 18px; background: var(--bg-raised); }
-  .margin-note-heading { margin-bottom: 2px; padding: 0; }
-  .margin-note-paper { border: 0; padding: 0; box-shadow: none; }
-  .margin-note-source { margin-bottom: 14px; }
+@media (max-width: 640px) {
+  .margin-note.is-over { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 60dvh; }
   .margin-note h2 { font-size: 22px; }
-  .margin-note textarea { min-height: 100px; }
 }
 @media (prefers-reduced-motion: reduce) { .margin-note { animation: none; } }

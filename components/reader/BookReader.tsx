@@ -47,6 +47,7 @@ import { discussionQuestion } from "@/lib/discussion-options";
 import { StudyPanel } from "./StudyPanel";
 import { Notebook } from "./Notebook";
 import { MarginNote } from "./MarginNote";
+import { marginNoteLayout } from "@/lib/margin-note-layout";
 import { BookPagination } from "./BookPagination";
 import { BookFootnote } from "./BookFootnote";
 import { locateBookPage } from "@/lib/book-pagination";
@@ -86,7 +87,8 @@ export function BookReader({ article }: { article: Article }) {
   const [pinnedNoteId, setPinnedNoteId] = useState<string | null>(null);
   const [noteFocus, setNoteFocus] = useState(0);
   const [noteOnPage, setNoteOnPage] = useState(false);
-  const refreshMargin = useRef(true);
+  const [marginRoom, setMarginRoom] = useState(0);
+  const [noteOpen, setNoteOpen] = useState(false);
   const [peek, setPeek] = useState<{ n: number; rect: DOMRect } | null>(null);
   const [quiet, setQuiet] = useState(true);
   const [choosingStart, setChoosingStart] = useState(false);
@@ -103,12 +105,16 @@ export function BookReader({ article }: { article: Article }) {
   const pending = useStore((s) => s.pending),
     activeHighlight = useStore((s) => s.activeHighlight);
   const settings = useStore((s) => s.settings);
-  useLayoutEffect(() => { refreshMargin.current = true; }, [pinnedNoteId, settings]);
-  useEffect(() => {
-    const refresh = () => { refreshMargin.current = true; };
-    window.addEventListener("resize", refresh);
-    return () => window.removeEventListener("resize", refresh);
+  // The free space right of the page decides where a pinned note sits. The page never moves for a note.
+  const measureMargin = useCallback(() => {
+    const stage = viewport.current?.closest(".book-stage");
+    const reader = stage?.closest(".book-reader");
+    if (stage && reader) setMarginRoom(reader.getBoundingClientRect().right - stage.getBoundingClientRect().right);
   }, []);
+  useEffect(() => {
+    window.addEventListener("resize", measureMargin);
+    return () => window.removeEventListener("resize", measureMargin);
+  }, [measureMargin]);
   const setUI = useStore((s) => s.setUI),
     setProgress = useStore((s) => s.setProgress);
   const audioBlock = useListen((s) => s.block),
@@ -122,9 +128,9 @@ export function BookReader({ article }: { article: Article }) {
     try { setPinnedNoteId(localStorage.getItem(pinnedNoteKey)); } catch { setPinnedNoteId(null); }
   }, [pinnedNoteKey]);
   const pinNote = useCallback((id: string | null) => {
-    refreshMargin.current = true;
     setRevision(r => r + 1);
     setPinnedNoteId(id);
+    setNoteOpen(!!id);
     try {
       if (id) localStorage.setItem(pinnedNoteKey, id);
       else localStorage.removeItem(pinnedNoteKey);
@@ -180,7 +186,6 @@ export function BookReader({ article }: { article: Article }) {
     (target: Point, manual = true) => {
       if (manual && useListen.getState().status !== "idle")
         useListen.setState({ follow: false });
-      refreshMargin.current = true;
       point.current = target;
       lastPage.current = false;
       setChapter(chapterForPoint(chapters, target));
@@ -216,13 +221,13 @@ export function BookReader({ article }: { article: Article }) {
       vp.scrollLeft = next * pageStride(vp);
       setPages(count);
       setPage(next);
-      // Resolve once per navigation, before opening/closing the margin reflows text.
-      // Rechecking on that resize would make notes flicker between two page layouts.
-      if (refreshMargin.current) {
-        refreshMargin.current = false;
-        const note = useStore.getState().highlights[article.id]?.find(h => h.id === pinnedNoteId);
-        setNoteOnPage(!!note && chapterForPoint(chapters, note.anchor.start) === chapter && pageForPoint(vp, note.anchor.start) === next);
-      }
+      // A note shows only on its source page. Leaving that page folds an opened note away,
+      // and coming back shows it without taking the keyboard, so arrow keys still turn pages.
+      const note = useStore.getState().highlights[article.id]?.find(h => h.id === pinnedNoteId);
+      const onPage = !!note && chapterForPoint(chapters, note.anchor.start) === chapter && pageForPoint(vp, note.anchor.start) === next;
+      setNoteOnPage(onPage);
+      if (!onPage) { setNoteOpen(false); setNoteFocus(0); }
+      measureMargin();
       if (lastPage.current || pendingPage.current !== null) {
         point.current = firstPointOnPage(vp, blocks, next);
         lastPage.current = false;
@@ -244,7 +249,7 @@ export function BookReader({ article }: { article: Article }) {
       observer.disconnect();
       root.removeEventListener("load", layout, true);
     };
-  }, [root, chapter, revision, settings, blocks, persist, pinnedNoteId, article.id, chapters]);
+  }, [root, chapter, revision, settings, blocks, persist, pinnedNoteId, article.id, chapters, measureMargin]);
   useLayoutEffect(() => {
     const direction = turnDirection.current;
     turnDirection.current = 0;
@@ -273,7 +278,6 @@ export function BookReader({ article }: { article: Article }) {
         useListen.setState({ follow: false });
       const next = page + direction;
       if (next >= 0 && next < pages) {
-        refreshMargin.current = true;
         setRevision(r => r + 1);
         turnDirection.current = direction;
         point.current = firstPointOnPage(vp, blocks, next);
@@ -283,7 +287,6 @@ export function BookReader({ article }: { article: Article }) {
       } else {
         const nextChapter = chapter + direction;
         if (nextChapter < 0 || nextChapter >= chapters.length) return;
-        refreshMargin.current = true;
         turnDirection.current = direction;
         point.current = { b: chapters[nextChapter].blocks[0].id, o: 0 };
         lastPage.current = direction < 0;
@@ -435,7 +438,10 @@ export function BookReader({ article }: { article: Article }) {
   const noteBlocks = noteStart < 0 ? [] : article.blocks.slice(noteStart, noteEnd);
   const closeNote = () => { setFootnote(null); resumeAfterStudy(); };
   const pinnedNote = highlights.find(h => h.id === pinnedNoteId);
-  const showMarginNote = !!pinnedNote && noteOnPage && !activeGloss && !notebookOpen;
+  const noteHere = !!pinnedNote && noteOnPage && !activeGloss && !notebookOpen;
+  const notePlace = marginNoteLayout(marginRoom);
+  // Beside the page when it fits; otherwise only when asked for, so it never covers the text by itself.
+  const showMarginNote = noteHere && (notePlace.mode === "margin" || noteOpen);
   const openPageNote = () => {
     if (pinnedNote && noteOnPage) { pinNote(pinnedNote.id); return; }
     const b = studyBlock(ix, point.current.b);
@@ -452,7 +458,7 @@ export function BookReader({ article }: { article: Article }) {
     <ReaderContext.Provider value={api}>
       <title>{article.title}</title>
       <div
-        className={`book-reader study-reader hide-nums ${quiet ? "is-quiet" : ""} ${showMarginNote ? "has-margin-note" : ""} ${activeGloss && !notebookOpen && discussionQuestion(glosses.find(g => g.id === activeGloss)?.question ?? "").mode !== "challenge" ? "is-studying" : ""} ${notebookOpen ? "nb-open" : ""} ${choosingStart ? "is-picking-start" : ""}`}
+        className={`book-reader study-reader hide-nums ${quiet ? "is-quiet" : ""} ${activeGloss && !notebookOpen && discussionQuestion(glosses.find(g => g.id === activeGloss)?.question ?? "").mode !== "challenge" ? "is-studying" : ""} ${notebookOpen ? "nb-open" : ""} ${choosingStart ? "is-picking-start" : ""}`}
       >
         <button type="button" className="book-controls-reveal" aria-label="Show reading controls" aria-controls="book-reading-controls" onPointerEnter={awaken} onFocus={awaken} onClick={awaken}><span aria-hidden>···</span></button>
         <header id="book-reading-controls" className="book-toolbar">
@@ -670,7 +676,11 @@ export function BookReader({ article }: { article: Article }) {
         <Lens rootEl={root} openHighlight={openHl} />
         {showMarginNote && <MarginNote key={pinnedNote.id} highlight={pinnedNote}
           chapter={chapters[chapterForPoint(chapters, pinnedNote.anchor.start)]?.title ?? "Passage"}
-          focusRequest={noteFocus} onClose={() => pinNote(null)} />}
+          focusRequest={noteFocus} onClose={() => pinNote(null)}
+          width={notePlace.mode === "margin" ? notePlace.width : undefined} />}
+        {noteHere && !showMarginNote && <button type="button" className="margin-note-chip" aria-label="Your note" onClick={() => setNoteOpen(true)}>
+          <PenLine size={14} aria-hidden /><span className="margin-note-chip-label">Your note</span>
+        </button>}
         <StudyPanel />
         <Notebook />
         <Peek peek={peek} />
