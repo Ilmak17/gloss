@@ -106,7 +106,7 @@ export function ListenBar({ from }: { from: () => string | null }) {
         setUI({ activeGloss: null, notebookOpen: false });
         if (status === "idle" || (status === "error" && pageAudio)) { if (readingPage) startPage(); else startHere(); } else toggleListening();
       }}>{status === "loading" ? <LoaderCircle size={15} className="animate-spin" aria-hidden /> : <svg key={status === "playing" ? "pause" : "play"} className="study-play-glyph" width="16" height="16" viewBox="0 0 16 16" aria-hidden>
-        {status === "playing" ? <><rect x="4" y="3" width="2.5" height="10" rx="1.25" fill="currentColor" /><rect x="9.5" y="3" width="2.5" height="10" rx="1.25" fill="currentColor" /></> : <path d="M5 3.5 12 8l-7 4.5z" fill="currentColor" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />}
+        {status === "playing" ? <><rect x="4" y="3" width="2.5" height="10" rx="1.25" fill="currentColor" /><rect x="9.5" y="3" width="2.5" height="10" rx="1.25" fill="currentColor" /></> : <path d="M5.5 3.75 12 8l-6.5 4.25z" fill="currentColor" stroke="currentColor" strokeWidth=".8" strokeLinejoin="round" />}
       </svg>}</button>}
       <div className="study-timeline">
         {active && !error && duration > 0 ? <>
