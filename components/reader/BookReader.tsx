@@ -427,6 +427,7 @@ export function BookReader({ article }: { article: Article }) {
   );
   const totalPages = pageCounts?.reduce((sum,n) => sum+n,0);
   const globalPage = pageCounts ? pageCounts.slice(0,chapter).reduce((sum,n)=>sum+n,0) + page + 1 : null;
+  const pagesLeft = page >= pages - 1 ? "last page" : `${pages - page - 1} ${pages - page - 1 === 1 ? "page" : "pages"} left`;
   const noteTarget = footnote ? article.epub?.targets[footnote] : null;
   const noteStart = noteTarget ? article.blocks.findIndex(b=>b.id===noteTarget.block) : -1;
   const explicitEnd = noteTarget?.endBlock ? article.blocks.findIndex(b=>b.id===noteTarget.endBlock) : -1;
@@ -615,9 +616,11 @@ export function BookReader({ article }: { article: Article }) {
             <ChevronLeft size={20} />
           </button>
           <div className="book-footer-return">{returnPoint && <button onClick={backToReading}><ArrowLeft size={13}/> Back to reading</button>}</div>
-          <Popover label="Reading progress" description={globalPage ? `Page ${globalPage} of ${totalPages}` : `${chapters[chapter]?.title}, page ${page+1} of ${pages}`} triggerClass="book-page-trigger" width={280} trigger={globalPage ? `Page ${globalPage} of ${totalPages}` : `${chapters[chapter]?.title} · Page ${page+1}`}>
+          {/* Pages left in the chapter stay true across font and window changes; book page numbers do not. */}
+          <Popover label="Reading progress" description={`${chapters[chapter]?.title}, ${pagesLeft}`} triggerClass="book-page-trigger" width={280}
+            trigger={<><span className="book-page-title">{chapters[chapter]?.title}</span><span>&nbsp;· {pagesLeft}</span></>}>
             {(close) => <div className="book-progress-panel">
-              <p>{pct > 0 && pct < .01 ? "Less than 1" : Math.round(pct*100)}% into the book</p>
+              <p>{pct > 0 && pct < .01 ? "Less than 1" : Math.round(pct*100)}% into the book{globalPage ? ` · page ${globalPage} of ${totalPages}` : ""}</p>
               <p>{chapters[chapter]?.title} · Page {page+1} of {pages}</p>
               {pageCounts ? <form onSubmit={e=>{
                 e.preventDefault();
@@ -629,7 +632,6 @@ export function BookReader({ article }: { article: Article }) {
               }}><label htmlFor="book-go-page">Go to page</label><div><input id="book-go-page" type="number" min={1} max={totalPages} required value={pageInput} onChange={e=>setPageInput(e.target.value)} /><button type="submit">Go</button></div></form> : <p role="status">Calculating pages for your reading settings…</p>}
             </div>}
           </Popover>
-          <span className="book-remaining">{pages-page-1 === 0 ? "Last page in section" : `${pages-page-1} ${pages-page-1 === 1 ? "page" : "pages"} left in ${/^introduction$/i.test(chapters[chapter]?.title ?? "") ? "introduction" : "section"}`}</span>
           <button
             aria-label={
               chapter === chapters.length - 1 && page === pages - 1

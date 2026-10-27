@@ -2192,10 +2192,10 @@ a.desk-tile:focus-visible {
 /* Book navigation: one quiet location, with details on demand. */
 .book-measure { position:fixed; left:-100000px; top:0; visibility:hidden; pointer-events:none; contain:layout style paint; }
 .book-footer { left:24px; right:24px; transform:none; gap:12px; justify-content:center; }
-.book-footer .book-page-trigger { width:auto; padding:0 12px; border-radius:8px; font-size:11px; max-width:45vw; overflow:hidden; text-overflow:ellipsis; display:block; }
+.book-footer .book-page-trigger { width:auto; padding:0 12px; border-radius:8px; font-size:12px; max-width:min(60vw, 420px); display:flex; align-items:center; white-space:nowrap; }
+.book-page-title { min-width:0; overflow:hidden; text-overflow:ellipsis; }
 .book-footer-return { position:absolute; left:0; }
 .book-footer-return button { width:auto; display:flex; gap:6px; padding:0 10px; border-radius:8px; font-size:11px; }
-.book-remaining { position:absolute; right:0; font-size:10px; pointer-events:none; }
 .book-footer .pop { top:auto; bottom:calc(100% + 10px); left:50%; right:auto; transform:translateX(-50%); --origin:bottom center !important; white-space:normal; }
 .book-progress-panel { line-height:1.6; font-size:12px; color:var(--ink-2); }
 .book-progress-panel p + p { margin-top:6px; color:var(--ink-3); }
@@ -2226,9 +2226,9 @@ a.desk-tile:focus-visible {
 .book-pages.prose-read .blk-text { overflow-wrap:break-word; }
 @media(max-width:760px) {
   .book-footer { left:12px; right:12px; }
-  .book-remaining { display:none; }
   .book-footer-return { bottom:auto; }
   .book-footer-return button { font-size:0; gap:0; width:28px; padding:0; justify-content:center; }
+  .book-footer .book-page-trigger { max-width:45vw; }
 }
 
 /* Book images use the available page, and open without disturbing text pagination. */
@@ -2393,7 +2393,6 @@ button.fig-trigger:focus-visible { outline:2px solid var(--ink-2); outline-offse
 }
 .has-margin-note .book-toolbar { right: var(--note-width); gap: 8px; }
 .has-margin-note .book-footer { right: calc(var(--note-width) + 24px); }
-.has-margin-note .book-remaining { display: none; }
 .margin-note {
   position: absolute;
   z-index: 40;
