@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ArrowUp, BadgeCheck, BookA, Check, Copy, Ellipsis, Eraser, Feather, Highlighter, Lightbulb, PenLine, Scale, Waypoints, type LucideIcon } from "lucide-react";
-import { ACTIONS, isShortSelection, type Action } from "@/lib/actions";
+import { ArrowUp, Check, Copy, Eraser, Highlighter, MessageCircle, PenLine, Play, Scale } from "lucide-react";
+import { isShortSelection, type Action } from "@/lib/actions";
 import { MARKERS, type Marker } from "@/lib/settings";
 import { anchorToRange, selectionToAnchor } from "@/lib/anchor";
 import { composeDiscussionQuestion } from "@/lib/discussion-options";
@@ -18,15 +18,6 @@ type LensState = {
   initial?: string;
 };
 
-const ICONS: Partial<Record<Action, LucideIcon>> = {
-  explain: Lightbulb,
-  define: BookA,
-  simplify: Feather,
-  check: BadgeCheck,
-  connect: Waypoints,
-  counter: Scale,
-};
-
 /** Questions people reach for, offered while the box is still empty. */
 const STARTERS = {
   word: ["Why this word here?", "Where does it come from?", "Use it in a sentence"],
@@ -35,17 +26,16 @@ const STARTERS = {
 
 /**
  * The selection lens. Select text and it appears; start typing and it becomes
- * a question box; pick an action and the answer is written in the margin.
+ * a question box; discuss it in Codex or open a critical-reading card.
  */
 export type OpenHighlight = { id: string; anchor: Anchor; at: number; note?: boolean };
 
 export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; openHighlight: OpenHighlight | null }) {
-  const { ix, paged } = useReader();
+  const { ix } = useReader();
   const [lens, setLens] = useState<LensState | null>(null);
   const [pos, setPos] = useState<{ x: number; y: number; below: boolean; arrow: number; docked: boolean } | null>(null);
   const [draft, setDraft] = useState("");
   const [copied, setCopied] = useState(false);
-  const [menu, setMenu] = useState(false);
   const marker = useStore((s) => s.settings.marker);
   const setSettings = useStore((s) => s.setSettings);
   const updateHighlight = useStore((s) => s.updateHighlight);
@@ -80,7 +70,6 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
       setLens(null);
       setPos(null);
       setDraft("");
-      setMenu(false);
       setUI({ pending: null, activeHighlight: null });
       if (clearSelection) window.getSelection()?.removeAllRanges();
     },
@@ -213,7 +202,6 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
       if (!l) return;
       setDraft(initial);
       setLens({ ...l, mode: "ask" });
-      setMenu(false);
       if (!l.highlightId) setUI({ pending: l.anchor });
       window.getSelection()?.removeAllRanges();
     },
@@ -226,7 +214,6 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
     const existing = l.highlightId ? useStore.getState().highlights[ix.article.id]?.find((h) => h.id === l.highlightId) : undefined;
     setDraft(existing?.note ?? "");
     setLens({ ...l, mode: "note" });
-    setMenu(false);
     if (!l.highlightId) setUI({ pending: l.anchor });
     window.getSelection()?.removeAllRanges();
   }, [ix, setUI]);
@@ -257,10 +244,10 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
       if (tgt.closest("input, textarea, [contenteditable]")) return;
       if (e.key === "Escape") {
         e.preventDefault();
-        if (menu) setMenu(false);
-        else close();
+        close();
         return;
       }
+      if (tgt.closest("button")) return;
       if (e.key === "Enter") {
         e.preventDefault();
         toAsk("");
@@ -274,7 +261,7 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [lens, menu, close, toAsk]);
+  }, [lens, close, toAsk]);
 
   if (!lens) return null;
 
@@ -284,8 +271,6 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
   };
 
   const short = isShortSelection(lens.anchor.quote);
-  const primary: Action[] = paged ? ["explain"] : ["explain", short ? "define" : "simplify"];
-  const more: Action[] = [short ? "simplify" : "define", "check", "connect", "counter"];
   const existing = lens.highlightId ? useStore.getState().highlights[ix.article.id]?.find((h) => h.id === lens.highlightId) : undefined;
   const markerColor = MARKERS.find((m) => m.key === marker)?.color;
 
@@ -316,8 +301,6 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
   };
 
   const style = pos ? { left: pos.x, top: pos.y } : { left: -9999, top: -9999 };
-  // Captions and the menu open on the side away from the text.
-  const outside = pos?.below ? "top-[calc(100%+8px)]" : "bottom-[calc(100%+8px)]";
   const starters = short ? STARTERS.word : STARTERS.passage;
 
   return (
@@ -333,7 +316,7 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
         if (tag !== "INPUT" && tag !== "TEXTAREA") e.preventDefault();
       }}
     >
-      <div className="relative rounded-[14px] bg-lens p-1 text-lens-fg shadow-pop ring-1 ring-black/5">
+      <div className="lens-surface relative text-lens-fg">
         {lens.mode === "actions" && existing?.note && (
           <button
             type="button"
@@ -388,106 +371,68 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
             </div>
           </form>
         ) : lens.mode === "actions" ? (
-          <div className="no-scrollbar flex max-w-[calc(100vw-24px)] items-center gap-0.5 overflow-x-auto">
-            <button
-              type="button"
-              onClick={() => toAsk("")}
-              {...tipProps("Ask", "Or just start typing")}
-              className="lens-btn group gap-2 pl-3 pr-2.5 font-medium"
-            >
-              Ask
-              <span className="lens-caret" aria-hidden />
-            </button>
-            <span className="mx-[3px] h-4 w-px shrink-0 bg-lens-mute/30" aria-hidden />
-            {primary.map((a) => {
-              const Icon = ICONS[a]!;
-              return (
-                <button key={a} type="button" onClick={() => run(a)} {...tipProps(ACTIONS[a].label, ACTIONS[a].hint)} className="lens-btn group gap-1.5 pl-2.5 pr-3">
-                  <Icon size={15} strokeWidth={1.9} className="text-lens-mute transition-colors group-hover:text-lens-fg" aria-hidden />
-                  {ACTIONS[a].label}
-                </button>
-              );
-            })}
-            <button type="button" className="lens-btn gap-1.5 px-2.5" onClick={() => run("counter", composeDiscussionQuestion("challenge", ""))}><Scale size={15} /> Challenge</button>
-            {paged && <>
-              <button type="button" className="lens-btn px-2.5" onClick={() => run("ask", "Translate this passage into Russian, preserving the meaning. Briefly explain any idioms or ambiguous terms.")}>Translate</button>
-              <button type="button" className="lens-btn px-2.5" onClick={() => { const from = lens.anchor.start; close(); useListen.setState({ follow: true }); startListening(ix, from.b, from.o); }}>Listen from here</button>
-            </>}
-            <button
-              type="button"
-              aria-label="More actions"
-              aria-expanded={menu}
-              onClick={() => setMenu((v) => !v)}
-              {...tipProps("More", existing ? "Fact-check, related, copy" : "Fact-check, counterpoint, copy")}
-              className={`lens-btn w-8 justify-center ${menu ? "bg-lens-hover" : ""}`}
-            >
-              <Ellipsis size={16} />
-            </button>
-            <span className="mx-[3px] h-4 w-px shrink-0 bg-lens-mute/30" aria-hidden />
-
-            {existing ? (
-              <>
-                <div className="flex items-center gap-2 px-2" role="radiogroup" aria-label="Highlight colour">
-                  {MARKERS.map((m) => (
-                    <button
-                      key={m.key}
-                      type="button"
-                      role="radio"
-                      aria-checked={(existing.color ?? "yellow") === m.key}
-                      aria-label={`${m.label} highlight`}
-                      onClick={() => highlight(m.key)}
-                      {...tipProps(m.label)}
-                      className={`lens-dot ${(existing.color ?? "yellow") === m.key ? "is-on" : ""}`}
-                      style={{ background: m.color }}
-                    />
-                  ))}
-                </div>
-                <LensIcon label={existing.note ? "Edit note" : "Add a note"} tip={tipProps(existing.note ? "Edit note" : "Add a note", existing.note ? undefined : "In your own words")} onClick={toNote}>
-                  <PenLine size={15} />
-                </LensIcon>
-                <LensIcon
-                  label="Remove highlight"
-                  tip={tipProps("Remove highlight")}
-                  onClick={() => {
-                    removeHighlight(ix.article.id, lens.highlightId!);
-                    close();
-                  }}
-                >
-                  <Eraser size={15} />
-                </LensIcon>
-              </>
-            ) : (
-              <div className="group/hl flex items-center">
-                <LensIcon label="Highlight" tip={tipProps("Highlight", "Hover for colours")} onClick={() => highlight(marker)}>
+          <div className="lens-actions">
+            <div className="lens-reading-actions">
+              <button type="button" onClick={() => toAsk("")} {...tipProps("Ask about this passage", "Or just start typing")} className="lens-btn gap-1.5 px-2.5">
+                <MessageCircle size={15} aria-hidden /> Ask
+              </button>
+              <button type="button" className="lens-btn gap-1.5 px-2.5" {...tipProps("Challenge this idea")} onClick={() => run("counter", composeDiscussionQuestion("challenge", ""))}>
+                <Scale size={15} aria-hidden /> Challenge
+              </button>
+              <button type="button" className="lens-btn gap-1.5 px-2.5" aria-label="Listen from here" {...tipProps("Listen from here")} onClick={() => { const from = lens.anchor.start; close(); useListen.setState({ follow: true }); startListening(ix, from.b, from.o); }}>
+                <Play size={14} aria-hidden /> Listen
+              </button>
+            </div>
+            <div className="lens-saving-actions">
+              {existing ? (
+                <>
+                  <div className="flex items-center gap-2 px-2" role="radiogroup" aria-label="Highlight colour">
+                    {MARKERS.map((m) => (
+                      <button
+                        key={m.key}
+                        type="button"
+                        role="radio"
+                        aria-checked={(existing.color ?? "yellow") === m.key}
+                        aria-label={`${m.label} highlight`}
+                        onClick={() => highlight(m.key)}
+                        {...tipProps(m.label)}
+                        className={`lens-dot ${(existing.color ?? "yellow") === m.key ? "is-on" : ""}`}
+                        style={{ background: m.color }}
+                      />
+                    ))}
+                  </div>
+                  <LensIcon label={existing.note ? "Edit note" : "Add a note"} tip={tipProps(existing.note ? "Edit note" : "Add a note", existing.note ? undefined : "In your own words")} onClick={toNote}>
+                    <PenLine size={15} />
+                  </LensIcon>
+                  <LensIcon
+                    label="Remove highlight"
+                    tip={tipProps("Remove highlight")}
+                    onClick={() => {
+                      removeHighlight(ix.article.id, lens.highlightId!);
+                      close();
+                    }}
+                  >
+                    <Eraser size={15} />
+                  </LensIcon>
+                </>
+              ) : (
+                <LensIcon label="Highlight" tip={tipProps("Highlight")} onClick={() => highlight(marker)}>
                   <span className="relative">
-                    <Highlighter size={15} />
-                    <span aria-hidden className="absolute -bottom-[3px] -right-[3px] size-[7px] rounded-full ring-2 ring-[var(--lens-bg)]" style={{ background: markerColor }} />
+                    <Highlighter size={16} />
+                    <span aria-hidden className="absolute -bottom-[3px] -right-[3px] size-[6px] rounded-full ring-2 ring-[var(--lens-bg)]" style={{ background: markerColor }} />
                   </span>
                 </LensIcon>
-                {/* The rings need room: the clip box is padded, and opens to the padded width. */}
-                <div className="h-8 w-0 overflow-hidden transition-[width] duration-300 ease-[var(--ease-out)] group-focus-within/hl:w-[94px] group-hover/hl:w-[94px]">
-                  <div className="flex h-full w-[94px] items-center gap-2 px-2">
-                  {MARKERS.map((m) => (
-                    <button
-                      key={m.key}
-                      type="button"
-                      aria-label={`Highlight in ${m.label.toLowerCase()}`}
-                      onClick={() => highlight(m.key)}
-                      {...tipProps(m.label)}
-                      className={`lens-dot ${m.key === marker ? "is-on" : ""}`}
-                      style={{ background: m.color }}
-                    />
-                  ))}
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* Beside Highlight, outside its hover group, so reaching for it does not open the colours. */}
-            {!existing && (
-              <LensIcon label="Add a note" tip={tipProps("Add a note", "In your own words")} onClick={toNote}>
-                <PenLine size={15} />
+              )}
+              {!existing && (
+                <LensIcon label="Add a note" tip={tipProps("Add a note", "In your own words")} onClick={toNote}>
+                  <PenLine size={15} />
+                </LensIcon>
+              )}
+              <LensIcon label={copied ? "Copied" : "Copy quote"} tip={tipProps(copied ? "Copied" : "Copy quote", "Includes the book title")} onClick={() => { void copy(); }}>
+                {copied ? <Check size={16} /> : <Copy size={16} />}
               </LensIcon>
-            )}
+              <span className="sr-only" role="status">{copied ? "Quote copied" : ""}</span>
+            </div>
           </div>
         ) : (
           <form
@@ -549,52 +494,6 @@ export function Lens({ rootEl, openHighlight }: { rootEl: HTMLElement | null; op
             style={{ left: pos.arrow - 5, ...(pos.below ? { top: -4 } : { bottom: -4 }) }}
           />
         )}
-
-        {menu && lens.mode === "actions" && (
-          <div role="menu" aria-label="More actions" className={`lens-menu absolute right-0 ${outside} w-[264px] rounded-[14px] bg-lens p-1 text-lens-fg shadow-pop ring-1 ring-black/5`}>
-            {more.map((a, i) => {
-              const Icon = ICONS[a]!;
-              return (
-                <button
-                  key={a}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => run(a)}
-                  className="lens-item group flex w-full items-start gap-3 rounded-[10px] px-2.5 py-2 text-left transition-colors hover:bg-lens-hover"
-                  style={{ animationDelay: `${i * 30}ms` }}
-                >
-                  <Icon size={16} strokeWidth={1.9} className="mt-[1px] shrink-0 text-lens-mute transition-colors group-hover:text-[var(--rubric)]" aria-hidden />
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-medium leading-tight">{ACTIONS[a].label}</span>
-                    <span className="mt-0.5 block text-[12px] leading-snug text-lens-mute">{ACTIONS[a].hint}</span>
-                  </span>
-                </button>
-              );
-            })}
-            <span className="mx-2.5 my-1 block h-px bg-lens-mute/15" aria-hidden />
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                void copy();
-                setTimeout(() => setMenu(false), 700);
-              }}
-              className="lens-item group flex w-full items-start gap-3 rounded-[10px] px-2.5 py-2 text-left transition-colors hover:bg-lens-hover"
-              style={{ animationDelay: `${more.length * 30}ms` }}
-            >
-              {copied ? (
-                <Check size={16} strokeWidth={1.9} className="mt-[1px] shrink-0 text-[var(--rubric)]" aria-hidden />
-              ) : (
-                <Copy size={16} strokeWidth={1.9} className="mt-[1px] shrink-0 text-lens-mute transition-colors group-hover:text-[var(--rubric)]" aria-hidden />
-              )}
-              <span className="min-w-0">
-                <span className="block text-[13px] font-medium leading-tight">{copied ? "Copied" : "Copy quote"}</span>
-                <span className="mt-0.5 block text-[12px] leading-snug text-lens-mute">With the title and paragraph number</span>
-              </span>
-            </button>
-          </div>
-        )}
-
       </div>
     </div>
   );
@@ -612,7 +511,7 @@ function LensIcon({
   children: React.ReactNode;
 }) {
   return (
-    <button type="button" aria-label={label} onClick={onClick} {...tip} className="lens-btn w-8 justify-center text-lens-fg/85 hover:text-lens-fg">
+    <button type="button" aria-label={label} onClick={onClick} {...tip} className="lens-btn lens-icon justify-center text-lens-fg/85 hover:text-lens-fg">
       {children}
     </button>
   );

@@ -1014,6 +1014,10 @@ mark.key .cite {
 }
 
 .lens {
+  --lens-bg: var(--bg-raised);
+  --lens-fg: var(--ink);
+  --lens-mute: var(--ink-3);
+  --lens-hover: var(--bg);
   animation: lens-in 0.24s var(--ease-spring);
   transform-origin: var(--origin, bottom center);
 }
@@ -1029,13 +1033,46 @@ mark.key .cite {
   visibility: hidden;
 }
 
-/* The lens: one row of plain words, captions on hover, the rest one click away. */
+/* Reading actions first; quiet saving tools stay together on narrow screens. */
+.lens-surface {
+  padding: 5px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--lens-bg);
+  box-shadow: 0 4px 18px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.04);
+}
+.lens-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  max-width: calc(100vw - 36px);
+  gap: 4px;
+}
+.lens-reading-actions, .lens-saving-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.lens-saving-actions {
+  border-left: 1px solid var(--rule);
+  padding-left: 5px;
+}
+.lens-icon { width: 34px; }
+@media (max-width: 480px) {
+  .lens-saving-actions { border-left: 0; padding-left: 0; }
+  .lens-actions { row-gap: 2px; }
+}
+@media (pointer: coarse) {
+  .lens .lens-btn { min-height: 44px; }
+  .lens .lens-icon { width: 44px; }
+}
 .lens-btn {
   display: inline-flex;
   flex: none;
   align-items: center;
-  height: 32px;
-  border-radius: 10px;
+  height: 34px;
+  border-radius: 9px;
   font-size: 13px;
   line-height: 1;
   white-space: nowrap;
@@ -1056,14 +1093,6 @@ mark.key .cite {
 /* The bar scrolls sideways on phones, so focus rings sit inside the buttons. */
 .lens-btn:focus-visible {
   outline-offset: -2px;
-}
-
-.lens-caret {
-  width: 1.5px;
-  height: 14px;
-  border-radius: 2px;
-  background: var(--rubric);
-  animation: caret-pulse 1.05s ease-in-out infinite;
 }
 
 .lens-dot {
@@ -1113,15 +1142,6 @@ mark.key .cite {
 .lens-starter:hover {
   background: var(--lens-hover);
   color: var(--lens-fg);
-}
-
-.lens-menu {
-  animation: menu-in 0.2s var(--ease-out);
-  transform-origin: top right;
-}
-
-.lens-item {
-  animation: fade 0.25s var(--ease-out) both;
 }
 
 @keyframes menu-in {
