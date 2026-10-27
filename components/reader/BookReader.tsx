@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  Headphones,
   NotebookPen,
   PenLine,
 } from "lucide-react";
@@ -295,9 +296,19 @@ export function BookReader({ article }: { article: Article }) {
   }, [page, chapter]);
   useEffect(() => () => pageAnimation.current?.cancel(), []);
   useEffect(() => {
-    if (audioBlock && follow && status === "playing")
-      go({ b: audioBlock, o: audioOffset }, false);
-  }, [audioBlock, audioOffset, follow, status, go]);
+    if (!audioBlock || status !== "playing") return;
+    const voice = { b: audioBlock, o: audioOffset };
+    if (follow) { go(voice, false); return; }
+    // Read ahead or back, then turned to where the voice is: it picks the page up again.
+    const vp = viewport.current;
+    if (vp && chapterForPoint(chapters, voice) === chapter && pageForPoint(vp, voice) === page) useListen.setState({ follow: true });
+  }, [audioBlock, audioOffset, follow, status, go, chapters, chapter, page]);
+  const backToVoice = () => {
+    const { block, offset } = useListen.getState();
+    if (!block) return;
+    useListen.setState({ follow: true });
+    go({ b: block, o: offset }, false);
+  };
   const turn = useCallback(
     (direction: number) => {
       const vp = viewport.current;
@@ -423,15 +434,6 @@ export function BookReader({ article }: { article: Article }) {
       },
       cancelListeningStart: () => setChoosingStart(false),
       readingPoint: () => point.current,
-      readingPage: () => {
-        const vp = viewport.current, last = blocks.at(-1);
-        if (!vp || !last) return null;
-        const current = Math.round(vp.scrollLeft / pageStride(vp));
-        return {
-          start: firstPointOnPage(vp, blocks, current),
-          end: current + 1 < pageCount(vp) ? firstPointOnPage(vp, blocks, current + 1) : { b: last.id, o: blockText(last).length },
-        };
-      },
       goToPoint: (target) => go(target, false),
       jumpToBlock: (b) => explore({ b, o: 0 }),
       jumpTo: (n) => {
@@ -641,6 +643,8 @@ export function BookReader({ article }: { article: Article }) {
             <ChevronLeft size={20} />
           </button>
           <div className="book-footer-return">{returnPoint && <button onClick={backToReading}><ArrowLeft size={13}/> Back to reading</button>}</div>
+          {/* Under the text, where the eye is: the voice is reading another page. */}
+          {!returnPoint && status !== "idle" && !follow && audioBlock && <button className="book-voice-return" onClick={backToVoice}><Headphones size={13} aria-hidden /> Back to the voice</button>}
           {/* Pages left in the chapter stay true across font and window changes; book page numbers do not. */}
           <Popover label="Reading progress" description={`${chapters[chapter]?.title}, ${pagesLeft}`} triggerClass="book-page-trigger" width={280}
             trigger={<><span className="book-page-title">{chapters[chapter]?.title}</span><span>&nbsp;· {pagesLeft}</span></>}>

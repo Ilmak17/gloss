@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { Headphones, LoaderCircle, Square, RotateCcw, MessageCircle, Locate, Ellipsis, SlidersHorizontal, ChevronDown, Pause, Play } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { Headphones, LoaderCircle, Square, RotateCcw, MessageCircle, Locate, Ellipsis, SlidersHorizontal, ChevronDown, Pause, Play, SkipBack, SkipForward } from "lucide-react";
 import { blockEl } from "@/lib/anchor";
 import { useStore } from "@/lib/store";
 import { openVoiceSettings } from "@/lib/voice-settings";
-import { useListen, startListening, startPageListening, stopListening, toggleListening, cycleRate, pauseListening, seekListening } from "@/lib/listening";
+import { useListen, startListening, stopListening, toggleListening, cycleRate, nudgeRate, pauseListening, seekListening, skipSentence } from "@/lib/listening";
 import { startStudy } from "@/lib/study-draft";
 import { studyBlock } from "@/lib/study";
 import { barBtn, Popover } from "@/components/ui/Popover";
@@ -15,20 +15,21 @@ export { startListening, stopListening } from "@/lib/listening";
 /* ---------------- the controls ---------------- */
 
 /**
- * The book's one listen control: starts this page aloud, and stops it again.
+ * The book's one listen control: reads aloud from the top of this page on,
+ * page after page, and stops again.
  * Everything else about the audio lives in the player that then takes the
  * middle of the bar (BookPlayer).
  */
 export function ListenButton({ from }: { from: () => string | null }) {
   const on = useStore((s) => s.settings.listen);
   const status = useListen((s) => s.status);
-  const { start } = useListenStart(from);
+  const { startHere } = useListenStart(from);
   if (!on) return null;
   const active = status !== "idle";
-  const label = active ? "Stop listening" : "Listen to this page";
+  const label = active ? "Stop listening" : "Listen from this page";
   return (
     <button type="button" className={barBtn} aria-label={label} aria-pressed={active} aria-keyshortcuts={active ? "Escape" : undefined} data-tip={label} data-tip-kbd={active ? "Esc" : undefined}
-      onClick={() => (active ? stopListening() : start())}>
+      onClick={e => { dropFocus(e); if (active) stopListening(); else startHere(); }}>
       <Headphones size={18} strokeWidth={1.75} />
     </button>
   );
@@ -84,7 +85,7 @@ function useListenLifecycle() {
 
 /** The ways to start listening, and discussing what is being read. */
 function useListenStart(from: () => string | null) {
-  const { ix, readingPoint, readingPage, cancelListeningStart } = useReader();
+  const { ix, readingPoint, cancelListeningStart } = useReader();
   const block = useListen(s => s.block);
   const setUI = useStore(s => s.setUI);
   const explain = () => {
@@ -102,30 +103,57 @@ function useListenStart(from: () => string | null) {
     useListen.setState({ follow: true });
     startListening(ix, point?.b ?? from(), point?.o ?? 0);
   };
-  const startPage = () => {
-    const range = readingPage?.();
-    if (!range) return startHere();
-    cancelListeningStart?.();
-    setUI({ activeGloss: null, notebookOpen: false, pending: null });
-    useListen.setState({ follow: true });
-    startPageListening(ix, range);
-  };
-  /** A book starts with the page in view, an article from where you are. */
-  const start = () => (readingPage ? startPage() : startHere());
-  return { explain, startHere, startPage, start };
+  return { explain, startHere };
 }
+
+/**
+ * Listening from the keyboard, while the voice is on: Space pauses and plays,
+ * Shift+arrows move by sentence, − and + change speed. In a book, Space also
+ * starts the voice at the top of the page. Plain arrows still turn pages.
+ */
+function useListenKeys(start: () => void, paged: boolean) {
+  const begin = useRef(start);
+  useLayoutEffect(() => { begin.current = start; });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      // A focused control keeps its own keys; so do editors and open overlays.
+      if (e.target instanceof Element && e.target.closest("input,textarea,select,button,a,summary,[contenteditable=true]")) return;
+      const ui = useStore.getState();
+      if (ui.activeGloss || ui.pending || ui.notebookOpen || ui.shortcutsOpen || document.querySelector("dialog[open],[role=dialog],.lens")) return;
+      const idle = useListen.getState().status === "idle";
+      if (e.key === " " && !e.shiftKey) {
+        if (!idle) toggleListening();
+        else if (paged && ui.settings.listen) begin.current();
+        else return;
+      } else if (idle) return;
+      else if (e.shiftKey && e.key === "ArrowLeft") skipSentence(-1);
+      else if (e.shiftKey && e.key === "ArrowRight") skipSentence(1);
+      else if (e.key === "-") nudgeRate(-1);
+      else if (e.key === "=" || e.key === "+") nudgeRate(1);
+      else return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [paged]);
+}
+
+/** A pointer click leaves no focus behind, so Space goes on pausing the voice rather than pressing the button again. */
+const dropFocus = (e: { detail: number; currentTarget: HTMLElement }) => { if (e.detail > 0) e.currentTarget.blur(); };
 
 /** One dock for narration and the transition from reading to discussion. */
 export function ListenBar({ from }: { from: () => string | null }) {
-  const { ix, jumpToBlock, readingPage, goToPoint, chooseListeningStart, cancelListeningStart } = useReader();
-  const { status, block, rate, elapsed, duration, error, needKey, follow, studyPaused, cache, scope } = useListen();
+  const { ix, jumpToBlock, goToPoint, chooseListeningStart, cancelListeningStart } = useReader();
+  const { status, block, rate, elapsed, duration, error, needKey, follow, studyPaused, cache } = useListen();
   const on = useStore(s => s.settings.listen);
   const setUI = useStore(s => s.setUI);
   useListenLifecycle();
-  const { explain, startHere, startPage } = useListenStart(from);
+  const { explain, startHere } = useListenStart(from);
+  useListenKeys(startHere, false);
 
   const active = status !== "idle";
-  const pageAudio = scope === "page";
   const n = block ? ix.numbers.get(block) : undefined;
 
   return <section className={`study-player ${active ? "is-active" : "is-idle"}`} aria-label="Reading player">
@@ -136,24 +164,23 @@ export function ListenBar({ from }: { from: () => string | null }) {
         cancelListeningStart?.();
         if (status === "loading") { stopListening(); return; }
         setUI({ activeGloss: null, notebookOpen: false });
-        if (status === "idle" || (status === "error" && pageAudio)) { if (readingPage) startPage(); else startHere(); } else toggleListening();
+        if (status === "idle") startHere(); else toggleListening();
       }}>{status === "loading" ? <LoaderCircle size={15} className="animate-spin" aria-hidden /> : <svg key={status === "playing" ? "pause" : "play"} className="study-play-glyph" width="16" height="16" viewBox="0 0 16 16" aria-hidden>
         {status === "playing" ? <><rect x="4" y="3" width="2.5" height="10" rx="1.25" fill="currentColor" /><rect x="9.5" y="3" width="2.5" height="10" rx="1.25" fill="currentColor" /></> : <path d="M5.5 3.75 12 8l-6.5 4.25z" fill="currentColor" stroke="currentColor" strokeWidth=".8" strokeLinejoin="round" />}
       </svg>}</button>}
       <div className="study-timeline">
         {active && !error && duration > 0 ? <>
-          <input aria-label={pageAudio ? "Position in current page" : "Position in current passage"} aria-valuetext={`${clock(elapsed)} of ${clock(duration)}`} type="range" min={0} max={duration} step={.1} value={elapsed} onChange={e => seekListening(Number(e.target.value))} style={{ backgroundImage: `linear-gradient(to right, var(--study-accent) ${Math.min(100, elapsed / duration * 100)}%, var(--rule-strong) 0%)` }} />
-          <span className="study-time" title={`${pageAudio ? "Current page" : "Current passage"}${!pageAudio && n ? ` · ¶${n}` : ""}${studyPaused ? " · paused for discussion" : ""}`}>{clock(elapsed)}<span> / {clock(duration)}</span></span>
+          <input aria-label="Position in current passage" aria-valuetext={`${clock(elapsed)} of ${clock(duration)}`} type="range" min={0} max={duration} step={.1} value={elapsed} onChange={e => seekListening(Number(e.target.value))} style={{ backgroundImage: `linear-gradient(to right, var(--study-accent) ${Math.min(100, elapsed / duration * 100)}%, var(--rule-strong) 0%)` }} />
+          <span className="study-time" title={`Current passage${n ? ` · ¶${n}` : ""}${studyPaused ? " · paused for discussion" : ""}`}>{clock(elapsed)}<span> / {clock(duration)}</span></span>
         </> : !active && on && chooseListeningStart ? <div className="listen-start-menu">
           <Popover label="Choose where to listen" trigger={<><span>Listen</span><ChevronDown size={12} /></>} triggerClass="listen-start-trigger" width={230}>
             {close => <div className="study-audio-options">
-              {readingPage && <button onClick={() => { close(); startPage(); }}>Listen to this page</button>}
               <button onClick={() => { close(); startHere(); }}>From current reading position</button>
               <button onClick={() => { close(); chooseListeningStart(); }}>Choose starting point…</button>
               <p className="listen-start-help">Or select text and choose “Listen from here”.</p>
             </div>}
           </Popover>
-        </div> : <span className="study-idle-label">{error ? "Audio unavailable" : status === "loading" ? (pageAudio ? "Preparing page…" : "Preparing audio…") : on ? "Listen" : "Reading"}</span>}
+        </div> : <span className="study-idle-label">{error ? "Audio unavailable" : status === "loading" ? "Preparing audio…" : on ? "Listen" : "Reading"}</span>}
       </div>
       {active && <button type="button" className="study-stop" aria-label="Stop listening" aria-keyshortcuts="Escape" title="Stop listening (Esc)" onClick={stopListening}><Square size={12} fill="currentColor" strokeWidth={0} aria-hidden /><span>Stop</span></button>}
       <span className="study-player-divider" aria-hidden />
@@ -162,13 +189,12 @@ export function ListenBar({ from }: { from: () => string | null }) {
         <Popover label="Playback options" trigger={<Ellipsis size={18} />} triggerClass="study-icon" width={244}>
           {close => <div className="study-audio-options">
             <p className="study-audio-heading">Audio{n ? ` · ¶${n}` : ""}</p>
-            <p className="text-xs text-ink-3 px-2 pb-2">{pageAudio ? "One track for this page. Playback stops at the end of the page." : "The next passage prepares while you listen. All prepared audio is saved."}</p>
+            <p className="text-xs text-ink-3 px-2 pb-2">The next passages prepare while you listen. All prepared audio is saved.</p>
             {active && (cache === "hit" || cache === "saved") && <p className="text-xs text-ink-3 px-2 pb-2">{cache === "hit" ? "Saved audio · no new charge" : "Audio saved on this Mac"}</p>}
-            {on && readingPage && <button type="button" onClick={() => { close(); startPage(); }}>Listen to this page</button>}
             {on && chooseListeningStart && <button type="button" onClick={() => { close(); chooseListeningStart(); }}><Locate size={15} /> Choose starting point…</button>}
             {on && active && <button type="button" onClick={() => { close(); startHere(); }}>From current reading position</button>}
             <button type="button" onClick={cycleRate}><span>Speed</span><strong>{rate}×</strong></button>
-            {active && <button type="button" onClick={() => { seekListening(0); close(); }}><RotateCcw size={15} /> {pageAudio ? "Replay page" : "Replay passage"}</button>}
+            {active && <button type="button" onClick={() => { seekListening(0); close(); }}><RotateCcw size={15} /> Replay passage</button>}
             {block && <button type="button" onClick={() => { useListen.setState({follow:true}); if (goToPoint) goToPoint({b:block,o:useListen.getState().offset}); else jumpToBlock(block, { flash: false }); close(); }}><Locate size={15} /> Jump to audio</button>}
             {on && <label><input type="checkbox" checked={follow} onChange={e => useListen.setState({ follow: e.target.checked })} /> Follow along</label>}
             <div className="study-audio-rule" />
@@ -182,46 +208,38 @@ export function ListenBar({ from }: { from: () => string | null }) {
 
 /**
  * The middle of the book's bar: the book's title, and while you listen, the
- * player in its place. It carries playback's lifecycle for the book.
+ * player in its place, made for reading along: back and on by sentence,
+ * play and pause, speed, and discussing what you hear. It carries playback's
+ * lifecycle and keys for the book.
  */
 export function BookPlayer({ title, from }: { title: string; from: () => string | null }) {
-  const { jumpToBlock, goToPoint, readingPage, chooseListeningStart, cancelListeningStart } = useReader();
-  const { status, block, rate, elapsed, duration, error, needKey, follow, studyPaused, cache, scope } = useListen();
-  const setUI = useStore(s => s.setUI);
+  const { jumpToBlock, goToPoint, chooseListeningStart } = useReader();
+  const { status, block, rate, error, needKey, follow, cache } = useListen();
   useListenLifecycle();
-  const { explain, startHere, startPage } = useListenStart(from);
+  const { explain, startHere } = useListenStart(from);
+  useListenKeys(startHere, true);
   const active = status !== "idle";
-  const pageAudio = scope === "page";
-  const what = pageAudio ? "page" : "passage";
+  const ready = status === "playing" || status === "paused";
   return <div className="book-bar-middle">
     <h1 className={active ? "sr-only" : "book-title"}>{title}</h1>
     {active && <section className="book-player" aria-label="Listening">
       {cache === "unavailable" && <div role="status" className="study-player-error">Audio could not be saved. Replaying later may use credits.</div>}
       {error && <div role="alert" className="study-player-error"><p>{error}</p><button type="button" onClick={openVoiceSettings}>{needKey ? "Connect voice" : "Voice settings"}</button></div>}
-      <button type="button" className="book-player-play" aria-label={status === "loading" ? "Cancel audio preparation" : status === "playing" ? "Pause" : status === "error" ? "Retry audio" : "Resume listening"} onClick={() => {
-        cancelListeningStart?.();
-        if (status === "loading") { stopListening(); return; }
-        setUI({ activeGloss: null, notebookOpen: false });
-        if (status === "error" && pageAudio) startPage(); else toggleListening();
-      }}>{status === "loading" ? <LoaderCircle size={15} className="animate-spin" aria-hidden /> : status === "playing" ? <Pause size={15} fill="currentColor" strokeWidth={0} aria-hidden /> : status === "error" ? <RotateCcw size={15} aria-hidden /> : <Play size={15} fill="currentColor" strokeWidth={0} aria-hidden />}</button>
-      <div className="study-timeline">
-        {!error && duration > 0 ? <>
-          <input aria-label={`Position in current ${what}`} aria-valuetext={`${clock(elapsed)} of ${clock(duration)}`} type="range" min={0} max={duration} step={.1} value={elapsed} onChange={e => seekListening(Number(e.target.value))} style={{ backgroundImage: `linear-gradient(to right, var(--study-accent) ${Math.min(100, elapsed / duration * 100)}%, var(--rule-strong) 0%)` }} />
-          <span className="study-time" title={`Current ${what}${studyPaused ? " · paused for discussion" : ""}`}>{clock(elapsed)}<span> / {clock(duration)}</span></span>
-        </> : <span className="study-idle-label">{error ? "Audio unavailable" : `Preparing ${what}…`}</span>}
-      </div>
+      <button type="button" className="study-icon" disabled={!ready} aria-label="Previous sentence" aria-keyshortcuts="Shift+ArrowLeft" data-tip="Previous sentence" data-tip-kbd="⇧←" onClick={() => skipSentence(-1)}><SkipBack size={16} strokeWidth={1.75} /></button>
+      <button type="button" className="book-player-play" aria-label={status === "loading" ? "Preparing audio" : status === "playing" ? "Pause" : status === "error" ? "Try again" : "Play"} aria-keyshortcuts="Space" data-tip={status === "playing" ? "Pause" : status === "error" ? "Try again" : "Play"} data-tip-kbd="Space"
+        onClick={e => { dropFocus(e); toggleListening(); }}>
+        {status === "loading" ? <LoaderCircle size={15} className="animate-spin" aria-hidden /> : status === "playing" ? <Pause size={15} fill="currentColor" strokeWidth={0} aria-hidden /> : status === "error" ? <RotateCcw size={15} aria-hidden /> : <Play size={15} fill="currentColor" strokeWidth={0} aria-hidden />}
+      </button>
+      <button type="button" className="study-icon" disabled={!ready} aria-label="Next sentence" aria-keyshortcuts="Shift+ArrowRight" data-tip="Next sentence" data-tip-kbd="⇧→" onClick={() => skipSentence(1)}><SkipForward size={16} strokeWidth={1.75} /></button>
+      <button type="button" className="book-player-rate" aria-label={`Speed ${rate}×, faster`} data-tip="Speed" data-tip-kbd="− +" onClick={e => { dropFocus(e); cycleRate(); }}>{rate}×</button>
       <button type="button" className="study-icon" aria-label="Discuss what you are hearing" data-tip="Discuss this passage" onClick={explain}><MessageCircle size={16} strokeWidth={1.75} /></button>
       <div className="study-player-menu">
-        <Popover label="Listening options" trigger={<Ellipsis size={18} />} triggerClass="study-icon" width={244}>
+        <Popover label="Listening options" trigger={<Ellipsis size={18} />} triggerClass="study-icon" width={256}>
           {close => <div className="study-audio-options">
-            <p className="text-xs text-ink-3 px-2 pb-2">{pageAudio ? "One track for this page. It stops at the end of the page." : "The next passage prepares while you listen. All prepared audio is saved."}{cache === "hit" ? " Saved audio, no new charge." : cache === "saved" ? " Saved on this Mac." : ""}</p>
-            <button type="button" onClick={cycleRate}><span>Speed</span><strong>{rate}×</strong></button>
-            <button type="button" onClick={() => { seekListening(0); close(); }}><RotateCcw size={15} /> Replay {what}</button>
-            {block && <button type="button" onClick={() => { useListen.setState({ follow: true }); if (goToPoint) goToPoint({ b: block, o: useListen.getState().offset }); else jumpToBlock(block, { flash: false }); close(); }}><Locate size={15} /> Jump to audio</button>}
-            {readingPage && <button type="button" onClick={() => { close(); startPage(); }}>Listen to this page</button>}
-            <button type="button" onClick={() => { close(); startHere(); }}>Listen from here on</button>
+            <p className="text-xs text-ink-3 px-2 pb-2">Reads on, page after page, until you pause. Space pauses, ⇧← and ⇧→ move by sentence, − and + change speed.{cache === "hit" ? " This passage was saved: no new charge." : cache === "saved" ? " Audio is saved on this Mac." : ""}</p>
+            {block && <button type="button" onClick={() => { useListen.setState({ follow: true }); if (goToPoint) goToPoint({ b: block, o: useListen.getState().offset }); else jumpToBlock(block, { flash: false }); close(); }}><Locate size={15} /> Back to the voice</button>}
             {chooseListeningStart && <button type="button" onClick={() => { close(); chooseListeningStart(); }}>Choose starting point…</button>}
-            <label><input type="checkbox" checked={follow} onChange={e => useListen.setState({ follow: e.target.checked })} /> Follow along</label>
+            <label><input type="checkbox" checked={follow} onChange={e => useListen.setState({ follow: e.target.checked })} /> Turn pages with the voice</label>
             <div className="study-audio-rule" />
             <button type="button" onClick={() => { close(); openVoiceSettings(); }}><SlidersHorizontal size={15} /> Voice settings</button>
           </div>}

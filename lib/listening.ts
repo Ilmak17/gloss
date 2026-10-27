@@ -3,23 +3,27 @@
 import { create } from "zustand";
 import { anchorToRange } from "./anchor";
 import { blockText } from "./article";
-import { SPOKEN_BLOCKS, pageSpeech, pageSpeechPoint, type PageRange, type SpeechSpan } from "./listen-page";
-import { assemblePageAudio, type SpeechAudio, type PageAudioPart } from "./page-audio";
+import type { Block } from "./article";
 import { readApiKey } from "./ask";
 import type { DocIndex } from "./doc";
-import { speechChunks, type TimedWord } from "./speech";
+import { sentenceStarts, sentenceStep, speechChunks, type TimedWord } from "./speech";
 import { readVoiceSettings } from "./voice-settings";
 
 /**
- * Read aloud. The text is spoken a passage at a time from where you are, the next
- * clip prepared during playback, and the paragraph being read is
- * marked like the keyboard cursor so the eye can follow along.
+ * Read aloud. The text is spoken a passage at a time from where you are, on
+ * through pages and chapters until you pause; the next passages are prepared
+ * during playback. The sentence being read and the word in it are marked so
+ * the eye can follow along.
  */
 
 type Status = "idle" | "loading" | "playing" | "paused" | "error";
-type ListenState = { status: Status; block: string | null; offset: number; rate: number; elapsed: number; duration: number; studyPaused: boolean; follow: boolean; error?: string; needKey?: boolean; cache?: string; scope?: "page" };
+type ListenState = { status: Status; block: string | null; offset: number; rate: number; elapsed: number; duration: number; studyPaused: boolean; follow: boolean; error?: string; needKey?: boolean; cache?: string };
 
-const RATES = [1, 1.2, 1.4, 1.7, 2, 0.8];
+/** What is read aloud: prose and its headings. Pictures, tables and code are left to the eye. */
+const SPOKEN_BLOCKS = new Set<Block["type"]>(["h2", "h3", "p", "quote", "li", "note"]);
+const RATES = [.8, 1, 1.2, 1.4, 1.7, 2];
+/** How many passages are prepared ahead of the voice, so it never waits. */
+const AHEAD = 2;
 const RATE_KEY = "gloss:listen-rate";
 
 export const useListen = create<ListenState>(() => ({ status: "idle", block: null, offset: 0, rate: 1, elapsed: 0, duration: 0, studyPaused: false, follow: true }));
@@ -49,12 +53,14 @@ function silence(): string {
 
 /* ---------------- the engine: one voice at a time ---------------- */
 
-let items: { block: string; text: string; start: number; spans?: SpeechSpan[] }[] = [];
+let items: { block: string; text: string; start: number }[] = [];
 let activeWords: TimedWord[] = [];
+let activeSentences: number[] = [];
 let wantedPaused = false;
 let studySession: number | null = null;
 let highlightFrame = 0;
 let lastHighlight = "";
+let lastSentence = "";
 let idx = 0;
 let initialOffset = 0;
 let pendingSeek: number | null = null;
@@ -62,19 +68,21 @@ let session = 0;
 let audio: HTMLAudioElement | null = null;
 let ctrl: AbortController | null = null;
 type Clip = { url: string; words: TimedWord[]; cache?: string };
+type SpeechAudio = { blob: Blob; words: TimedWord[]; cache?: string };
 const clips = new Map<number, Promise<Clip>>();
 const urls = new Map<number, string>();
 const prefetched = new Set<number>();
 
-/** One bounded look-ahead, only after playback advances. Pausing/opening a book never starts it. */
+/** A bounded look-ahead, only once playback advances. Pausing or opening a book never starts it. */
 function prepareNext() {
   if (!audio || audio.paused || wantedPaused || useListen.getState().status !== "playing") return;
-  if (audio.currentTime < .75 || !audio.src.startsWith("blob:")) return;
-  const next = idx + 1;
-  if (next >= items.length || prefetched.has(next)) return;
-  prefetched.add(next);
-  // Errors are retried normally when this passage becomes current; they must not stop today's audio.
-  void clip(next).catch(() => {});
+  if (audio.currentTime < .25 || !audio.src.startsWith("blob:")) return;
+  for (let next = idx + 1; next <= idx + AHEAD && next < items.length; next++) {
+    if (prefetched.has(next)) continue;
+    prefetched.add(next);
+    // Errors are retried normally when this passage becomes current; they must not stop today's audio.
+    void clip(next).catch(() => {});
+  }
 }
 
 async function fetchSpeech(text: string, signal?: AbortSignal): Promise<SpeechAudio> {
@@ -96,35 +104,13 @@ async function fetchSpeech(text: string, signal?: AbortSignal): Promise<SpeechAu
   return { blob: await r.blob(), words: [] };
 }
 
-async function fetchPage(text: string, signal?: AbortSignal): Promise<SpeechAudio> {
-  const chunks = speechChunks(text);
-  const parts: PageAudioPart[] = new Array(chunks.length);
-  let next = 0;
-  const pending = new AbortController();
-  const requestSignal = signal ? AbortSignal.any([signal, pending.signal]) : pending.signal;
-  // Two bounded requests at a time; never prepare text outside the selected page.
-  try {
-    await Promise.all(Array.from({ length: Math.min(2, chunks.length) }, async () => {
-      while (next < chunks.length) {
-        requestSignal.throwIfAborted();
-        const i = next++, chunk = chunks[i];
-        parts[i] = { ...await fetchSpeech(chunk.text, requestSignal), start: chunk.start };
-      }
-    }));
-    return await assemblePageAudio(parts, requestSignal);
-  } catch (error) {
-    pending.abort();
-    throw error;
-  }
-}
-
 function clip(i: number): Promise<Clip> {
   let p = clips.get(i);
   if (!p) {
     const signal = ctrl?.signal;
     const requestSession = session;
     const item = items[i];
-    p = (item.spans ? fetchPage(item.text, signal) : fetchSpeech(item.text, signal)).then(result => {
+    p = fetchSpeech(item.text, signal).then(result => {
       if (requestSession !== session || signal?.aborted) throw new DOMException("Stopped", "AbortError");
       const url = URL.createObjectURL(result.blob);
       urls.set(i, url);
@@ -146,7 +132,8 @@ function release(upTo: number) {
   }
 }
 
-async function playAt(i: number, s: number) {
+/** `from`: where in the passage to begin, as an offset into its text, or "last" for its last sentence. */
+async function playAt(i: number, s: number, from?: number | "last") {
   if (s !== session || !audio) return;
   if (i >= items.length) return stopListening();
   idx = i;
@@ -164,8 +151,9 @@ async function playAt(i: number, s: number) {
   useListen.setState({ cache: result.cache });
   release(i - 1);
   activeWords = result.words;
+  activeSentences = sentenceStarts(items[i].text);
   clearSpeechHighlight();
-  const target = i === 0 ? initialOffset - items[i].start : 0;
+  const target = from === "last" ? activeSentences.at(-1) ?? 0 : from ?? (i === 0 ? initialOffset - items[i].start : 0);
   const firstWord = result.words.find(w => w.end > target);
   pendingSeek = target > 0 && firstWord ? firstWord.from : 0;
   audio.src = result.url;
@@ -203,21 +191,6 @@ export function startListening(ix: DocIndex, fromBlock: string | null, fromOffse
   beginPlayback(ix);
 }
 
-/** Snapshot page boundaries before following the voice can move the reading cursor. */
-export function startPageListening(ix: DocIndex, range: PageRange) {
-  stopListening();
-  const page = pageSpeech(ix.article.blocks, range);
-  useListen.setState({ scope: "page" });
-  if (!page.spans.length) {
-    useListen.setState({ status: "error", error: "This page has no text to read. Turn to a text page." });
-    return;
-  }
-  const first = page.spans[0];
-  items = [{ block: first.block, start: first.sourceStart, text: page.text, spans: page.spans }];
-  initialOffset = first.sourceStart;
-  beginPlayback(ix);
-}
-
 function beginPlayback(ix: DocIndex) {
   wantedPaused = false;
   audio ??= new Audio();
@@ -246,6 +219,9 @@ function beginPlayback(ix: DocIndex) {
     navigator.mediaSession.metadata = new MediaMetadata({ title: ix.article.title, artist: ix.article.author ?? ix.article.source ?? "Gloss" });
     navigator.mediaSession.setActionHandler("play", () => resumeListening());
     navigator.mediaSession.setActionHandler("pause", () => pauseListening());
+    // Headphone and keyboard media keys step by sentence.
+    navigator.mediaSession.setActionHandler("previoustrack", () => skipSentence(-1));
+    navigator.mediaSession.setActionHandler("nexttrack", () => skipSentence(1));
   }
   void playAt(0, s);
 }
@@ -255,6 +231,7 @@ export function stopListening() {
   cancelAnimationFrame(highlightFrame);
   clearSpeechHighlight();
   activeWords = [];
+  activeSentences = [];
   pendingSeek = null;
   initialOffset = 0;
   wantedPaused = false;
@@ -276,7 +253,7 @@ export function stopListening() {
   clips.clear();
   prefetched.clear();
   items = [];
-  useListen.setState({ status: "idle", block: null, offset: 0, elapsed: 0, duration: 0, studyPaused: false, error: undefined, needKey: false, cache: undefined, scope: undefined });
+  useListen.setState({ status: "idle", block: null, offset: 0, elapsed: 0, duration: 0, studyPaused: false, error: undefined, needKey: false, cache: undefined });
 }
 
 /** Pause is idempotent, including while the first clip is still being fetched. */
@@ -338,9 +315,7 @@ export function toggleListening() {
   }
 }
 
-export function cycleRate() {
-  const { rate } = useListen.getState();
-  const next = RATES[(RATES.indexOf(rate) + 1) % RATES.length];
+function setRate(next: number) {
   useListen.setState({ rate: next });
   if (audio) audio.playbackRate = next;
   try {
@@ -348,31 +323,55 @@ export function cycleRate() {
   } catch {}
 }
 
+/** The next speed up, back round to the slowest after the fastest. */
+export function cycleRate() {
+  setRate(RATES[(RATES.indexOf(useListen.getState().rate) + 1) % RATES.length]);
+}
+
+/** One speed slower or faster, stopping at either end. */
+export function nudgeRate(direction: 1 | -1) {
+  const at = Math.max(0, RATES.indexOf(useListen.getState().rate));
+  setRate(RATES[Math.max(0, Math.min(RATES.length - 1, at + direction))]);
+}
+
+/** Back to the sentence before (or the start of this one, once it is under way), or on to the next. */
+export function skipSentence(direction: 1 | -1) {
+  if (!audio || !items[idx] || !audio.src.startsWith("blob:") || !["playing", "paused"].includes(useListen.getState().status)) return;
+  const step = sentenceStep({ starts: activeSentences, words: activeWords, time: audio.currentTime, direction });
+  if ("seek" in step) return seekListening(step.seek);
+  if (step.item > 0) return void playAt(idx + 1, session, 0);
+  if (idx > 0) return void playAt(idx - 1, session, "last");
+  seekListening(0);
+}
+
 /** CSS highlights leave annotation spans and text selection untouched. */
 function clearSpeechHighlight() {
   lastHighlight = "";
-  if (typeof CSS !== "undefined" && "highlights" in CSS) CSS.highlights.delete("speech");
+  lastSentence = "";
+  if (typeof CSS !== "undefined" && "highlights" in CSS) { CSS.highlights.delete("speech"); CSS.highlights.delete("speech-sentence"); }
 }
 function followSpeech() {
   highlightSpeech();
   if (audio && !audio.paused) highlightFrame = requestAnimationFrame(followSpeech);
 }
+/** The word last begun stays marked through the pause after it, so the mark never flickers off between words. */
 function highlightSpeech() {
   if (!audio || !items[idx]) return;
-  const word = activeWords.find(w => w.from <= audio!.currentTime && w.to > audio!.currentTime);
+  const word = activeWords.findLast(w => w.from <= audio!.currentTime);
   if (!word) { clearSpeechHighlight(); return; }
   const item = items[idx];
-  const point = item.spans ? pageSpeechPoint(item.spans, word.start) : { b: item.block, o: item.start + word.start };
-  if (!point) { clearSpeechHighlight(); return; }
+  const point = { b: item.block, o: item.start + word.start };
   if (useListen.getState().offset !== point.o || useListen.getState().block !== point.b) useListen.setState({ block: point.b, offset: point.o });
   if (typeof Highlight === "undefined" || typeof CSS === "undefined" || !("highlights" in CSS)) return;
   const key = `${idx}:${word.start}`;
   if (key === lastHighlight) return;
-
-  const end = item.spans ? pageSpeechPoint(item.spans, word.end - 1) : { b: item.block, o: item.start + word.end - 1 };
-  if (!end) return;
-  const range = anchorToRange({ start: point, end: { b: end.b, o: end.o + 1 } });
+  const range = anchorToRange({ start: point, end: { b: item.block, o: item.start + word.end } });
   if (range) { CSS.highlights.set("speech", new Highlight(range)); lastHighlight = key; }
+  const from = activeSentences.findLast(s => s <= word.start) ?? 0;
+  if (`${idx}:${from}` === lastSentence) return;
+  const to = item.text.slice(0, activeSentences.find(s => s > word.start) ?? item.text.length).trimEnd().length;
+  const sentence = anchorToRange({ start: { b: item.block, o: item.start + from }, end: { b: item.block, o: item.start + to } });
+  if (sentence) { CSS.highlights.set("speech-sentence", new Highlight(sentence)); lastSentence = `${idx}:${from}`; }
 }
 
 

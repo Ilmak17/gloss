@@ -9,7 +9,6 @@ export type ReaderApi = {
   openNote?: (highlightId: string) => void;
   chooseListeningStart?: () => void;
   cancelListeningStart?: () => void;
-  readingPage?: () => import("@/lib/listen-page").PageRange | null;
   readingPoint?: () => import("@/lib/store").Point;
   goToPoint?: (point: import("@/lib/store").Point) => void;
   /** A book's note on the page in view, written in the margin. */

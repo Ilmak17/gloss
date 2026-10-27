@@ -1997,6 +1997,11 @@ a.desk-tile:focus-visible {
 /* Timed narration, independent of saved annotations. */
 /* Offset belongs to the originating text; custom highlights inherit it. */
 .prose-read .blk-text { text-underline-offset: .18em; }
+/* Read-along: a soft wash on the sentence being spoken, easy to find again after
+   a glance away, and an underline on the word, which stays until the next begins. */
+::highlight(speech-sentence) {
+  background-color: color-mix(in oklab, var(--ink) 8%, transparent);
+}
 ::highlight(speech) {
   background-color: transparent;
   text-decoration-line: underline;
@@ -2165,12 +2170,14 @@ a.desk-tile:focus-visible {
 .book-toolbar nav [aria-pressed=true]:not(.book-bookmark) { background:var(--bg-sunk); color:var(--ink); }
 .book-bar-middle { min-width:0; display:flex; justify-content:center; }
 .book-title { min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:var(--font-serif); font-size:14px; font-weight:450; color:var(--ink-3); }
-.book-player { position:relative; display:flex; align-items:center; gap:6px; width:min(440px,100%); animation:fade .2s var(--ease-out) both; }
+.book-player { position:relative; display:flex; align-items:center; justify-content:center; gap:4px; width:min(440px,100%); animation:fade .2s var(--ease-out) both; }
+.book-player-rate { min-width:44px; height:32px; padding:0 8px; border-radius:16px; font-size:12px; font-weight:500; font-variant-numeric:tabular-nums; color:var(--ink-2); }
+.book-player-rate:hover { background:var(--bg-sunk); color:var(--ink); }
+.book-player .study-icon:disabled { opacity:.35; pointer-events:none; }
 .book-player-play { display:grid; place-items:center; width:32px; height:32px; flex:none; border-radius:50%; background:var(--bg-sunk); color:var(--ink); transition:background .15s, transform .12s var(--ease-out); }
 .book-player-play:hover { background:color-mix(in oklab, var(--ink) 10%, var(--bg)); }
 .book-player-play:active { transform:scale(.94); }
 .book-player-play:focus-visible { outline:2px solid var(--ink-3); outline-offset:2px; }
-.book-player .study-timeline { gap:10px; margin-inline:4px; }
 .book-player .study-icon { width:32px; height:32px; border-radius:50%; color:var(--ink-3); }
 .book-player .study-icon:hover { color:var(--ink); }
 .book-player .study-player-menu .pop { top:calc(100% + 12px); bottom:auto; right:0; --origin:top right !important; }
@@ -2242,6 +2249,7 @@ a.desk-tile:focus-visible {
 .book-page-title { min-width:0; overflow:hidden; text-overflow:ellipsis; }
 .book-footer-return { position:absolute; left:0; }
 .book-footer-return button { width:auto; display:flex; gap:6px; padding:0 10px; border-radius:8px; font-size:11px; }
+.book-footer button.book-voice-return { width:auto; height:30px; display:flex; gap:6px; align-items:center; padding:0 12px; border:1px solid var(--rule-strong); border-radius:15px; font-size:11.5px; color:var(--ink); animation:fade .2s var(--ease-out) both; }
 .book-footer .pop { top:auto; bottom:calc(100% + 10px); left:50%; right:auto; transform:translateX(-50%); --origin:bottom center !important; white-space:normal; }
 .book-progress-panel { line-height:1.6; font-size:12px; color:var(--ink-2); }
 .book-progress-panel p + p { margin-top:6px; color:var(--ink-3); }

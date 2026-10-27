@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { indexArticle } from "../lib/doc";
-import { listeningSessionId, pauseListening, resumeAfterStudy, resumeListening, seekListening, startPageListening, startListening, stopListening, useListen } from "../lib/listening";
+import { listeningSessionId, nudgeRate, pauseListening, resumeAfterStudy, resumeListening, seekListening, skipSentence, startListening, stopListening, useListen } from "../lib/listening";
 
 test("study interruptions preserve audio and cannot revive an obsolete session", async t => {
   class FakeAudio {
@@ -99,7 +99,7 @@ test("study interruptions preserve audio and cannot revive an obsolete session",
     stopListening();
   });
 
-  await t.test("chapter playback starts with prose and skips headings between passages", async () => {
+  await t.test("chapter titles and headings are read aloud in order with the prose", async () => {
     const requested: string[] = [];
     t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
       requested.push(JSON.parse(init?.body as string).text);
@@ -112,88 +112,67 @@ test("study interruptions preserve audio and cannot revive an obsolete session",
       { id: "next", type: "p", runs: [{ text: "More book text." }] },
     ] });
     startListening(book, "heading"); await settle();
-    assert.equal(requested[0], "The actual book text.");
-    (a as unknown as { onended: () => void }).onended(); await settle();
-    assert.equal(requested[1], "More book text.");
+    for (let i = 0; i < 3; i++) { (a as unknown as { onended: () => void }).onended(); await settle(); }
+    assert.deepEqual(requested, ["Chapter one", "The actual book text.", "A heading", "More book text."]);
     stopListening();
   });
 
-  await t.test("next passage is ready before the current one ends, but never more than one ahead", async () => {
+  await t.test("the next two passages are prepared once playback is under way, and transitions reuse them", async () => {
     const requested: string[] = [];
     t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
       requested.push(JSON.parse(init?.body as string).text);
       return new Response("test audio");
     });
-    const book = indexArticle({ id: "prefetch-test", title: "Book", blocks: ["One.", "Two.", "Three."].map((text, i) => ({ id: `p${i}`, type: "p" as const, runs: [{ text }] })) });
+    const book = indexArticle({ id: "prefetch-test", title: "Book", blocks: ["One.", "Two.", "Three.", "Four."].map((text, i) => ({ id: `p${i}`, type: "p" as const, runs: [{ text }] })) });
     startListening(book, "p0"); await settle();
-    a.currentTime = 1;
+    a.currentTime = .3;
     (a as unknown as { ontimeupdate: () => void }).ontimeupdate(); await settle();
-    assert.deepEqual(requested, ["One.", "Two."]);
+    assert.deepEqual(requested, ["One.", "Two.", "Three."]);
     (a as unknown as { ontimeupdate: () => void }).ontimeupdate(); await settle();
-    assert.deepEqual(requested, ["One.", "Two."]);
+    assert.deepEqual(requested, ["One.", "Two.", "Three."]);
     (a as unknown as { onended: () => void }).onended(); await settle();
     assert.equal(useListen.getState().block, "p1");
     assert.equal(useListen.getState().status, "playing");
-    assert.deepEqual(requested, ["One.", "Two."], "transition reuses the prepared audio, without another network request");
+    assert.deepEqual(requested, ["One.", "Two.", "Three."], "transition reuses the prepared audio, without another network request");
     pauseListening();
     a.currentTime = 2;
     (a as unknown as { ontimeupdate: () => void }).ontimeupdate(); await settle();
-    assert.equal(requested.length, 2);
+    assert.equal(requested.length, 3, "a paused voice prepares nothing more");
     stopListening();
   });
 
-  await t.test("page playback combines paragraphs, seeks across them, and stops before the next page", async () => {
-    const requested: string[] = [];
-    t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
-      requested.push(JSON.parse(init?.body as string).text);
-      return Response.json({ audio: btoa("audio"), words: [
-        { start: 0, end: 5, from: 0, to: 1 },
-        { start: 8, end: 14, from: 2, to: 3 },
-      ], cache: "hit" });
-    });
-    const book = indexArticle({ id: "page-test", title: "Book", blocks: [
-      { id: "heading", type: "h2", runs: [{ text: "Chapter one" }] },
-      { id: "first", type: "p", runs: [{ text: "First." }] },
-      { id: "second", type: "p", runs: [{ text: "Second. Not on this page." }] },
-      { id: "next", type: "p", runs: [{ text: "Next page." }] },
+  await t.test("back and next move by sentence, across passages, from the word being spoken", async () => {
+    const timings: Record<string, { start: number; end: number; from: number; to: number }[]> = {
+      "First one. First two.": [{ start: 0, end: 5, from: 0, to: .4 }, { start: 6, end: 10, from: .5, to: .9 }, { start: 11, end: 16, from: 1, to: 1.4 }, { start: 17, end: 21, from: 1.5, to: 1.9 }],
+      "Second one. Second two.": [{ start: 0, end: 6, from: 0, to: .4 }, { start: 7, end: 11, from: .5, to: .9 }, { start: 12, end: 18, from: 1, to: 1.4 }, { start: 19, end: 23, from: 1.5, to: 1.9 }],
+    };
+    t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => Response.json({ audio: btoa("audio"), words: timings[JSON.parse(init?.body as string).text] }));
+    const loaded = () => (a as unknown as { onloadedmetadata: () => void }).onloadedmetadata();
+    const book = indexArticle({ id: "sentence-test", title: "Book", blocks: [
+      { id: "s1", type: "p", runs: [{ text: "First one. First two." }] },
+      { id: "s2", type: "p", runs: [{ text: "Second one. Second two." }] },
     ] });
-    startPageListening(book, { start: { b: "heading", o: 0 }, end: { b: "second", o: 7 } }); await settle();
-    assert.deepEqual(requested, ["First.\n\nSecond."]);
-    assert.equal(useListen.getState().scope, "page");
-    seekListening(2.2);
-    assert.equal(useListen.getState().block, "second");
-    assert.equal(useListen.getState().offset, 0);
-    seekListening(.5);
-    assert.equal(useListen.getState().block, "first");
-    (a as unknown as { onended: () => void }).onended(); await settle();
-    assert.equal(useListen.getState().status, "idle");
-    assert.equal(requested.length, 1);
+    startListening(book, "s1"); await settle(); loaded();
+    a.currentTime = .6;
+    skipSentence(1);
+    assert.equal(a.currentTime, 1, "next: the second sentence");
+    skipSentence(1); await settle(); loaded();
+    assert.equal(useListen.getState().block, "s2", "next from the last sentence: the next passage");
+    assert.equal(a.currentTime, 0);
+    a.currentTime = .2;
+    skipSentence(-1); await settle(); loaded();
+    assert.equal(useListen.getState().block, "s1", "back from the first sentence: the passage before");
+    assert.equal(a.currentTime, 1, "...at its last sentence");
+    stopListening();
   });
 
-  await t.test("page preparation is bounded to two requests and cancel stops the remaining queue", async () => {
-    const pending: ((r: Response) => void)[] = [];
-    t.mock.method(globalThis, "fetch", () => new Promise<Response>(resolve => pending.push(resolve)));
-    const text = "A sentence on this page. ".repeat(160);
-    const book = indexArticle({ id: "long-page", title: "Book", blocks: [{ id: "p", type: "p", runs: [{ text }] }] });
-    startPageListening(book, { start: { b: "p", o: 0 }, end: { b: "p", o: text.length } });
-    assert.equal(pending.length, 2);
-    assert.equal(useListen.getState().status, "loading");
-    stopListening();
-    for (const resolve of pending) resolve(new Response("late audio"));
-    await settle();
-    assert.equal(pending.length, 2);
-    assert.equal(useListen.getState().status, "idle");
-    assert.equal(a.src, "");
-  });
-
-  await t.test("an image-only page does not fall through into another page", async () => {
-    let calls = 0;
-    t.mock.method(globalThis, "fetch", async () => { calls++; return new Response("audio"); });
-    startPageListening(ix, { start: { b: "p1", o: 0 }, end: { b: "p1", o: 0 } }); await settle();
-    assert.equal(calls, 0);
-    assert.equal(useListen.getState().status, "error");
-    assert.match(useListen.getState().error!, /no text/);
-    stopListening();
+  await t.test("speed steps up and down within its range", async () => {
+    useListen.setState({ rate: 1 });
+    nudgeRate(1); assert.equal(useListen.getState().rate, 1.2);
+    nudgeRate(-1); nudgeRate(-1); nudgeRate(-1); assert.equal(useListen.getState().rate, .8);
+    for (let i = 0; i < 9; i++) nudgeRate(1);
+    assert.equal(useListen.getState().rate, 2);
+    useListen.setState({ rate: 1 });
   });
 
   await t.test("cancel during preparation cannot start late audio", async () => {
