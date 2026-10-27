@@ -81,9 +81,14 @@ export function Reader({ id, initial }: { id: string; initial: Article | null })
           <GlossWordmark />
           <p className="mt-6 font-serif text-[26px] text-ink">This text is not on this device.</p>
           <p className="mt-2 text-[14px] text-ink-3">Imported texts live in the browser that imported them, or in your account when you are signed in.</p>
-          <Link href="/" className="mt-6 inline-flex h-10 items-center rounded-full bg-ink px-5 text-[14px] font-medium text-bg">
-            Back to the library
-          </Link>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link href="/" className="inline-flex h-10 items-center rounded-full bg-ink px-5 text-[14px] font-medium text-bg">
+              Back to the library
+            </Link>
+            <Link href="/backups" className="inline-flex h-10 items-center rounded-full border border-rule px-5 text-[14px] font-medium text-ink-2 hover:text-ink">
+              Restore from a backup
+            </Link>
+          </div>
         </div>
       </main>
     );
