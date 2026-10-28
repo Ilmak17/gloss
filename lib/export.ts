@@ -2,6 +2,7 @@
 
 import { ACTION_QUESTIONS, ACTIONS } from "./actions";
 import { numberBlocks, slugify, tidyTitle, undash } from "./article";
+import { isRecap } from "./recap";
 import { SAMPLES } from "./samples";
 import { loadDoc, useStore, type Gloss, type Highlight, type Point, type Turn } from "./store";
 import { zip } from "./zip";
@@ -74,6 +75,10 @@ export function notesMarkdown(meta: NotesMeta, glosses: Gloss[], highlights: Hig
       continue;
     }
     const g = e.g;
+    if (isRecap(g)) {
+      lines.push(`## Recap: ${g.reflection?.claim ?? "Chapter"}`, "", g.reflection?.takeaway?.trim() ?? "", "");
+      continue;
+    }
     const n = num(g.anchor?.start.b ?? g.at);
     lines.push(`## ${g.anchor ? ACTIONS[g.action].label : "Question"}${n ? ` (¶${n})` : ""}`);
     if (g.anchor) lines.push(`> ${g.anchor.quote.replace(/\n+/g, " ")}`, "");

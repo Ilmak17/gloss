@@ -11,6 +11,7 @@ import { useGlosses, useHighlights, useStore, type Gloss, type Highlight, type T
 import { discussionQuestion } from "@/lib/discussion-options";
 import { ACTIONS } from "@/lib/actions";
 import { notesMarkdown, pairsOf } from "@/lib/export";
+import { isRecap } from "@/lib/recap";
 import { Answer, Sources } from "./Answer";
 import { Writing } from "./Writing";
 import { useReader } from "./context";
@@ -153,7 +154,7 @@ export function Notebook() {
           <ol className="space-y-2.5">
             {shown.map((e, i) => (
               <li key={e.key} className="rise" style={{ animationDuration: "0.45s", animationDelay: `${Math.min(i, 8) * 35}ms` }}>
-                {e.kind === "hl" ? <HighlightEntry h={e.h} /> : <GlossEntry g={e.g} />}
+                {e.kind === "hl" ? <HighlightEntry h={e.h} /> : isRecap(e.g) ? <RecapEntry g={e.g} /> : <GlossEntry g={e.g} />}
               </li>
             ))}
           </ol>
@@ -204,6 +205,37 @@ function Meta({ n, label, at }: { n?: number; label?: string; at: number }) {
       {label && <span className="font-medium text-ink-2">{label}</span>}
       <span className="text-ink-4">{ago(at)}</span>
     </span>
+  );
+}
+
+/** A chapter recap: recall it before you read it again, like any thought in review. */
+function RecapEntry({ g }: { g: Gloss }) {
+  const { jumpToBlock } = useReader();
+  const setUI = useStore((s) => s.setUI);
+  const removeGloss = useStore((s) => s.removeGloss);
+  const go = () => {
+    setUI({ notebookOpen: false });
+    if (g.at) jumpToBlock(g.at);
+  };
+  return (
+    <article className="group relative rounded-[14px] border border-rule bg-bg px-4 pb-4 pt-3.5 transition-colors hover:border-rule-strong">
+      <button type="button" onClick={go} className="block w-full pr-7 text-left">
+        <Meta label="Chapter recap" at={g.createdAt} />
+        <span className="mt-2.5 block font-serif text-[16.5px] leading-[1.35] text-ink [font-variation-settings:'opsz'_24]">{g.reflection?.claim || "A chapter"}</span>
+      </button>
+      <div className="thinking-note">
+        <details>
+          <summary>Recall first · then reveal your recap</summary>
+          <p className="thinking-hint">What was the chapter’s main idea? Say it before you look.</p>
+          <p>{g.reflection?.takeaway}</p>
+        </details>
+        {g.review && !g.review.off && <p className="thinking-hint">Next recall · {new Date(g.review.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>}
+      </div>
+      <button type="button" aria-label="Delete this recap" data-tip="Delete" onClick={() => removeGloss(g.articleId, g.id)}
+        className="absolute right-2.5 top-2.5 grid size-7 place-items-center rounded-full text-ink-4 opacity-0 transition-opacity hover:bg-sunk hover:text-ink focus-visible:opacity-100 group-hover:opacity-100">
+        <Trash2 size={13} />
+      </button>
+    </article>
   );
 }
 

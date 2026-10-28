@@ -40,6 +40,8 @@ export type Settings = {
   rail: boolean;
   /** Read aloud. Off by default: when on, a listen button joins the reader's top bar. */
   listen: boolean;
+  /** A book's chapters end with a page for a recap in your own words (lib/recap.ts). */
+  recap: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -59,6 +61,7 @@ export const DEFAULT_SETTINGS: Settings = {
   numbers: false,
   rail: true,
   listen: true,
+  recap: true,
 };
 
 /** Only reading typography changes; voice, theme, typeface and column width stay personal. */

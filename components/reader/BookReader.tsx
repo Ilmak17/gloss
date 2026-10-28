@@ -38,7 +38,8 @@ import {
   uid,
 } from "@/lib/store";
 import { studyBlock } from "@/lib/study";
-import { useListen, startListening, pauseListening, resumeAfterStudy, listeningSessionId } from "@/lib/listening";
+import { useListen, startListening, pauseListening, resumeAfterStudy, listeningSessionId, holdListening } from "@/lib/listening";
+import { chapterRecap, recapChapters } from "@/lib/recap";
 import { SettingsMenu } from "@/components/ui/SettingsMenu";
 import { barBtn } from "@/components/ui/Popover";
 import { Block, type Mark } from "./Block";
@@ -59,6 +60,7 @@ import { Popover } from "@/components/ui/Popover";
 import { listeningWordStart } from "@/lib/listen-start";
 import { Lens, type OpenHighlight } from "./Lens";
 import { Peek } from "./Overlays";
+import { ChapterRecap } from "./ChapterRecap";
 import { pageDots, type ChallengeDot } from "@/lib/challenge-dots";
 
 export function BookReader({ article }: { article: Article }) {
@@ -98,6 +100,10 @@ export function BookReader({ article }: { article: Article }) {
   const [peek, setPeek] = useState<{ n: number; rect: DOMRect } | null>(null);
   const [quiet, setQuiet] = useState(true);
   const [choosingStart, setChoosingStart] = useState(false);
+  /** The chapter whose recap page is open, after its last page. */
+  const [recap, setRecap] = useState<number | null>(null);
+  /** Recaps skipped in this sitting are not asked for again. */
+  const recapDone = useRef(new Set<number>());
   const quietTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPage = useRef(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
@@ -142,6 +148,14 @@ export function BookReader({ article }: { article: Article }) {
     status = useListen((s) => s.status),
     follow = useListen((s) => s.follow);
   const blocks = chapters[chapter]?.blocks ?? [];
+  const recapEligible = useMemo(() => new Set(recapChapters(article, chapters)), [article, chapters]);
+  const chapterOf = useMemo(() => new Map(chapters.flatMap((c, i) => c.blocks.map((b) => [b.id, i] as const))), [chapters]);
+  const wantsRecap = useCallback((i: number) =>
+    settings.recap !== false && recapEligible.has(i) && i < chapters.length - 1 &&
+    !recapDone.current.has(i) && !chapterRecap(glosses, chapters[i]),
+  [settings.recap, recapEligible, chapters, glosses]);
+  const wantsRecapNow = useRef(wantsRecap);
+  useLayoutEffect(() => { wantsRecapNow.current = wantsRecap; });
   const bookmarkKey = `gloss:bookmarks:${article.id}`;
   const pinnedNoteKey = `gloss:pinned-note:${article.id}`;
   useEffect(() => {
@@ -309,10 +323,32 @@ export function BookReader({ article }: { article: Article }) {
     useListen.setState({ follow: true });
     go({ b: block, o: offset }, false);
   };
+  /** Into the next chapter from its start, as a page turn. */
+  const enterChapter = useCallback((i: number, direction: number) => {
+    turnDirection.current = direction;
+    point.current = { b: chapters[i].blocks[0].id, o: 0 };
+    lastPage.current = direction < 0;
+    setChapter(i);
+  }, [chapters]);
+  /** Leaving the recap page, saved or skipped: on to the next chapter, and the voice too if it waited. */
+  const finishRecap = useCallback(() => {
+    if (recap === null) return;
+    recapDone.current.add(recap);
+    setRecap(null);
+    if (useListen.getState().held) useListen.setState({ follow: true });
+    enterChapter(recap + 1, 1);
+    resumeAfterStudy();
+  }, [recap, enterChapter]);
   const turn = useCallback(
     (direction: number) => {
       const vp = viewport.current;
       if (!vp || !blocks.length) return;
+      if (recap !== null) {
+        // Forward skips the recap; back returns to the chapter's last page.
+        if (direction > 0) finishRecap();
+        else setRecap(null);
+        return;
+      }
       if (useListen.getState().status !== "idle")
         useListen.setState({ follow: false });
       const next = page + direction;
@@ -326,14 +362,36 @@ export function BookReader({ article }: { article: Article }) {
       } else {
         const nextChapter = chapter + direction;
         if (nextChapter < 0 || nextChapter >= chapters.length) return;
-        turnDirection.current = direction;
-        point.current = { b: chapters[nextChapter].blocks[0].id, o: 0 };
-        lastPage.current = direction < 0;
-        setChapter(nextChapter);
+        if (direction > 0 && wantsRecap(chapter)) {
+          pauseListening(true);
+          setRecap(chapter);
+          return;
+        }
+        enterChapter(nextChapter, direction);
       }
     },
-    [page, pages, chapter, chapters, blocks, persist],
+    [page, pages, chapter, chapters, blocks, persist, recap, finishRecap, wantsRecap, enterChapter],
   );
+  // The voice stops by itself at the end of a chapter that asks for a recap, and opens it.
+  useEffect(() => {
+    holdListening((from, to) => {
+      const a = chapterOf.get(from), b = chapterOf.get(to);
+      return a !== undefined && b !== undefined && a !== b && wantsRecapNow.current(a);
+    });
+    return () => holdListening(null);
+  }, [chapterOf]);
+  const held = useListen((s) => s.held);
+  useEffect(() => {
+    if (!held) return;
+    const i = chapterOf.get(held);
+    if (i !== undefined) setRecap(i);
+  }, [held, chapterOf]);
+  // Played on from the recap page (a media key, Space): the recap is skipped.
+  useEffect(() => {
+    if (recap === null || status !== "playing") return;
+    recapDone.current.add(recap);
+    setRecap(null);
+  }, [recap, status]);
   useEffect(() => {
     const vp = viewport.current;
     if (!vp) return;
@@ -467,7 +525,7 @@ export function BookReader({ article }: { article: Article }) {
   );
   const totalPages = pageCounts?.reduce((sum,n) => sum+n,0);
   const globalPage = pageCounts ? pageCounts.slice(0,chapter).reduce((sum,n)=>sum+n,0) + page + 1 : null;
-  const pagesLeft = page >= pages - 1 ? "last page" : `${pages - page - 1} ${pages - page - 1 === 1 ? "page" : "pages"} left`;
+  const pagesLeft = recap !== null ? "your recap" : page >= pages - 1 ? "last page" : `${pages - page - 1} ${pages - page - 1 === 1 ? "page" : "pages"} left`;
   const noteTarget = footnote ? article.epub?.targets[footnote] : null;
   const noteStart = noteTarget ? article.blocks.findIndex(b=>b.id===noteTarget.block) : -1;
   const explicitEnd = noteTarget?.endBlock ? article.blocks.findIndex(b=>b.id===noteTarget.endBlock) : -1;
@@ -533,7 +591,7 @@ export function BookReader({ article }: { article: Article }) {
             </button>
           </nav>
         </header>
-        <main className="book-stage">
+        <main className={`book-stage${recap !== null ? " has-recap" : ""}`}>
           <div
             className="book-viewport"
             ref={viewport}
@@ -626,6 +684,8 @@ export function BookReader({ article }: { article: Article }) {
               style={{ left: d.left, top: d.top }} aria-label="Reopen your challenge" title="Your challenge"
               onClick={() => setUI({ activeGloss: d.id, activeHighlight: null })} />)}
           </div>
+          {recap !== null && chapters[recap] && <ChapterRecap key={recap} articleId={article.id} book={article.title}
+            chapter={chapters[recap]} saved={chapterRecap(glosses, chapters[recap])} onDone={finishRecap} />}
         </main>
         {root && viewport.current && <BookPagination chapters={chapters} lang={lang} viewport={viewport.current} layoutKey={JSON.stringify(settings)} onCounts={setPageCounts} />}
         {noteTarget && <BookFootnote blocks={noteBlocks} onClose={closeNote} onLink={key=>{

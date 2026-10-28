@@ -21,6 +21,7 @@ import { Arrivals, type Wave } from "./Arrivals";
 import { Glyph } from "./Book";
 import { BookOpen, type Origin } from "./BookOpen";
 import { TopicGrid, TopicPage } from "./Topics";
+import { DailyThought } from "@/components/landing/DailyThought";
 
 type View = "shelf" | "topics";
 
@@ -308,6 +309,8 @@ export function Library() {
                 {fromAgent.length} new from your agent since you last looked
               </button>
             )}
+            {/* A chapter recap or a thought kept for later, when one is due: recalled before reading on. */}
+            {hydrated && <div className="lib-review"><DailyThought /></div>}
           </section>
         )}
 

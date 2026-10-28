@@ -2,6 +2,7 @@
 
 import type { Action } from "./actions";
 import type { DocIndex } from "./doc";
+import { isRecap } from "./recap";
 import { uid, useStore, type Anchor, type Gloss } from "./store";
 
 export const STUDY_QUESTIONS: Record<Action, string> = {
@@ -18,7 +19,7 @@ export const STUDY_QUESTIONS: Record<Action, string> = {
 export function startStudy(ix: DocIndex, opts: { anchor?: Anchor; at?: string; action: Action; question?: string }): string {
   const st = useStore.getState();
   const existing = [...(st.glosses[ix.article.id] ?? [])].reverse().find(g =>
-    g.destination === "codex" && g.action === opts.action &&
+    g.destination === "codex" && !isRecap(g) && g.action === opts.action &&
     g.at === opts.at && JSON.stringify(g.anchor) === JSON.stringify(opts.anchor) &&
     (opts.question === undefined || g.question === opts.question));
   st.setUI({ focusMode: false, notebookOpen: false });

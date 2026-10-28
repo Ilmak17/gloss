@@ -2102,3 +2102,7 @@ button.starter-card:active {
   .reading-action { display: none; }
   .reading-details { margin-right: 8px; }
 }
+
+/* A recap or thought due for recall sits under the title, before the shelf. */
+.lib-review:empty { display: none; }
+.lib-review .desk { max-width: 720px; margin: 28px 0 4px; padding: 0; }

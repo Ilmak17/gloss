@@ -17,7 +17,8 @@ import { readVoiceSettings } from "./voice-settings";
  */
 
 type Status = "idle" | "loading" | "playing" | "paused" | "error";
-type ListenState = { status: Status; block: string | null; offset: number; rate: number; elapsed: number; duration: number; studyPaused: boolean; follow: boolean; error?: string; needKey?: boolean; cache?: string };
+/** `held`: the voice stopped by itself at a boundary the reader asked for (holdListening), after this block. */
+type ListenState = { status: Status; block: string | null; offset: number; rate: number; elapsed: number; duration: number; studyPaused: boolean; follow: boolean; held: string | null; error?: string; needKey?: boolean; cache?: string };
 
 /** What is read aloud: prose and its headings. Pictures, tables and code are left to the eye. */
 const SPOKEN_BLOCKS = new Set<Block["type"]>(["h2", "h3", "p", "quote", "li", "note"]);
@@ -26,7 +27,7 @@ const RATES = [.8, 1, 1.2, 1.4, 1.7, 2];
 const AHEAD = 2;
 const RATE_KEY = "gloss:listen-rate";
 
-export const useListen = create<ListenState>(() => ({ status: "idle", block: null, offset: 0, rate: 1, elapsed: 0, duration: 0, studyPaused: false, follow: true }));
+export const useListen = create<ListenState>(() => ({ status: "idle", block: null, offset: 0, rate: 1, elapsed: 0, duration: 0, studyPaused: false, follow: true, held: null }));
 
 
 /** A few hundred milliseconds of silence, played inside the click so phones let the voice play later. */
@@ -58,6 +59,7 @@ let activeWords: TimedWord[] = [];
 let activeSentences: number[] = [];
 let wantedPaused = false;
 let studySession: number | null = null;
+let holdBetween: ((from: string, to: string) => boolean) | null = null;
 let highlightFrame = 0;
 let lastHighlight = "";
 let lastSentence = "";
@@ -204,7 +206,11 @@ function beginPlayback(ix: DocIndex) {
   audio.onpause = () => cancelAnimationFrame(highlightFrame);
   audio.onerror = () => useListen.setState({ status: "error", error: "This audio could not be played. Try again." });
   // Only a spoken clip ending moves on; the unlocking silence ending must not.
-  audio.onended = () => audio?.src.startsWith("blob:") && void playAt(idx + 1, session);
+  audio.onended = () => {
+    if (!audio?.src.startsWith("blob:")) return;
+    holdAtBoundary();
+    void playAt(idx + 1, session);
+  };
   // Unlock playback inside the click: later clips arrive after an await.
   audio.src = silence();
   audio.play().catch(() => {});
@@ -224,6 +230,25 @@ function beginPlayback(ix: DocIndex) {
     navigator.mediaSession.setActionHandler("nexttrack", () => skipSentence(1));
   }
   void playAt(0, s);
+}
+
+/**
+ * Asks the voice to stop by itself between two blocks, such as at the end of a
+ * chapter; null lifts it. The next passage is still made ready, paused, and
+ * continuing after the stop (resumeAfterStudy) begins it.
+ */
+export function holdListening(between: ((from: string, to: string) => boolean) | null) {
+  holdBetween = between;
+}
+
+function holdAtBoundary() {
+  const from = items[idx]?.block, to = items[idx + 1]?.block;
+  if (!from || !to || from === to || !holdBetween?.(from, to)) return;
+  wantedPaused = true;
+  studySession = session;
+  audio?.pause();
+  // Paused from this moment, so nothing follows the voice into the next chapter before the reader is done.
+  useListen.setState({ status: "paused", studyPaused: true, held: from });
 }
 
 export function stopListening() {
@@ -253,7 +278,7 @@ export function stopListening() {
   clips.clear();
   prefetched.clear();
   items = [];
-  useListen.setState({ status: "idle", block: null, offset: 0, elapsed: 0, duration: 0, studyPaused: false, error: undefined, needKey: false, cache: undefined });
+  useListen.setState({ status: "idle", block: null, offset: 0, elapsed: 0, duration: 0, studyPaused: false, held: null, error: undefined, needKey: false, cache: undefined });
 }
 
 /** Pause is idempotent, including while the first clip is still being fetched. */
@@ -272,7 +297,7 @@ export function resumeListening() {
   if (!audio || (status !== "paused" && status !== "loading")) return;
   wantedPaused = false;
   studySession = null;
-  useListen.setState({ studyPaused: false });
+  useListen.setState({ studyPaused: false, held: null });
   if (status === "loading") return;
   const s = session;
   audio.play().then(() => {

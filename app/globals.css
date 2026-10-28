@@ -2288,6 +2288,34 @@ a.desk-tile:focus-visible {
   .margin-note-chip-label { display:none; }
 }
 
+/* The recap page after a chapter: its own page, with the chapter out of sight. */
+.book-stage.has-recap .book-viewport, .book-stage.has-recap .challenge-dots { visibility:hidden; }
+.book-recap { position:absolute; inset:0; z-index:5; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; background:var(--bg); animation:fade .24s var(--ease-out) both; }
+.book-recap-inner { min-height:100%; display:flex; flex-direction:column; justify-content:center; padding:24px 0 32px; }
+.book-recap-kicker { font-size:11px; font-weight:500; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); text-align:center; }
+.book-recap-chapter { margin:10px 0 40px; font-family:var(--font-serif); font-size:calc(var(--read-size) * 1.35); font-weight:450; line-height:1.2; letter-spacing:-.015em; text-align:center; text-wrap:balance; }
+.book-recap-question { display:block; font-family:var(--font-book); font-size:var(--read-size); line-height:1.4; color:var(--ink); }
+.book-recap-hint { margin-top:4px; font-size:13px; line-height:1.5; color:var(--ink-3); }
+.book-recap textarea#book-recap-text { display:block; width:100%; min-height:calc(4 * 1.6em); max-height:40dvh; margin-top:18px; padding:0 0 6px; resize:none; border:0; border-radius:0; background:transparent;
+  font-family:var(--font-book); font-size:calc(var(--read-size) * .85); line-height:1.6; color:var(--ink);
+  background-image:linear-gradient(to bottom, transparent calc(1.6em - 1px), var(--rule) calc(1.6em - 1px)); background-size:100% 1.6em; background-attachment:local; }
+.book-recap textarea#book-recap-text::placeholder { color:var(--ink-4); }
+.book-recap textarea#book-recap-text:focus { outline:none; }
+.book-recap-actions { display:flex; align-items:center; gap:14px; margin-top:24px; }
+.book-recap-gap { flex:1; }
+.book-recap-copy { display:inline-flex; align-items:center; gap:7px; min-height:40px; font-size:12.5px; color:var(--ink-2); }
+.book-recap-copy:hover:not(:disabled) { color:var(--ink); text-decoration:underline; text-underline-offset:4px; }
+.book-recap-copy:disabled { opacity:.4; cursor:not-allowed; }
+.book-recap-status { margin-top:10px; min-height:18px; font-size:12px; color:var(--ink-3); }
+.book-recap-packet { margin-top:12px; font-size:12px; color:var(--ink-2); }
+.book-recap-packet textarea { display:block; width:100%; margin-top:6px; padding:8px 10px; border:1px solid var(--rule); border-radius:8px; background:var(--bg-raised); font:12px/1.5 var(--font-sans); color:var(--ink-2); resize:vertical; }
+@media (max-width: 640px) {
+  .book-recap-chapter { margin-bottom:28px; }
+  .book-recap-actions { flex-wrap:wrap; gap:8px 14px; }
+  .book-recap-copy { order:3; width:100%; }
+}
+@media (prefers-reduced-motion: reduce) { .book-recap { animation:none; } }
+
 /* Book images use the available page, and open without disturbing text pagination. */
 .fig-trigger { display:block; width:fit-content; max-width:100%; margin-inline:auto; padding:0; border:0; background:none; color:inherit; }
 button.fig-trigger { cursor:zoom-in; border-radius:2px; }

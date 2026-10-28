@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowUpRight } from "lucide-react";
+import { isRecap } from "@/lib/recap";
 import { keepInRotation, retire, todaysThoughts } from "@/lib/review";
 import { useStore } from "@/lib/store";
 import { Desk } from "./Desk";
@@ -18,14 +19,16 @@ export function DailyThought() {
   if (!pick) return null;
   const title = library.find(b => b.id === pick.articleId)?.title ?? "Your book";
   const open = revealed === pick.id;
-  return <Desk label="A thought to revisit">
+  // A chapter recap asks for the chapter's main idea; any other thought, whether it still holds.
+  const recap = isRecap(pick);
+  return <Desk label={recap ? "A chapter to recall" : "A thought to revisit"}>
     <article className="thought-review">
       <p className="thought-book">{title}</p>
-      <h2>Does this idea still hold up?</h2>
+      <h2>{recap ? "What was the main idea of this chapter?" : "Does this idea still hold up?"}</h2>
       <p className="thought-review-claim">{pick.reflection?.claim || pick.anchor?.quote || "Recall the idea you discussed."}</p>
-      {!open ? <><p className="thought-lead">Recall your conclusion. Can you find a new example?</p><button type="button" className="thought-primary" onClick={() => setRevealed(pick.id)}>Reveal my takeaway</button></> : <>
-        <div className="thought-review-answer"><span>Your earlier conclusion</span><p>{pick.reflection?.takeaway}</p>{pick.reflection?.openQuestion && <><span>Still unresolved</span><p>{pick.reflection.openQuestion}</p></>}</div>
-        <div className="thought-actions"><button type="button" className="thought-back" onClick={() => update(pick.articleId, pick.id, g => ({ ...g, review: retire(g) }))}>Done with this thought</button><button type="button" className="thought-primary" onClick={() => update(pick.articleId, pick.id, g => ({ ...g, review: keepInRotation(g) }))}>Revisit later</button></div>
+      {!open ? <><p className="thought-lead">{recap ? "Say it in your own words, then compare with your recap." : "Recall your conclusion. Can you find a new example?"}</p><button type="button" className="thought-primary" onClick={() => setRevealed(pick.id)}>{recap ? "Reveal my recap" : "Reveal my takeaway"}</button></> : <>
+        <div className="thought-review-answer"><span>{recap ? "Your recap" : "Your earlier conclusion"}</span><p>{pick.reflection?.takeaway}</p>{pick.reflection?.openQuestion && <><span>Still unresolved</span><p>{pick.reflection.openQuestion}</p></>}</div>
+        <div className="thought-actions"><button type="button" className="thought-back" onClick={() => update(pick.articleId, pick.id, g => ({ ...g, review: retire(g) }))}>{recap ? "I know this one" : "Done with this thought"}</button><button type="button" className="thought-primary" onClick={() => update(pick.articleId, pick.id, g => ({ ...g, review: keepInRotation(g) }))}>Revisit later</button></div>
       </>}
       <Link className="thought-book-link" href={`/read/${pick.articleId}`}>Read the book <ArrowUpRight size={14} /></Link>
     </article>

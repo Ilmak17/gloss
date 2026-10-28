@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { indexArticle } from "../lib/doc";
-import { listeningSessionId, nudgeRate, pauseListening, resumeAfterStudy, resumeListening, seekListening, skipSentence, startListening, stopListening, useListen } from "../lib/listening";
+import { holdListening, listeningSessionId, nudgeRate, pauseListening, resumeAfterStudy, resumeListening, seekListening, skipSentence, startListening, stopListening, useListen } from "../lib/listening";
 
 test("study interruptions preserve audio and cannot revive an obsolete session", async t => {
   class FakeAudio {
@@ -164,6 +164,47 @@ test("study interruptions preserve audio and cannot revive an obsolete session",
     assert.equal(useListen.getState().block, "s1", "back from the first sentence: the passage before");
     assert.equal(a.currentTime, 1, "...at its last sentence");
     stopListening();
+  });
+
+  await t.test("the voice waits at a chapter's end when asked, and goes on after the recap", async () => {
+    const requested: string[] = [];
+    t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
+      requested.push(JSON.parse(init?.body as string).text);
+      return new Response("test audio");
+    });
+    const book = indexArticle({ id: "hold-test", title: "Book", blocks: [
+      { id: "one-h", type: "h2", runs: [{ text: "Chapter one" }] },
+      { id: "one-p", type: "p", runs: [{ text: "Its text." }] },
+      { id: "two-h", type: "h2", runs: [{ text: "Chapter two" }] },
+      { id: "two-p", type: "p", runs: [{ text: "More text." }] },
+    ] });
+    const ended = async () => { (a as unknown as { onended: () => void }).onended(); await settle(); };
+    holdListening((from, to) => from === "one-p" && to === "two-h");
+    try {
+      startListening(book, "one-h"); await settle();
+      await ended();
+      assert.equal(useListen.getState().held, null, "within a chapter the voice reads on");
+      assert.equal(useListen.getState().status, "playing");
+      // The next chapter's title is already prepared, so nothing has to load before it could play.
+      a.currentTime = .3;
+      (a as unknown as { ontimeupdate: () => void }).ontimeupdate(); await settle();
+      (a as unknown as { onended: () => void }).onended();
+      assert.equal(useListen.getState().status, "paused", "stopped at once, before anything could follow the voice on");
+      await settle();
+      assert.equal(useListen.getState().status, "paused");
+      assert.equal(useListen.getState().held, "one-p", "it says where it stopped");
+      assert.equal(a.paused, true);
+      resumeAfterStudy(); await settle();
+      assert.equal(useListen.getState().status, "playing");
+      assert.equal(useListen.getState().held, null);
+      assert.equal(useListen.getState().block, "two-h", "the next chapter begins at its title");
+      await ended();
+      assert.equal(useListen.getState().status, "playing", "a chapter's own paragraphs never hold");
+      assert.deepEqual(requested, ["Chapter one", "Its text.", "Chapter two", "More text."]);
+    } finally {
+      holdListening(null);
+      stopListening();
+    }
   });
 
   await t.test("speed steps up and down within its range", async () => {
