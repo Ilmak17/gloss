@@ -1,8 +1,9 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdir, readFile, writeFile, rename, readdir, lstat } from "node:fs/promises";
-import { join } from "node:path";
-import { parseBackup } from "./backup-format";
+import { dirname, join } from "node:path";
+import { joinBackup, onlyReadingMoved, parseBackup, parseIndex, splitBackup, type Backup, type IndexData } from "./backup-format";
+import { BACKUP_README } from "./backup-readme";
 
 const exec = promisify(execFile);
 const root = () => join(process.cwd(), ".data", "github-backup");
@@ -21,13 +22,53 @@ export async function backupStatus() {
   const status = JSON.parse(await readFile(statusPath(), "utf8").catch(() => "{}"));
   return { enabled: !!backupRepository(), repository: backupRepository(), ...status };
 }
+/** A reading position alone is committed at most this often. */
+const READING_EVERY = 60 * 60;
+
+/** What the repository holds now, in either layout: the index since books were split out, one file before. */
+async function previousBackup(): Promise<{ data: Omit<IndexData, "books">; split: boolean } | null> {
+  const prior = await readFile(join(root(), "backup.json"), "utf8").catch(() => "");
+  if (!prior) return null;
+  const json = JSON.parse(prior);
+  if (json?.version === 2) return { data: (await parseIndex(json)).data, split: true };
+  return { data: (await parseBackup(json)).data, split: false };
+}
+
+/** Written only when its bytes change, so an unchanged book never shows up in a commit. */
+async function writeIfChanged(path: string, bytes: Uint8Array) {
+  const target = join(root(), path);
+  const current = await readFile(target).catch(() => null);
+  if (current && Buffer.compare(current, bytes) === 0) return;
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target + ".tmp", bytes, { mode: 0o600 });
+  await rename(target + ".tmp", target);
+}
+
+/** The repository's files put back together, for Restore from GitHub backup. */
+export async function loadGitBackup(): Promise<Backup> {
+  const json = JSON.parse(await readFile(join(root(), "backup.json"), "utf8"));
+  if (json?.version !== 2) return parseBackup(json);
+  return joinBackup(json, async path => readFile(join(root(), path)).then(b => new Uint8Array(b)).catch(() => null));
+}
+
 let busy = false;
-export async function saveGitBackup(input: unknown) {
+/** `now`: asked for by the reader. Otherwise a reading position alone waits until the last commit is an hour old. */
+export async function saveGitBackup(input: unknown, { now = false } = {}) {
   if (busy) throw new Error("Another backup is running. Retry shortly.");
   busy = true;
   try {
     const backup = await parseBackup(input);
     if (!backup.data.docs.length) throw new Error("Empty libraries are not uploaded automatically.");
+    const previous = await previousBackup();
+    if (previous) {
+      // Avoid stale/empty browser profiles accidentally discarding the saved library.
+      const incoming = new Set(backup.data.state.library.map(x => x.id));
+      if (previous.data.state.library.some(x => !incoming.has(x.id))) throw new Error("This browser is missing backed-up books. Restore the backup before replacing it.");
+      if (!now && previous.split && onlyReadingMoved(previous.data, backup.data)) {
+        const last = Number(await run("git", ["log", "-1", "--format=%ct"]).catch(() => "0"));
+        if (Date.now() / 1000 - last < READING_EVERY) return { ...(await backupStatus()), skipped: true };
+      }
+    }
     const repo = backupRepository();
     // Verify privacy every time. Refuse to publish personal texts after a visibility change.
     const info = JSON.parse(await run("gh", ["repo", "view", repo, "--json", "isPrivate,nameWithOwner"], process.cwd()));
@@ -36,16 +77,10 @@ export async function saveGitBackup(input: unknown) {
     if (remote !== `https://github.com/${repo}.git`) throw new Error("The backup checkout points to a different repository.");
     const branch = await run("git", ["branch", "--show-current"]);
     if (branch !== "main") throw new Error("The backup checkout must be on main.");
-    const prior = await readFile(join(root(), "backup.json"), "utf8").catch(() => "");
-    if (prior) {
-      const previous = await parseBackup(JSON.parse(prior));
-      // Avoid stale/empty browser profiles accidentally discarding the saved library.
-      const incoming = new Set(backup.data.state.library.map(x => x.id));
-      if (previous.data.state.library.some(x => !incoming.has(x.id))) throw new Error("This browser is missing backed-up books. Restore the backup before replacing it.");
-    }
-    const tmp = join(root(), "backup.json.tmp");
-    await writeFile(tmp, JSON.stringify(backup, null, 2) + "\n", { mode: 0o600 });
-    await rename(tmp, join(root(), "backup.json"));
+    const split = await splitBackup(backup);
+    for (const file of split.files) await writeIfChanged(file.path, file.bytes);
+    await writeIfChanged("backup.json", new TextEncoder().encode(JSON.stringify(split.index, null, 2) + "\n"));
+    await writeIfChanged("README.md", new TextEncoder().encode(BACKUP_README));
     const audioDir = process.env.GLOSS_AUDIO_CACHE_DIR || join(process.cwd(), ".data", "audio");
     await mkdir(join(root(), "audio"), { recursive: true });
     const files = await readdir(/* turbopackIgnore: true */ audioDir).catch(() => []);
@@ -60,9 +95,10 @@ export async function saveGitBackup(input: unknown) {
       await writeFile(join(root(), "audio", name), JSON.stringify({ audio: clip.audio, words: clip.words, mimeType: clip.mimeType }));
       audio++;
     }
-    await run("git", ["add", "--", "backup.json", "audio"]);
+    await run("git", ["add", "--", "backup.json", "books", "audio", "README.md"]);
     if (await run("git", ["diff", "--cached", "--name-only"])) {
-      await run("git", ["commit", "-m", `Back up library (${backup.data.state.library.length} texts)`]);
+      const n = backup.data.state.library.length;
+      await run("git", ["commit", "-m", `Back up library (${n} ${n === 1 ? "text" : "texts"})`]);
     }
     await run("git", ["push", "origin", "main"]);
     const commit = await run("git", ["rev-parse", "HEAD"]);

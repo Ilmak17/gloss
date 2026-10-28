@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { collectBackup, pushBackup, restoreBackup } from "@/lib/backup-client";
+import { collectBackup, fetchGitBackup, pushBackup, restoreBackup } from "@/lib/backup-client";
 import { parseBackup, type Backup } from "@/lib/backup-format";
 import { download } from "@/lib/export";
 import { useStore } from "@/lib/store";
@@ -33,12 +33,17 @@ export default function BackupsPage() {
       <h2 className="text-xl">Private GitHub backup</h2>
       {status.repository && <a className="mt-2 block text-sm underline" href={`https://github.com/${status.repository}`} target="_blank" rel="noreferrer">{status.repository}</a>}
       <p className="mt-4 text-sm text-ink-2">{status.at ? `Last verified upload: ${new Date(status.at).toLocaleString()}. ${status.texts ?? 0} ${status.texts === 1 ? "text" : "texts"} · ${status.audio ?? 0} audio clips.` : "No verified upload yet."}</p>
-      <p className="mt-2 text-sm text-ink-3">After the first backup, saves every 5 minutes while Gloss is open and visible. Cached narration is included. Git keeps previous versions.</p>
+      <p className="mt-2 text-sm text-ink-3">After the first backup, one open tab saves every 5 minutes while Gloss is visible. New notes are saved right away; a reading position alone, at most once an hour. Each book is stored once, in its own files. Cached narration is included. Git keeps previous versions.</p>
       {status.error && <p role="alert" className="mt-3">{status.error}</p>}
       <button disabled={busy || !status.enabled} className="mt-5 rounded-full bg-ink px-5 py-2 text-bg disabled:opacity-40" onClick={() => void act(async () => {
-        const result = await pushBackup();
+        const result = await pushBackup(true);
         return `Backed up and verified on GitHub · ${result.commit.slice(0, 7)}`;
       })}>{busy ? "Working…" : "Back up now"}</button>
+      {status.enabled && <button disabled={busy} className="mt-3 ml-3 rounded-full border border-rule px-4 py-2" onClick={() => void act(async () => {
+        setPending(null);
+        setPending(await fetchGitBackup());
+        return "GitHub backup read and checked. Review the restore below.";
+      })}>Restore from GitHub backup</button>}
       {!status.enabled && <p className="mt-3 text-sm">GitHub backup is not configured on this computer. You can still download and restore a local copy.</p>}
     </section>
     <section className="mt-6 rounded-2xl border border-rule p-6">

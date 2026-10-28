@@ -377,6 +377,28 @@ export const useStore = create<State>((set, get) => ({
     }),
 }));
 
+/** Writes this tab's pending changes now, instead of after the usual pause. */
+let flushSaved = () => {};
+
+/**
+ * What this browser has saved: the same in every tab. A tab's own copy in
+ * memory can be older (a window left open since yesterday), so a backup is
+ * taken from here, after this tab's own pending changes are written.
+ */
+export function savedState(): Persisted & { settings: Settings } {
+  flushSaved();
+  let data: Partial<Persisted> = {}, settings: Partial<Settings> = {};
+  try {
+    data = JSON.parse(localStorage.getItem(KEY) || "{}");
+    settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+  } catch {}
+  return {
+    glosses: data.glosses ?? {}, highlights: data.highlights ?? {}, briefs: data.briefs ?? {},
+    progress: data.progress ?? {}, library: data.library ?? [],
+    settings: { ...DEFAULT_SETTINGS, ...settings, model: modelOf(settings.model) },
+  };
+}
+
 /* Debounced persistence. Streaming updates land many times a second, so the
    write waits for a pause rather than serializing on every token. */
 if (typeof window !== "undefined") {
@@ -387,6 +409,7 @@ if (typeof window !== "undefined") {
     const { glosses, highlights, briefs, progress, library } = useStore.getState();
     try { localStorage.setItem(KEY, JSON.stringify({ glosses, highlights, briefs, progress, library })); } catch {}
   };
+  flushSaved = flush;
   window.addEventListener("pagehide", flush);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); });
   useStore.subscribe((st, prev) => {

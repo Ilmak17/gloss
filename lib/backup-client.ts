@@ -1,6 +1,6 @@
 "use client";
 import { makeBackup, parseBackup, safeSettings, mergeReadingState, type Backup, type BackupData } from "./backup-format";
-import { loadDoc, loadPdf, useStore, restoreDocuments } from "./store";
+import { loadDoc, loadPdf, useStore, restoreDocuments, savedState } from "./store";
 import { readVoiceSettings, saveVoiceSettings } from "./voice-settings";
 import { SAMPLES } from "./samples";
 import { applySettings } from "./settings";
@@ -12,9 +12,10 @@ async function encode(file: Blob): Promise<string> {
   return btoa(s);
 }
 export async function collectBackup(): Promise<Backup> {
-  const st = useStore.getState();
-  if (!st.hydrated) throw new Error("The library is still loading.");
-  const state = structuredClone({ library: st.library, glosses: st.glosses, highlights: st.highlights, briefs: st.briefs, progress: st.progress });
+  if (!useStore.getState().hydrated) throw new Error("The library is still loading.");
+  // From what the browser saved, not this tab's memory: every open tab then sends the same library.
+  const st = savedState();
+  const state = { library: st.library, glosses: st.glosses, highlights: st.highlights, briefs: st.briefs, progress: st.progress };
   const ids = [...new Set([...state.library.map(x => x.id), ...Object.keys(state.glosses), ...Object.keys(state.highlights), ...Object.keys(state.progress)])].sort();
   const docs: BackupData["docs"] = [], originals: BackupData["originals"] = [], bookmarks: BackupData["bookmarks"] = {};
   for (const id of ids) {
@@ -73,15 +74,25 @@ export async function restoreBackup(input: unknown) {
   return docs.length;
 }
 
-let running: Promise<{ at: string; commit: string; repository: string; audio: number }> | null = null;
-export function pushBackup() {
+export type PushResult = { at: string; commit: string; repository: string; audio: number; skipped?: boolean };
+let running: Promise<PushResult> | null = null;
+/** `now`: asked for by the reader, so even a reading position alone is committed. */
+export function pushBackup(now = false) {
   if (running) return running;
   running = (async () => {
     const snapshot = await collectBackup();
-    const res = await fetch("/api/backup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(snapshot) });
+    const res = await fetch("/api/backup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ snapshot, now }) });
     const result = await res.json();
     if (!res.ok) throw new Error(result.error ?? "Backup failed.");
     return result;
   })().finally(() => { running = null; });
   return running;
+}
+
+/** The GitHub backup on this computer, put back together for restoring. */
+export async function fetchGitBackup(): Promise<Backup> {
+  const res = await fetch("/api/backup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restore: true }) });
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error ?? "The GitHub backup could not be read.");
+  return parseBackup(result);
 }
