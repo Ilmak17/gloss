@@ -9,6 +9,8 @@ export const TTS_MODEL = "cartesia/sonic-3";
 export const TTS_VOICE = "26403c37-80c1-4a1a-8692-540551ca2ae5";
 /** One request's worth of text. Paragraphs past this are split at sentence ends. */
 export const TTS_MAX_CHARS = 1200;
+/** Text read per request: short enough that the first words arrive within seconds. */
+export const PASSAGE_CHARS = 600;
 
 export const KOKORO_MODEL = "hexgrad/Kokoro-82M";
 export const KOKORO_URL = `https://api.deepinfra.com/v1/inference/${KOKORO_MODEL}`;
@@ -29,18 +31,20 @@ export const KOKORO_VOICES = [
  */
 export const SPEKO_URL = "https://api.speko.dev/v1";
 export const SPEKO_RATE = 24000;
-export const SPEKO_TRANSCRIBER = "google:gemini-3.5-transcribe";
+/** Times the spoken words; Speko honours this pin, and it answers in about two seconds. */
+export const SPEKO_TRANSCRIBER = "deepgram:nova-3";
 /**
  * Narrators chosen for long reading. `voice` and `model` are the vendor's own ids.
- * Orpheus, Marian and Archie stay steady and repeatable over long reads in Speko's
- * measurements; Orpheus leads as the male narrator on the highest-rated model of the three.
+ * ElevenLabs reads on Multilingual v2, its model for audiobooks: about three times
+ * faster to make than v3, so a passage starts in seconds. The others stay steady and
+ * repeatable over long reads in Speko's measurements.
  */
 export const SPEKO_VOICES = [
+  { id: "george", label: "George · warm British storyteller · ElevenLabs", provider: "elevenlabs", model: "eleven_multilingual_v2", voice: "JBFqnCBsd6RMkjVDRZzb" },
+  { id: "brian", label: "Brian · deep American narrator · ElevenLabs", provider: "elevenlabs", model: "eleven_multilingual_v2", voice: "nPczCjzI2devNBz1zQrb" },
   { id: "orpheus", label: "Orpheus · male narrator, steady over long reads · Deepgram", provider: "deepgram", model: "aura-2", voice: "aura-2-orpheus-en" },
-  { id: "marian", label: "Marian · calm female narrator, steady over long reads · Cartesia", provider: "cartesia", model: "sonic-3.5", voice: "26403c37-80c1-4a1a-8692-540551ca2ae5" },
   { id: "archie", label: "Archie · British male, steady over long reads · Cartesia", provider: "cartesia", model: "sonic-3.5", voice: "ef191366-f52f-447a-a398-ed8c0f2943a1" },
-  { id: "george", label: "George · warm storyteller · ElevenLabs v3", provider: "elevenlabs", model: "eleven_v3", voice: "JBFqnCBsd6RMkjVDRZzb" },
-  { id: "brian", label: "Brian · deep, comforting · ElevenLabs v3", provider: "elevenlabs", model: "eleven_v3", voice: "nPczCjzI2devNBz1zQrb" },
+  { id: "marian", label: "Marian · calm female narrator, steady over long reads · Cartesia", provider: "cartesia", model: "sonic-3.5", voice: "26403c37-80c1-4a1a-8692-540551ca2ae5" },
   { id: "draco", label: "Draco · British baritone · Deepgram", provider: "deepgram", model: "aura-2", voice: "aura-2-draco-en" },
 ] as const;
 export const SPEKO_VOICE = SPEKO_VOICES[0].id;

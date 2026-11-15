@@ -7,6 +7,7 @@ import type { Block } from "./article";
 import { readApiKey } from "./ask";
 import type { DocIndex } from "./doc";
 import { sentenceStarts, sentenceStep, speechChunks, type TimedWord } from "./speech";
+import { PASSAGE_CHARS } from "./voice";
 import { readVoiceSettings } from "./voice-settings";
 
 /**
@@ -182,7 +183,7 @@ export function startListening(ix: DocIndex, fromBlock: string | null, fromOffse
     if (!SPOKEN_BLOCKS.has(b.type)) continue;
     const t = blockText(b);
     if (!t) continue;
-    for (const c of speechChunks(t)) {
+    for (const c of speechChunks(t, PASSAGE_CHARS)) {
       if (b.id === fromBlock && c.start + c.text.length <= initialOffset) continue;
       items.push({ block: b.id, text: c.text, start: c.start });
     }
