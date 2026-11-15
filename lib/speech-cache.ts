@@ -20,7 +20,7 @@ export async function cachedSpeech(directory: string, key: string, generate: () 
   const task = (async (): Promise<CachedClip> => {
     try {
       const record = JSON.parse(await readFile(id, "utf8")) as SpeechClip;
-      if (!record.audio || typeof record.audio !== "string" || !Array.isArray(record.words) || record.mimeType !== "audio/mpeg") throw new Error("Invalid saved audio.");
+      if (!record.audio || typeof record.audio !== "string" || !Array.isArray(record.words) || !/^audio\/(mpeg|wav)$/.test(record.mimeType)) throw new Error("Invalid saved audio.");
       return { clip: record, cache: "hit" };
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw new Error("Saved audio could not be read. Check the local audio cache before generating again.");

@@ -7,6 +7,7 @@ const priorCache = process.env.GLOSS_AUDIO_CACHE;
 before(() => { process.env.GLOSS_AUDIO_CACHE = "off"; });
 after(() => { if (priorCache === undefined) delete process.env.GLOSS_AUDIO_CACHE; else process.env.GLOSS_AUDIO_CACHE = priorCache; });
 import { POST, GET } from "../app/api/speak/route";
+import { SPEKO_VOICE, SPEKO_VOICES } from "../lib/voice";
 
 const req = (body: unknown) => new Request("http://localhost/api/speak", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 test("voice route validates input before making provider calls", async () => {
@@ -48,7 +49,7 @@ test("Together audio keeps its own credential and never receives the ElevenLabs 
 });
 test("voice configuration exposes presence, not credentials", async () => {
   const config = await GET().json();
-  assert.deepEqual(Object.keys(config).sort(), ["deepinfraConfigured", "elevenlabsConfigured", "voiceId"]);
+  assert.deepEqual(Object.keys(config).sort(), ["deepinfraConfigured", "elevenlabsConfigured", "spekoConfigured", "voiceId"]);
 });
 
 
@@ -152,4 +153,36 @@ test("stopping the reader does not cancel already-paid audio before it is saved"
   release();
   assert.equal((await (await running).json()).cache, "saved");
   assert.equal((await (await POST(req(body))).json()).cache, "hit");
+});
+
+test("Speko reads the passage, then times its words by transcribing the same audio", async t => {
+  const pcm = Buffer.from([1, 0, 2, 0, 3, 0, 4, 0]);
+  const calls: { url: string; options: RequestInit }[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string, options: RequestInit) => {
+    calls.push({ url, options });
+    if (url === "https://api.speko.dev/v1/synthesize") return new Response(pcm, { headers: { "Content-Type": "audio/pcm;rate=24000" } });
+    assert.equal(url, "https://api.speko.dev/v1/transcribe");
+    return new Response('event: meta\ndata: {}\n\nevent: done\ndata: {"text":"Hello world","words":[{"text":"hello","start":0,"end":0.4},{"text":"world","start":0.5,"end":0.9}]}\n\n', { headers: { "Content-Type": "text/event-stream" } });
+  });
+  const response = await POST(req({ provider: "speko", apiKey: "speko-fixture", voiceId: SPEKO_VOICE, text: "Hello, world." }));
+  assert.equal(response.status, 200);
+  const [speak, listen] = calls;
+  const voice = SPEKO_VOICES.find(v => v.id === SPEKO_VOICE)!;
+  assert.equal((speak.options.headers as Record<string, string>).Authorization, "Bearer speko-fixture");
+  assert.deepEqual(JSON.parse(speak.options.body as string), {
+    text: "Hello, world.", intent: { language: "en" }, workload: "narration", sampleRate: 24000,
+    voice: voice.voice, model: voice.model, constraints: { allowedProviders: { tts: [voice.provider] } },
+  });
+  const heard = listen.options.headers as Record<string, string>;
+  assert.equal(heard.Authorization, "Bearer speko-fixture");
+  assert.equal(heard["Content-Type"], "audio/wav");
+  assert.equal(JSON.parse(heard["X-Speko-Stt-Options"]).wordTimestamps, true);
+  const wav = Buffer.from(listen.options.body as Uint8Array);
+  assert.equal(wav.subarray(0, 4).toString(), "RIFF");
+  assert.equal(wav.readUInt32LE(24), 24000);
+  assert.deepEqual(wav.subarray(44), pcm);
+  const data = await response.json();
+  assert.equal(data.mimeType, "audio/wav");
+  assert.deepEqual(Buffer.from(data.audio, "base64"), wav);
+  assert.deepEqual(data.words, [{ start: 0, end: 6, from: 0, to: 0.4 }, { start: 7, end: 13, from: 0.5, to: 0.9 }]);
 });

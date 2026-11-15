@@ -21,3 +21,20 @@ export const KOKORO_VOICES = [
   { id: "bm_george", label: "George · British · male" },
   { id: "bm_daniel", label: "Daniel · British · male" },
 ] as const;
+
+/**
+ * Speko routes one key to many voice vendors. Its speech has no word timings,
+ * so the same audio goes through its transcriber (the one model that returns
+ * word times) to light up the words as they are read.
+ */
+export const SPEKO_URL = "https://api.speko.dev/v1";
+export const SPEKO_RATE = 24000;
+export const SPEKO_TRANSCRIBER = "google:gemini-3.5-transcribe";
+/** Narrators chosen for long reading. `voice` and `model` are the vendor's own ids. */
+export const SPEKO_VOICES = [
+  { id: "george", label: "George · warm storyteller · ElevenLabs v3", provider: "elevenlabs", model: "eleven_v3", voice: "JBFqnCBsd6RMkjVDRZzb" },
+  { id: "brian", label: "Brian · deep, comforting · ElevenLabs v3", provider: "elevenlabs", model: "eleven_v3", voice: "nPczCjzI2devNBz1zQrb" },
+  { id: "marian", label: "Marian · calm, unhurried · Cartesia", provider: "cartesia", model: "sonic-3.5", voice: "26403c37-80c1-4a1a-8692-540551ca2ae5" },
+  { id: "draco", label: "Draco · British baritone · Deepgram", provider: "deepgram", model: "aura-2", voice: "aura-2-draco-en" },
+] as const;
+export const SPEKO_VOICE = SPEKO_VOICES[0].id;

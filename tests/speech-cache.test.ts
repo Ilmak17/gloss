@@ -35,3 +35,13 @@ test("provider failures are retryable; corrupt saved audio never silently spends
   await assert.rejects(cachedSpeech(dir, key, async () => { calls++; return clip; }), /Saved audio/);
   assert.equal(calls, 0);
 });
+
+test("saved WAV audio plays from disk without paying again", async t => {
+  const dir = await mkdtemp(join(tmpdir(), "gloss-cache-"));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const wav: SpeechClip = { audio: "UklGRg==", words: [], mimeType: "audio/wav" };
+  const key = speechCacheKey({ ...parts, provider: "speko" });
+  await cachedSpeech(dir, key, async () => wav);
+  const later = await cachedSpeech(dir, key, async () => { throw new Error("Must load disk"); });
+  assert.deepEqual(later, { clip: wav, cache: "hit" });
+});

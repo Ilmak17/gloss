@@ -62,6 +62,40 @@ export function wordsWithTiming(text: string, alignment?: Alignment | null): Tim
   });
 }
 
+/** A word as speech recognition heard it, in seconds. */
+export type HeardWord = { text: string; start: number; end: number };
+
+const bare = (word: string) => word.normalize("NFKD").toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+
+/**
+ * Times the passage's own words from a transcript of its audio. Words are
+ * matched in order, ignoring case and punctuation (the longest common run).
+ */
+export function transcriptWordsWithTiming(text: string, heard: HeardWord[]): TimedWord[] {
+  const source = [...text.matchAll(/\S+/gu)].map(m => ({ start: m.index!, end: m.index! + m[0].length, key: bare(m[0]) }));
+  const said = heard.filter(w => typeof w?.text === "string" && Number.isFinite(w.start) && Number.isFinite(w.end) && w.end >= w.start)
+    .map(w => ({ ...w, key: bare(w.text) })).filter(w => w.key);
+  const n = source.length, m = said.length;
+  // run[i][j]: longest common run of source[i..] and said[j..].
+  const run = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    run[i][j] = source[i].key && source[i].key === said[j].key ? run[i + 1][j + 1] + 1 : Math.max(run[i + 1][j], run[i][j + 1]);
+  const timed: (TimedWord | undefined)[] = source.map(() => undefined);
+  for (let i = 0, j = 0; i < n && j < m;) {
+    if (source[i].key && source[i].key === said[j].key) { timed[i] = { start: source[i].start, end: source[i].end, from: said[j].start, to: said[j].end }; i++; j++; }
+    else if (run[i + 1][j] >= run[i][j + 1]) i++;
+    else j++;
+  }
+  // Mostly unmatched means the audio is not this passage: no highlight beats a wrong one.
+  if (timed.filter(Boolean).length < source.length * 0.6) return [];
+  // A word heard differently ("1990" said as "nineteen ninety") takes the time between its matched neighbours.
+  return source.flatMap((w, i) => {
+    if (timed[i]) return [timed[i]!];
+    const before = timed.slice(0, i).findLast(Boolean), after = timed.slice(i + 1).find(Boolean);
+    return before && after ? [{ start: w.start, end: w.end, from: before.to, to: after.from }] : [];
+  });
+}
+
 /** Words that end in a full stop without ending the sentence: titles, common short forms, initials. */
 const SHORT_FORM = /(?:^|[\s(“"‘'«])(?:Mr|Mrs|Ms|Dr|Prof|St|Mt|Sr|Jr|vs|etc|cf|No|Vol|pp?|ch|fig|e\.g|i\.e|\p{Lu})\.$/u;
 

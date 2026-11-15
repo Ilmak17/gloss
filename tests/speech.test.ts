@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { speechChunks, wordsWithTiming, kokoroWordsWithTiming, sentenceStarts, sentenceStep } from "../lib/speech";
+import { speechChunks, wordsWithTiming, kokoroWordsWithTiming, transcriptWordsWithTiming, sentenceStarts, sentenceStep } from "../lib/speech";
 
 test("speech chunks preserve exact source offsets including repeated words and long sentences", () => {
   const text = "  One sentence. One sentence! " + "длинное слово ".repeat(400);
@@ -80,4 +80,31 @@ test("without word timings, back restarts the passage or steps before it, and ne
   assert.deepEqual(step(3, -1, []), { seek: 0 });
   assert.deepEqual(step(1, -1, []), { item: -1 });
   assert.deepEqual(step(1, 1, []), { item: 1 });
+});
+
+test("transcribed words time the book's own words, whatever their case and punctuation", () => {
+  const text = "“Hello,” she said. World!";
+  const words = transcriptWordsWithTiming(text, [
+    { text: "hello", start: 0, end: 0.4 }, { text: "She", start: 0.5, end: 0.7 },
+    { text: "said.", start: 0.7, end: 1 }, { text: "world", start: 1.2, end: 1.6 },
+  ]);
+  assert.deepEqual(words.map(w => [text.slice(w.start, w.end), w.from, w.to]), [
+    ["“Hello,”", 0, 0.4], ["she", 0.5, 0.7], ["said.", 0.7, 1], ["World!", 1.2, 1.6],
+  ]);
+});
+
+test("a word the transcript spells differently is timed between its neighbours", () => {
+  const text = "In 1990 we left.";
+  const words = transcriptWordsWithTiming(text, [
+    { text: "In", start: 0, end: 0.2 }, { text: "nineteen", start: 0.3, end: 0.7 },
+    { text: "ninety", start: 0.7, end: 1.1 }, { text: "we", start: 1.2, end: 1.3 }, { text: "left", start: 1.3, end: 1.6 },
+  ]);
+  assert.deepEqual(words.map(w => [text.slice(w.start, w.end), w.from, w.to]), [
+    ["In", 0, 0.2], ["1990", 0.2, 1.2], ["we", 1.2, 1.3], ["left.", 1.3, 1.6],
+  ]);
+});
+
+test("a transcript that mostly misses the passage highlights nothing", () => {
+  const heard = ["the", "weather", "today", "is", "fine", "and", "warm"].map((text, i) => ({ text, start: i / 2, end: i / 2 + 0.4 }));
+  assert.deepEqual(transcriptWordsWithTiming("The harbor was quiet that morning, and still.", heard), []);
 });

@@ -1,7 +1,8 @@
 import { join } from "node:path";
 import { APP_UA } from "@/lib/together";
-import { TTS_MAX_CHARS, TTS_MODEL, TTS_URL, TTS_VOICE, KOKORO_MODEL, KOKORO_URL, KOKORO_VOICE, KOKORO_VOICES } from "@/lib/voice";
-import { wordsWithTiming, kokoroWordsWithTiming } from "@/lib/speech";
+import { TTS_MAX_CHARS, TTS_MODEL, TTS_URL, TTS_VOICE, KOKORO_MODEL, KOKORO_URL, KOKORO_VOICE, KOKORO_VOICES, SPEKO_RATE, SPEKO_TRANSCRIBER, SPEKO_URL, SPEKO_VOICE, SPEKO_VOICES } from "@/lib/voice";
+import { wordsWithTiming, kokoroWordsWithTiming, transcriptWordsWithTiming } from "@/lib/speech";
+import { heardWords, pcmToWav } from "@/lib/speko";
 import { cachedSpeech, speechCacheKey, type SpeechClip } from "@/lib/speech-cache";
 
 export const runtime = "nodejs";
@@ -13,7 +14,7 @@ class VoiceError extends Error {
 }
 /** Presence only. Credentials never leave the local server in a response. */
 export function GET() {
-  return Response.json({ deepinfraConfigured: Boolean(process.env.DEEPINFRA_API_KEY), elevenlabsConfigured: Boolean(process.env.ELEVENLABS_API_KEY), voiceId: process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM" }, { headers });
+  return Response.json({ deepinfraConfigured: Boolean(process.env.DEEPINFRA_API_KEY), elevenlabsConfigured: Boolean(process.env.ELEVENLABS_API_KEY), spekoConfigured: Boolean(process.env.SPEKO_API_KEY), voiceId: process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM" }, { headers });
 }
 
 export async function POST(req: Request) {
@@ -32,27 +33,34 @@ export async function POST(req: Request) {
   if (!text) return error("Nothing to read.", 400);
   if (text.length > TTS_MAX_CHARS) return error("That passage is too long to read in one go.", 413);
   const provider = body.provider ?? "kokoro";
-  if (provider !== "kokoro" && provider !== "elevenlabs" && provider !== "together") return error("Unknown voice provider.", 400);
-  const eleven = provider === "elevenlabs", kokoro = provider === "kokoro";
-  const label = kokoro ? "DeepInfra" : eleven ? "ElevenLabs" : "Together";
+  if (provider !== "kokoro" && provider !== "elevenlabs" && provider !== "together" && provider !== "speko") return error("Unknown voice provider.", 400);
+  const eleven = provider === "elevenlabs", kokoro = provider === "kokoro", speko = provider === "speko";
+  const label = kokoro ? "DeepInfra" : eleven ? "ElevenLabs" : speko ? "Speko" : "Together";
   const ownKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
-  const apiKey = ownKey || (kokoro ? process.env.DEEPINFRA_API_KEY : eleven ? process.env.ELEVENLABS_API_KEY : req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim());
+  const apiKey = ownKey || (kokoro ? process.env.DEEPINFRA_API_KEY : eleven ? process.env.ELEVENLABS_API_KEY : speko ? process.env.SPEKO_API_KEY : req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim());
   if (!apiKey) return error(`Connect ${label} in Voice settings.`, 401, "need_key");
-  const defaultVoice = kokoro ? KOKORO_VOICE : eleven ? process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM" : TTS_VOICE;
+  const defaultVoice = kokoro ? KOKORO_VOICE : speko ? SPEKO_VOICE : eleven ? process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM" : TTS_VOICE;
   const voice = provider === "together" ? TTS_VOICE : typeof body.voiceId === "string" && body.voiceId.trim() ? body.voiceId.trim() : defaultVoice;
-  if (!/^[a-zA-Z0-9_-]{1,100}$/.test(voice) || (kokoro && !KOKORO_VOICES.some(v => v.id === voice))) return error("Choose a supported voice in Voice settings.", 400);
+  if (!/^[a-zA-Z0-9_-]{1,100}$/.test(voice) || (kokoro && !KOKORO_VOICES.some(v => v.id === voice)) || (speko && !SPEKO_VOICES.some(v => v.id === voice))) return error("Choose a supported voice in Voice settings.", 400);
   if (kokoro && /\p{Script=Cyrillic}/u.test(text)) return error("Kokoro supports English, not Russian. Choose ElevenLabs for this passage.", 400, "unsupported_language");
-  const model = kokoro ? KOKORO_MODEL : eleven ? "eleven_multilingual_v2" : TTS_MODEL;
+  const narrator = SPEKO_VOICES.find(v => v.id === voice);
+  const language = /\p{Script=Cyrillic}/u.test(text) ? "ru" : "en";
+  const model = kokoro ? KOKORO_MODEL : eleven ? "eleven_multilingual_v2" : speko ? `${narrator!.provider}:${narrator!.model}` : TTS_MODEL;
   const local = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host);
   const cacheEnabled = local && process.env.GLOSS_AUDIO_CACHE !== "off";
 
+  const signal = () => cacheEnabled ? AbortSignal.timeout(55000) : AbortSignal.any([req.signal, AbortSignal.timeout(55000)]);
   const generate = async (): Promise<SpeechClip> => {
     let res: Response;
     try {
-      res = await fetch(kokoro ? KOKORO_URL : eleven ? `https://api.elevenlabs.io/v1/text-to-speech/${voice}/with-timestamps?output_format=mp3_44100_128` : TTS_URL, {
+      res = speko ? await fetch(`${SPEKO_URL}/synthesize`, {
+        method: "POST", signal: signal(),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "User-Agent": APP_UA },
+        body: JSON.stringify({ text, intent: { language }, workload: "narration", sampleRate: SPEKO_RATE, voice: narrator!.voice, model: narrator!.model, constraints: { allowedProviders: { tts: [narrator!.provider] } } }),
+      }) : await fetch(kokoro ? KOKORO_URL : eleven ? `https://api.elevenlabs.io/v1/text-to-speech/${voice}/with-timestamps?output_format=mp3_44100_128` : TTS_URL, {
         method: "POST",
         // Once billed, finish saving the audio even if the reader closes or stops.
-        signal: cacheEnabled ? AbortSignal.timeout(55000) : AbortSignal.any([req.signal, AbortSignal.timeout(55000)]),
+        signal: signal(),
         headers: eleven ? { "Content-Type": "application/json", "xi-api-key": apiKey } : { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, "User-Agent": APP_UA },
         body: JSON.stringify(kokoro ? { text, preset_voice: [voice], output_format: "mp3", speed: 1, stream: false, return_timestamps: true, service_tier: "default" } : eleven ? { text, model_id: model } : { model, voice, input: text, response_format: "mp3" }),
       });
@@ -68,6 +76,25 @@ export async function POST(req: Request) {
       }
       if (res.status === 429) throw new VoiceError(`${label}: request or credit limit reached. Try again later.`, 429);
       throw new VoiceError(`${label} could not read this passage (${res.status}).`, 502);
+    }
+    if (speko) {
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (!bytes.length) throw new VoiceError("The voice returned no audio.", 502);
+      const type = res.headers.get("Content-Type") || "";
+      const rate = Number(/rate=(\d+)/.exec(type)?.[1]);
+      const wav = /^audio\/(pcm|l16)/i.test(type) ? pcmToWav(bytes, rate || SPEKO_RATE) : Buffer.from(bytes);
+      const mimeType = /^audio\/(pcm|l16)/i.test(type) ? "audio/wav" : type.split(";")[0] || "audio/mpeg";
+      // Word times are a bonus: without them the passage still plays, just unlit.
+      let words: SpeechClip["words"] = [];
+      try {
+        const heard = await fetch(`${SPEKO_URL}/transcribe`, {
+          method: "POST", signal: signal(),
+          headers: { "Content-Type": mimeType, Authorization: `Bearer ${apiKey}`, "User-Agent": APP_UA, "X-Speko-Intent": JSON.stringify({ language }), "X-Speko-Stt-Options": JSON.stringify({ wordTimestamps: true }), "X-Speko-Constraints": JSON.stringify({ allowedProviders: { stt: [SPEKO_TRANSCRIBER] } }) },
+          body: new Uint8Array(wav),
+        });
+        if (heard.ok) words = transcriptWordsWithTiming(text, heardWords(await heard.text()));
+      } catch { /* Plays without highlighting. */ }
+      return { audio: wav.toString("base64"), words, mimeType };
     }
     if (provider === "together") {
       const bytes = Buffer.from(await res.arrayBuffer());

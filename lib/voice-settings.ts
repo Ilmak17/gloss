@@ -1,12 +1,12 @@
-import { KOKORO_VOICE } from "./voice";
-export type VoiceProvider = "kokoro" | "elevenlabs" | "together";
+import { KOKORO_VOICE, SPEKO_VOICE } from "./voice";
+export type VoiceProvider = "kokoro" | "elevenlabs" | "together" | "speko";
 export type VoiceSettings = { provider: VoiceProvider; apiKey: string; voiceId: string };
 type Profile = Pick<VoiceSettings, "apiKey" | "voiceId">;
 type Saved = { provider: VoiceProvider; profiles: Partial<Record<VoiceProvider, Profile>> };
 const KEY = "gloss:voice-settings:v2";
 const LEGACY_KEY = "gloss:voice-settings";
 export const VOICE_SETTINGS_EVENT = "gloss:voice-settings";
-const isProvider = (v: unknown): v is VoiceProvider => v === "kokoro" || v === "elevenlabs" || v === "together";
+const isProvider = (v: unknown): v is VoiceProvider => v === "kokoro" || v === "elevenlabs" || v === "together" || v === "speko";
 const profile = (v: Partial<Profile> | null | undefined): Profile => ({ apiKey: typeof v?.apiKey === "string" ? v.apiKey : "", voiceId: typeof v?.voiceId === "string" ? v.voiceId : "" });
 function saved(): Saved {
   try {
@@ -21,7 +21,7 @@ export function readVoiceSettings(provider?: VoiceProvider): VoiceSettings {
   const value = saved();
   provider ??= value.provider;
   const p = profile(value.profiles[provider]);
-  return { provider, ...p, voiceId: p.voiceId || (provider === "kokoro" ? KOKORO_VOICE : "") };
+  return { provider, ...p, voiceId: p.voiceId || (provider === "kokoro" ? KOKORO_VOICE : provider === "speko" ? SPEKO_VOICE : "") };
 }
 export function saveVoiceSettings(value: VoiceSettings) {
   const current = saved();

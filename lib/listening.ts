@@ -100,8 +100,8 @@ async function fetchSpeech(text: string, signal?: AbortSignal): Promise<SpeechAu
     throw Object.assign(new Error(j.error ?? "The voice did not answer."), { needKey: j.code === "need_key" });
   }
   if (r.headers.get("content-type")?.includes("application/json")) {
-    const data = await r.json() as { audio: string; words: TimedWord[]; cache?: string };
-    return { blob: new Blob([Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))], { type: "audio/mpeg" }), words: data.words, cache: data.cache };
+    const data = await r.json() as { audio: string; words: TimedWord[]; mimeType?: string; cache?: string };
+    return { blob: new Blob([Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))], { type: data.mimeType || "audio/mpeg" }), words: data.words, cache: data.cache };
   }
   return { blob: await r.blob(), words: [] };
 }

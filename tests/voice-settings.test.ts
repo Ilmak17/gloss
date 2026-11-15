@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readVoiceSettings, saveVoiceSettings } from "../lib/voice-settings";
+import { SPEKO_VOICE } from "../lib/voice";
 test("Kokoro is default and migrating/switching never sends another provider's credentials", t => {
   const storage = new Map<string, string>();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) } });
@@ -15,4 +16,13 @@ test("Kokoro is default and migrating/switching never sends another provider's c
   assert.equal(readVoiceSettings("kokoro").apiKey, "deep-secret");
   storage.set("gloss:voice-settings:v2", "broken");
   assert.equal(readVoiceSettings().provider, "kokoro");
+});
+
+test("choosing Speko starts on its narrator and stays chosen", t => {
+  const storage = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) } });
+  t.after(() => Reflect.deleteProperty(globalThis, "localStorage"));
+  assert.deepEqual(readVoiceSettings("speko"), { provider: "speko", apiKey: "", voiceId: SPEKO_VOICE });
+  saveVoiceSettings(readVoiceSettings("speko"));
+  assert.equal(readVoiceSettings().provider, "speko");
 });

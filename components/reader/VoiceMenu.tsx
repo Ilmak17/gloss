@@ -3,13 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { AudioLines, Play, Square, LoaderCircle } from "lucide-react";
 import { Popover, barBtn } from "@/components/ui/Popover";
 import { readVoiceSettings, saveVoiceSettings, VOICE_SETTINGS_EVENT, type VoiceSettings, type VoiceProvider } from "@/lib/voice-settings";
-import { KOKORO_VOICES } from "@/lib/voice";
+import { KOKORO_VOICES, SPEKO_VOICES } from "@/lib/voice";
 import { stopListening } from "./Listen";
 
 function VoiceForm({ close }: { close: () => void }) {
   const [value, setValue] = useState<VoiceSettings>(() => readVoiceSettings());
   const drafts = useRef<Partial<Record<VoiceProvider, VoiceSettings>>>({});
-  const [config, setConfig] = useState({ deepinfraConfigured: false, elevenlabsConfigured: false, voiceId: "" });
+  const [config, setConfig] = useState({ deepinfraConfigured: false, elevenlabsConfigured: false, spekoConfigured: false, voiceId: "" });
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<"idle" | "loading" | "playing">("idle");
   const [saved, setSaved] = useState(false);
@@ -32,7 +32,7 @@ function VoiceForm({ close }: { close: () => void }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not play this voice.");
       if (ctrl.signal.aborted) return;
-      url.current = URL.createObjectURL(new Blob([Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))], { type: "audio/mpeg" }));
+      url.current = URL.createObjectURL(new Blob([Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))], { type: data.mimeType || "audio/mpeg" }));
       const player = new Audio(url.current); audio.current = player;
       player.onended = () => setPreview("idle");
       setSaved(data.cache === "hit" || data.cache === "saved");
@@ -42,13 +42,14 @@ function VoiceForm({ close }: { close: () => void }) {
     } catch (e) { if (!ctrl.signal.aborted) { setError(e instanceof Error ? e.message : "Could not play this voice."); setPreview("idle"); } }
   };
   const input = "mt-1 w-full rounded-lg border border-rule bg-bg px-3 py-2 text-sm text-ink";
-  const kokoro = value.provider === "kokoro";
-  const configured = kokoro ? config.deepinfraConfigured : config.elevenlabsConfigured;
+  const kokoro = value.provider === "kokoro", speko = value.provider === "speko";
+  const configured = kokoro ? config.deepinfraConfigured : speko ? config.spekoConfigured : config.elevenlabsConfigured;
+  const voices = kokoro ? KOKORO_VOICES : speko ? SPEKO_VOICES : null;
   return <form className="max-h-[calc(100dvh-130px)] overflow-y-auto pr-1" onSubmit={e => { e.preventDefault(); try { saveVoiceSettings(value); stopListening(); close(); } catch { setError("Allow browser storage to save your voice."); } }}>
     <h2 className="font-serif text-xl">Reading voice</h2>
-    {kokoro ? <label className="mt-4 block text-sm">Voice
+    {voices ? <label className="mt-4 block text-sm">Voice
       <select className={input} value={value.voiceId} onChange={e => change({ ...value, voiceId: e.target.value })}>
-        {KOKORO_VOICES.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
+        {voices.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
       </select>
     </label> : value.provider === "elevenlabs" ? <label className="mt-4 block text-sm">Voice ID<input className={input} value={value.voiceId} placeholder={config.voiceId || "Default voice"} onChange={e => change({ ...value, voiceId: e.target.value })} /></label> : null}
     {value.provider !== "together" && <button type="button" disabled={preview === "loading"} onClick={() => preview === "playing" ? (clearPreview(), setPreview("idle")) : void sample()} className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-rule py-2 text-sm disabled:opacity-50">
@@ -62,10 +63,11 @@ function VoiceForm({ close }: { close: () => void }) {
         drafts.current[value.provider] = value;
         const provider = e.target.value as VoiceProvider;
         change(drafts.current[provider] || readVoiceSettings(provider));
-      }}><option value="kokoro">Kokoro · English</option><option value="elevenlabs">ElevenLabs</option><option value="together">Together</option></select></label>
+      }}><option value="kokoro">Kokoro · English</option><option value="speko">Speko</option><option value="elevenlabs">ElevenLabs</option><option value="together">Together</option></select></label>
       {value.provider !== "together" ? <>
-        <label className="mt-3 block text-sm">{kokoro ? "DeepInfra" : "ElevenLabs"} API key<input type="password" autoComplete="off" spellCheck={false} className={input} value={value.apiKey} placeholder={configured ? "Connected on this Mac" : "Paste API key"} onChange={e => change({ ...value, apiKey: e.target.value })} /></label>
+        <label className="mt-3 block text-sm">{kokoro ? "DeepInfra" : speko ? "Speko" : "ElevenLabs"} API key<input type="password" autoComplete="off" spellCheck={false} className={input} value={value.apiKey} placeholder={configured ? "Connected on this Mac" : "Paste API key"} onChange={e => change({ ...value, apiKey: e.target.value })} /></label>
         <p className="mt-2 text-xs text-ink-3">Keys entered here stay in this browser and are sent only to the selected service through the local server.</p>
+        {speko && <p className="mt-2 text-xs text-ink-3">One key for many voices. Words light up as they are read. <a className="underline" href="https://platform.speko.ai/agents/keys" target="_blank" rel="noreferrer">Manage keys ↗</a></p>}
         {kokoro && <p className="mt-2 text-xs text-ink-3">Standard tier. About $0.60 per 100,000 English words. <a className="underline" href="https://deepinfra.com/dash/keys" target="_blank" rel="noreferrer">Manage keys ↗</a></p>}
       </> : <p className="mt-3 text-xs text-ink-3">Uses your separate Together key. Paragraph highlighting only.</p>}
       <p className="mt-2 text-xs text-ink-3">Audio is saved on this Mac. Replaying the same passage and voice does not generate it again.</p>
