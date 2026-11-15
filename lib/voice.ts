@@ -32,10 +32,13 @@ export const SPEKO_RATE = 24000;
 export const SPEKO_TRANSCRIBER = "google:gemini-3.5-transcribe";
 /**
  * Narrators chosen for long reading. `voice` and `model` are the vendor's own ids.
- * Marian leads: in Speko's measurements she alone of these stays steady and repeatable over long reads.
+ * Orpheus, Marian and Archie stay steady and repeatable over long reads in Speko's
+ * measurements; Orpheus leads as the male narrator on the highest-rated model of the three.
  */
 export const SPEKO_VOICES = [
-  { id: "marian", label: "Marian · calm, steady over long reads · Cartesia", provider: "cartesia", model: "sonic-3.5", voice: "26403c37-80c1-4a1a-8692-540551ca2ae5" },
+  { id: "orpheus", label: "Orpheus · male narrator, steady over long reads · Deepgram", provider: "deepgram", model: "aura-2", voice: "aura-2-orpheus-en" },
+  { id: "marian", label: "Marian · calm female narrator, steady over long reads · Cartesia", provider: "cartesia", model: "sonic-3.5", voice: "26403c37-80c1-4a1a-8692-540551ca2ae5" },
+  { id: "archie", label: "Archie · British male, steady over long reads · Cartesia", provider: "cartesia", model: "sonic-3.5", voice: "ef191366-f52f-447a-a398-ed8c0f2943a1" },
   { id: "george", label: "George · warm storyteller · ElevenLabs v3", provider: "elevenlabs", model: "eleven_v3", voice: "JBFqnCBsd6RMkjVDRZzb" },
   { id: "brian", label: "Brian · deep, comforting · ElevenLabs v3", provider: "elevenlabs", model: "eleven_v3", voice: "nPczCjzI2devNBz1zQrb" },
   { id: "draco", label: "Draco · British baritone · Deepgram", provider: "deepgram", model: "aura-2", voice: "aura-2-draco-en" },

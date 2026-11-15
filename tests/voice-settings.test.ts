@@ -7,7 +7,7 @@ test("Speko's book narrator is default and migrating/switching never sends anoth
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) } });
   t.after(() => Reflect.deleteProperty(globalThis, "localStorage"));
   storage.set("gloss:voice-settings", JSON.stringify({ provider: "elevenlabs", apiKey: "eleven-secret", voiceId: "old-voice" }));
-  assert.deepEqual(readVoiceSettings(), { provider: "speko", apiKey: "", voiceId: "marian" });
+  assert.deepEqual(readVoiceSettings(), { provider: "speko", apiKey: "", voiceId: "orpheus" });
   saveVoiceSettings({ provider: "kokoro", apiKey: "deep-secret", voiceId: "bf_emma" });
   assert.equal(readVoiceSettings().apiKey, "deep-secret");
   assert.deepEqual(readVoiceSettings("elevenlabs"), { provider: "elevenlabs", apiKey: "eleven-secret", voiceId: "old-voice" });
@@ -27,12 +27,12 @@ test("choosing Speko starts on its narrator and stays chosen", t => {
   assert.equal(readVoiceSettings().provider, "speko");
 });
 
-test("a voice chosen before the Speko narrator moves to Marian once, keeping saved keys", t => {
+test("a voice chosen before the Speko narrator moves to Orpheus once, keeping saved keys", t => {
   const storage = new Map<string, string>();
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) } });
   t.after(() => Reflect.deleteProperty(globalThis, "localStorage"));
   storage.set("gloss:voice-settings:v2", JSON.stringify({ provider: "kokoro", profiles: { kokoro: { apiKey: "deep-secret", voiceId: "bf_emma" }, speko: { apiKey: "", voiceId: "george" } } }));
-  assert.deepEqual(readVoiceSettings(), { provider: "speko", apiKey: "", voiceId: "marian" });
+  assert.deepEqual(readVoiceSettings(), { provider: "speko", apiKey: "", voiceId: "orpheus" });
   assert.deepEqual(readVoiceSettings("kokoro"), { provider: "kokoro", apiKey: "deep-secret", voiceId: "bf_emma" });
   saveVoiceSettings(readVoiceSettings("kokoro"));
   assert.equal(readVoiceSettings().provider, "kokoro");
