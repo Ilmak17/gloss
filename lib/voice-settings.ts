@@ -3,7 +3,9 @@ export type VoiceProvider = "kokoro" | "elevenlabs" | "together" | "speko";
 export type VoiceSettings = { provider: VoiceProvider; apiKey: string; voiceId: string };
 type Profile = Pick<VoiceSettings, "apiKey" | "voiceId">;
 type Saved = { provider: VoiceProvider; profiles: Partial<Record<VoiceProvider, Profile>> };
-const KEY = "gloss:voice-settings:v2";
+const KEY = "gloss:voice-settings:v3";
+/** Saved before Speko's narrator became the default; read once, then moved to it. */
+const V2_KEY = "gloss:voice-settings:v2";
 const LEGACY_KEY = "gloss:voice-settings";
 export const VOICE_SETTINGS_EVENT = "gloss:voice-settings";
 const isProvider = (v: unknown): v is VoiceProvider => v === "kokoro" || v === "elevenlabs" || v === "together" || v === "speko";
@@ -12,10 +14,12 @@ function saved(): Saved {
   try {
     const v = JSON.parse(localStorage.getItem(KEY) || "null");
     if (v && isProvider(v.provider) && v.profiles) return { provider: v.provider, profiles: v.profiles };
+    // Earlier choices start on Speko's book narrator; their saved keys stay with their provider.
+    const v2 = JSON.parse(localStorage.getItem(V2_KEY) || "null");
+    if (v2 && isProvider(v2.provider) && v2.profiles) { const { speko: _, ...profiles } = v2.profiles; return { provider: "speko", profiles }; }
     const old = JSON.parse(localStorage.getItem(LEGACY_KEY) || "null");
-    // Start with Kokoro while keeping legacy credentials scoped to their provider.
-    return { provider: "kokoro", profiles: old && isProvider(old.provider) ? { [old.provider]: profile(old) } : {} };
-  } catch { return { provider: "kokoro", profiles: {} }; }
+    return { provider: "speko", profiles: old && isProvider(old.provider) ? { [old.provider]: profile(old) } : {} };
+  } catch { return { provider: "speko", profiles: {} }; }
 }
 export function readVoiceSettings(provider?: VoiceProvider): VoiceSettings {
   const value = saved();
