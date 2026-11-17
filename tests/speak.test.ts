@@ -162,15 +162,15 @@ test("Speko reads the passage, then times its words by transcribing the same aud
     calls.push({ url, options });
     if (url === "https://api.speko.dev/v1/synthesize") return new Response(pcm, { headers: { "Content-Type": "audio/pcm;rate=24000" } });
     assert.equal(url, "https://api.speko.dev/v1/transcribe");
-    return new Response('event: meta\ndata: {}\n\nevent: done\ndata: {"text":"Hello world","words":[{"text":"hello","start":0,"end":0.4},{"text":"world","start":0.5,"end":0.9}]}\n\n', { headers: { "Content-Type": "text/event-stream" } });
+    return new Response('event: meta\ndata: {}\n\nevent: done\ndata: {"text":"Hello world from the narrator","words":[{"text":"hello","start":0,"end":0.4},{"text":"world","start":0.5,"end":0.9},{"text":"from","start":1,"end":1.2},{"text":"the","start":1.25,"end":1.35},{"text":"narrator","start":1.4,"end":1.9}]}\n\n', { headers: { "Content-Type": "text/event-stream" } });
   });
-  const response = await POST(req({ provider: "speko", apiKey: "speko-fixture", voiceId: SPEKO_VOICE, text: "Hello, world." }));
+  const response = await POST(req({ provider: "speko", apiKey: "speko-fixture", voiceId: SPEKO_VOICE, text: "Hello, world, from the narrator." }));
   assert.equal(response.status, 200);
   const [speak, listen] = calls;
   const voice = SPEKO_VOICES.find(v => v.id === SPEKO_VOICE)!;
   assert.equal((speak.options.headers as Record<string, string>).Authorization, "Bearer speko-fixture");
   assert.deepEqual(JSON.parse(speak.options.body as string), {
-    text: "Hello, world.", intent: { language: "en" }, workload: "narration", sampleRate: 24000,
+    text: "Hello, world, from the narrator.", intent: { language: "en" }, workload: "narration", sampleRate: 24000,
     voice: voice.voice, model: voice.model, constraints: { allowedProviders: { tts: [voice.provider] } },
   });
   const heard = listen.options.headers as Record<string, string>;
@@ -184,5 +184,18 @@ test("Speko reads the passage, then times its words by transcribing the same aud
   const data = await response.json();
   assert.equal(data.mimeType, "audio/wav");
   assert.deepEqual(Buffer.from(data.audio, "base64"), wav);
-  assert.deepEqual(data.words, [{ start: 0, end: 6, from: 0, to: 0.4 }, { start: 7, end: 13, from: 0.5, to: 0.9 }]);
+  assert.deepEqual(data.words, [{ start: 0, end: 6, from: 0, to: 0.4 }, { start: 7, end: 13, from: 0.5, to: 0.9 }, { start: 14, end: 18, from: 1, to: 1.2 }, { start: 19, end: 22, from: 1.25, to: 1.35 }, { start: 23, end: 32, from: 1.4, to: 1.9 }]);
+});
+
+test("a heading of a few words is timed across its clip, without waiting for a transcription", async t => {
+  const second = Buffer.alloc(48000);
+  const calls: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    calls.push(url);
+    return new Response(second, { headers: { "Content-Type": "audio/pcm;rate=24000" } });
+  });
+  const response = await POST(req({ provider: "speko", apiKey: "speko-fixture", voiceId: SPEKO_VOICE, text: "Choices" }));
+  assert.equal(response.status, 200);
+  assert.deepEqual(calls, ["https://api.speko.dev/v1/synthesize"]);
+  assert.deepEqual((await response.json()).words, [{ start: 0, end: 7, from: 0, to: 1 }]);
 });

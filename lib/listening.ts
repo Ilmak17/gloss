@@ -6,8 +6,8 @@ import { blockText } from "./article";
 import type { Block } from "./article";
 import { readApiKey } from "./ask";
 import type { DocIndex } from "./doc";
-import { sentenceStarts, sentenceStep, speechChunks, type TimedWord } from "./speech";
-import { PASSAGE_CHARS } from "./voice";
+import { openingChunks, sentenceStarts, sentenceStep, speechChunks, type TimedWord } from "./speech";
+import { OPENING_CHARS, PASSAGE_CHARS } from "./voice";
 import { readVoiceSettings } from "./voice-settings";
 
 /**
@@ -178,14 +178,19 @@ export function startListening(ix: DocIndex, fromBlock: string | null, fromOffse
   const blocks = ix.article.blocks;
   const at = Math.max(0, fromBlock ? blocks.findIndex((b) => b.id === fromBlock) : 0);
   items = [];
+  let opening = true;
   for (const b of blocks.slice(at)) {
     if (!SPOKEN_BLOCKS.has(b.type)) continue;
     const t = blockText(b);
     if (!t) continue;
-    for (const c of speechChunks(t, PASSAGE_CHARS)) {
-      if (b.id === fromBlock && c.start + c.text.length <= initialOffset) continue;
+    const from = b.id === fromBlock ? initialOffset : 0;
+    const chunks = opening ? openingChunks(t, from, OPENING_CHARS, PASSAGE_CHARS) : speechChunks(t, PASSAGE_CHARS);
+    for (const c of chunks) {
+      if (b.id === fromBlock && c.end <= initialOffset) continue;
       items.push({ block: b.id, text: c.text, start: c.start });
     }
+    // Headings pass by; the first stretch of prose long enough to wait for opens short.
+    if (chunks[0] && t.length - chunks[0].start > OPENING_CHARS) opening = false;
   }
   if (!items.length) return;
   if (items[0].block !== fromBlock) initialOffset = 0;

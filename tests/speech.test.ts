@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { speechChunks, wordsWithTiming, kokoroWordsWithTiming, transcriptWordsWithTiming, sentenceStarts, sentenceStep } from "../lib/speech";
+import { speechChunks, openingChunks, wordsWithTiming, kokoroWordsWithTiming, transcriptWordsWithTiming, evenWordTiming, sentenceStarts, sentenceStep } from "../lib/speech";
 
 test("speech chunks preserve exact source offsets including repeated words and long sentences", () => {
   const text = "  One sentence. One sentence! " + "длинное слово ".repeat(400);
@@ -107,4 +107,16 @@ test("a word the transcript spells differently is timed between its neighbours",
 test("a transcript that mostly misses the passage highlights nothing", () => {
   const heard = ["the", "weather", "today", "is", "fine", "and", "warm"].map((text, i) => ({ text, start: i / 2, end: i / 2 + 0.4 }));
   assert.deepEqual(transcriptWordsWithTiming("The harbor was quiet that morning, and still.", heard), []);
+});
+
+test("listening opens on a short passage from the sentence being started, then reads in full passages", () => {
+  const text = "One two three. Four five six seven. Eight nine ten eleven twelve. Thirteen fourteen.";
+  const parts = openingChunks(text, text.indexOf("five"), 40, 1000);
+  assert.deepEqual(parts.map(p => p.text), ["Four five six seven.", "Eight nine ten eleven twelve. Thirteen fourteen."]);
+  for (const p of parts) assert.equal(p.text, text.slice(p.start, p.end));
+});
+
+test("a heading too short to transcribe is timed across its clip by word length", () => {
+  assert.deepEqual(evenWordTiming("13", 1), [{ start: 0, end: 2, from: 0, to: 1 }]);
+  assert.deepEqual(evenWordTiming("The Spark", 1.2), [{ start: 0, end: 3, from: 0, to: 0.45 }, { start: 4, end: 9, from: 0.45, to: 1.2 }]);
 });

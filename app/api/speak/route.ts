@@ -1,13 +1,15 @@
 import { join } from "node:path";
 import { APP_UA } from "@/lib/together";
 import { TTS_MAX_CHARS, TTS_MODEL, TTS_URL, TTS_VOICE, KOKORO_MODEL, KOKORO_URL, KOKORO_VOICE, KOKORO_VOICES, SPEKO_RATE, SPEKO_TRANSCRIBER, SPEKO_URL, SPEKO_VOICE, SPEKO_VOICES } from "@/lib/voice";
-import { wordsWithTiming, kokoroWordsWithTiming, transcriptWordsWithTiming } from "@/lib/speech";
+import { evenWordTiming, wordsWithTiming, kokoroWordsWithTiming, transcriptWordsWithTiming } from "@/lib/speech";
 import { heardWords, pcmToWav } from "@/lib/speko";
 import { cachedSpeech, speechCacheKey, type SpeechClip } from "@/lib/speech-cache";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 const headers = { "Cache-Control": "no-store" };
+/** Passages this short are headings: timed by length rather than transcribed. */
+const HEADING_WORDS = 4;
 const error = (message: string, status: number, code?: string) => Response.json({ error: message, code }, { status, headers });
 class VoiceError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string) { super(message); }
@@ -81,9 +83,12 @@ export async function POST(req: Request) {
       const bytes = new Uint8Array(await res.arrayBuffer());
       if (!bytes.length) throw new VoiceError("The voice returned no audio.", 502);
       const type = res.headers.get("Content-Type") || "";
-      const rate = Number(/rate=(\d+)/.exec(type)?.[1]);
-      const wav = /^audio\/(pcm|l16)/i.test(type) ? pcmToWav(bytes, rate || SPEKO_RATE) : Buffer.from(bytes);
-      const mimeType = /^audio\/(pcm|l16)/i.test(type) ? "audio/wav" : type.split(";")[0] || "audio/mpeg";
+      const pcm = /^audio\/(pcm|l16)/i.test(type);
+      const rate = Number(/rate=(\d+)/.exec(type)?.[1]) || SPEKO_RATE;
+      const wav = pcm ? pcmToWav(bytes, rate) : Buffer.from(bytes);
+      const mimeType = pcm ? "audio/wav" : type.split(";")[0] || "audio/mpeg";
+      // A heading is timed by length: transcribing a word or two would only delay it.
+      if (pcm && text.split(/\s+/).length <= HEADING_WORDS) return { audio: wav.toString("base64"), words: evenWordTiming(text, bytes.length / 2 / rate), mimeType };
       // Word times are a bonus: without them the passage still plays, just unlit.
       let words: SpeechClip["words"] = [];
       try {

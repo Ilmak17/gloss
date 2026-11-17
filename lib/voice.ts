@@ -9,8 +9,10 @@ export const TTS_MODEL = "cartesia/sonic-3";
 export const TTS_VOICE = "26403c37-80c1-4a1a-8692-540551ca2ae5";
 /** One request's worth of text. Paragraphs past this are split at sentence ends. */
 export const TTS_MAX_CHARS = 1200;
-/** Text read per request: short enough that the first words arrive within seconds. */
+/** Text read per request: short enough that the next is ready before this one ends. */
 export const PASSAGE_CHARS = 600;
+/** The first passage of prose when listening starts: short, so the voice begins within seconds. */
+export const OPENING_CHARS = 200;
 
 export const KOKORO_MODEL = "hexgrad/Kokoro-82M";
 export const KOKORO_URL = `https://api.deepinfra.com/v1/inference/${KOKORO_MODEL}`;
@@ -40,11 +42,11 @@ export const SPEKO_TRANSCRIBER = "deepgram:nova-3";
  * repeatable over long reads in Speko's measurements.
  */
 export const SPEKO_VOICES = [
-  { id: "george", label: "George · warm British storyteller · ElevenLabs", provider: "elevenlabs", model: "eleven_multilingual_v2", voice: "JBFqnCBsd6RMkjVDRZzb" },
-  { id: "brian", label: "Brian · deep American narrator · ElevenLabs", provider: "elevenlabs", model: "eleven_multilingual_v2", voice: "nPczCjzI2devNBz1zQrb" },
-  { id: "orpheus", label: "Orpheus · male narrator, steady over long reads · Deepgram", provider: "deepgram", model: "aura-2", voice: "aura-2-orpheus-en" },
-  { id: "archie", label: "Archie · British male, steady over long reads · Cartesia", provider: "cartesia", model: "sonic-3.5", voice: "ef191366-f52f-447a-a398-ed8c0f2943a1" },
-  { id: "marian", label: "Marian · calm female narrator, steady over long reads · Cartesia", provider: "cartesia", model: "sonic-3.5", voice: "26403c37-80c1-4a1a-8692-540551ca2ae5" },
+  { id: "george", label: "George · British storyteller · ElevenLabs", provider: "elevenlabs", model: "eleven_multilingual_v2", voice: "JBFqnCBsd6RMkjVDRZzb" },
+  { id: "brian", label: "Brian · deep American · ElevenLabs", provider: "elevenlabs", model: "eleven_multilingual_v2", voice: "nPczCjzI2devNBz1zQrb" },
+  { id: "orpheus", label: "Orpheus · steady narrator · Deepgram", provider: "deepgram", model: "aura-2", voice: "aura-2-orpheus-en" },
+  { id: "archie", label: "Archie · British, steady · Cartesia", provider: "cartesia", model: "sonic-3.5", voice: "ef191366-f52f-447a-a398-ed8c0f2943a1" },
+  { id: "marian", label: "Marian · calm female · Cartesia", provider: "cartesia", model: "sonic-3.5", voice: "26403c37-80c1-4a1a-8692-540551ca2ae5" },
   { id: "draco", label: "Draco · British baritone · Deepgram", provider: "deepgram", model: "aura-2", voice: "aura-2-draco-en" },
 ] as const;
 export const SPEKO_VOICE = SPEKO_VOICES[0].id;

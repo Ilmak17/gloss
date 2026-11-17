@@ -243,4 +243,41 @@ test("study interruptions preserve audio and cannot revive an obsolete session",
     assert.equal(useListen.getState().status, "paused");
     assert.equal(a.paused, true);
   });
+
+  await t.test("a chapter opens on a short passage, so the voice starts within seconds, then reads in full passages", async () => {
+    const requested: string[] = [];
+    t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
+      requested.push(JSON.parse(init?.body as string).text);
+      return new Response("test audio");
+    });
+    const prose = Array.from({ length: 8 }, (_, i) => `Sentence number ${i + 1} of the opening paragraph runs on.`).join(" ");
+    const after = Array.from({ length: 6 }, (_, i) => `Later sentence ${i + 1} stays in one passage.`).join(" ");
+    const book = indexArticle({ id: "opening-test", title: "Book", blocks: [
+      { id: "number", type: "h2", runs: [{ text: "13" }] },
+      { id: "title", type: "h2", runs: [{ text: "Choices" }] },
+      { id: "prose", type: "p", runs: [{ text: prose }] },
+      { id: "after", type: "p", runs: [{ text: after }] },
+    ] });
+    startListening(book, "number"); await settle();
+    for (let i = 0; i < 4; i++) { (a as unknown as { onended: () => void }).onended(); await settle(); }
+    assert.equal(requested.length, 5);
+    assert.deepEqual(requested.slice(0, 2), ["13", "Choices"]);
+    assert.ok(requested[2].length <= 200, "the first passage of prose is short");
+    assert.equal(`${requested[2]} ${requested[3]}`, prose, "the rest of the paragraph follows in one passage");
+    assert.equal(requested[4], after);
+    stopListening();
+  });
+
+  await t.test("listening from mid-paragraph starts at the sentence holding that point", async () => {
+    const requested: string[] = [];
+    t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
+      requested.push(JSON.parse(init?.body as string).text);
+      return new Response("test audio");
+    });
+    const prose = "The first sentence is behind the reader. The page begins in this one. And it goes on from there.";
+    const book = indexArticle({ id: "midway-test", title: "Book", blocks: [{ id: "p", type: "p", runs: [{ text: prose }] }] });
+    startListening(book, "p", prose.indexOf("begins")); await settle();
+    assert.deepEqual(requested, ["The page begins in this one. And it goes on from there."]);
+    stopListening();
+  });
 });

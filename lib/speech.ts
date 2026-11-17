@@ -44,6 +44,20 @@ export function speechChunks(text: string, max = 1200): { text: string; start: n
   return out;
 }
 
+/**
+ * A listening session's passages through the block it starts in. The first begins
+ * at the sentence holding `from` and stays within `opening` characters, so the voice
+ * starts within seconds; the rest are full passages of up to `max`.
+ */
+export function openingChunks(text: string, from: number, opening: number, max: number): { text: string; start: number; end: number }[] {
+  const at = sentenceStarts(text).findLast(s => s <= from) ?? 0;
+  const shift = (by: number) => (c: { text: string; start: number; end: number }) => ({ text: c.text, start: c.start + by, end: c.end + by });
+  const head = speechChunks(text.slice(at), opening)[0];
+  if (!head) return [];
+  const first = shift(at)(head);
+  return [first, ...speechChunks(text.slice(first.end), max).map(shift(first.end))];
+}
+
 /** Refuse normalized or mismatched text: guessed offsets would mark the wrong words. */
 export function wordsWithTiming(text: string, alignment?: Alignment | null): TimedWord[] {
   if (!alignment || !Array.isArray(alignment.characters) || !Array.isArray(alignment.character_start_times_seconds) || !Array.isArray(alignment.character_end_times_seconds)) return [];
@@ -93,6 +107,19 @@ export function transcriptWordsWithTiming(text: string, heard: HeardWord[]): Tim
     if (timed[i]) return [timed[i]!];
     const before = timed.slice(0, i).findLast(Boolean), after = timed.slice(i + 1).find(Boolean);
     return before && after ? [{ start: w.start, end: w.end, from: before.to, to: after.from }] : [];
+  });
+}
+
+/** Times a few words across their clip by length: too short a passage to be worth transcribing. */
+export function evenWordTiming(text: string, seconds: number): TimedWord[] {
+  const words = [...text.matchAll(/\S+/gu)];
+  const total = words.reduce((n, w) => n + w[0].length, 0);
+  const at = (chars: number) => Math.round(seconds * chars / total * 1000) / 1000;
+  let before = 0;
+  return words.map(w => {
+    const from = at(before);
+    before += w[0].length;
+    return { start: w.index!, end: w.index! + w[0].length, from, to: at(before) };
   });
 }
 
