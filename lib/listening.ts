@@ -18,8 +18,11 @@ import { readVoiceSettings } from "./voice-settings";
  */
 
 type Status = "idle" | "loading" | "playing" | "paused" | "error";
-/** `held`: the voice stopped by itself at a boundary the reader asked for (holdListening), after this block. */
-type ListenState = { status: Status; block: string | null; offset: number; rate: number; elapsed: number; duration: number; studyPaused: boolean; follow: boolean; held: string | null; error?: string; needKey?: boolean; cache?: string };
+/**
+ * `held`: the voice stopped by itself at a boundary the reader asked for (holdListening), after this block.
+ * `wantsPause`: paused by the reader, which shows at once even while a passage is still being made.
+ */
+type ListenState = { status: Status; block: string | null; offset: number; rate: number; elapsed: number; duration: number; studyPaused: boolean; follow: boolean; held: string | null; wantsPause: boolean; error?: string; needKey?: boolean; cache?: string };
 
 /** What is read aloud: prose and its headings. Pictures, tables and code are left to the eye. */
 const SPOKEN_BLOCKS = new Set<Block["type"]>(["h2", "h3", "p", "quote", "li", "note"]);
@@ -28,7 +31,7 @@ const RATES = [.8, 1, 1.2, 1.4, 1.7, 2];
 const AHEAD = 2;
 const RATE_KEY = "gloss:listen-rate";
 
-export const useListen = create<ListenState>(() => ({ status: "idle", block: null, offset: 0, rate: 1, elapsed: 0, duration: 0, studyPaused: false, follow: true, held: null }));
+export const useListen = create<ListenState>(() => ({ status: "idle", block: null, offset: 0, rate: 1, elapsed: 0, duration: 0, studyPaused: false, follow: true, held: null, wantsPause: false }));
 
 
 /** A few hundred milliseconds of silence, played inside the click so phones let the voice play later. */
@@ -253,7 +256,7 @@ function holdAtBoundary() {
   studySession = session;
   audio?.pause();
   // Paused from this moment, so nothing follows the voice into the next chapter before the reader is done.
-  useListen.setState({ status: "paused", studyPaused: true, held: from });
+  useListen.setState({ status: "paused", studyPaused: true, held: from, wantsPause: true });
 }
 
 export function stopListening() {
@@ -283,7 +286,7 @@ export function stopListening() {
   clips.clear();
   prefetched.clear();
   items = [];
-  useListen.setState({ status: "idle", block: null, offset: 0, elapsed: 0, duration: 0, studyPaused: false, held: null, error: undefined, needKey: false, cache: undefined });
+  useListen.setState({ status: "idle", block: null, offset: 0, elapsed: 0, duration: 0, studyPaused: false, held: null, wantsPause: false, error: undefined, needKey: false, cache: undefined });
 }
 
 /** Pause is idempotent, including while the first clip is still being fetched. */
@@ -294,7 +297,7 @@ export function pauseListening(forStudy = false) {
   if (!forStudy) studySession = null;
   wantedPaused = true;
   audio.pause();
-  useListen.setState({ studyPaused: studySession === session, ...(status === "loading" ? {} : { status: "paused" }) });
+  useListen.setState({ studyPaused: studySession === session, wantsPause: true, ...(status === "loading" ? {} : { status: "paused" }) });
 }
 
 export function resumeListening() {
@@ -302,7 +305,7 @@ export function resumeListening() {
   if (!audio || (status !== "paused" && status !== "loading")) return;
   wantedPaused = false;
   studySession = null;
-  useListen.setState({ studyPaused: false, held: null });
+  useListen.setState({ studyPaused: false, held: null, wantsPause: false });
   if (status === "loading") return;
   const s = session;
   audio.play().then(() => {

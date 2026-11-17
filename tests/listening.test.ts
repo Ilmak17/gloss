@@ -229,6 +229,21 @@ test("study interruptions preserve audio and cannot revive an obsolete session",
     assert.equal(a.src, "");
   });
 
+  await t.test("a pause while the passage is still being made shows at once, and playing again clears it", async () => {
+    let resolve!: (value: Response) => void;
+    t.mock.method(globalThis, "fetch", () => new Promise<Response>(r => { resolve = r; }));
+    startListening(ix, "p1");
+    assert.equal(useListen.getState().wantsPause, false);
+    pauseListening();
+    assert.equal(useListen.getState().status, "loading");
+    assert.equal(useListen.getState().wantsPause, true, "the player can show Play instead of a spinner");
+    resumeListening();
+    assert.equal(useListen.getState().wantsPause, false);
+    resolve(new Response("test audio")); await settle();
+    assert.equal(useListen.getState().status, "playing");
+    stopListening();
+  });
+
   await t.test("selection while loading prevents delayed automatic playback", async () => {
     let resolve!: (value: Response) => void;
     t.mock.method(globalThis, "fetch", () => new Promise<Response>(r => { resolve = r; }));

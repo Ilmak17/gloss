@@ -6,6 +6,7 @@ import { blockEl } from "@/lib/anchor";
 import { useStore } from "@/lib/store";
 import { openVoiceSettings } from "@/lib/voice-settings";
 import { useListen, startListening, stopListening, toggleListening, cycleRate, nudgeRate, pauseListening, seekListening, skipSentence } from "@/lib/listening";
+import { listenKeyAction } from "@/lib/listen-keys";
 import { startStudy } from "@/lib/study-draft";
 import { studyBlock } from "@/lib/study";
 import { barBtn, Popover } from "@/components/ui/Popover";
@@ -115,28 +116,42 @@ function useListenKeys(start: () => void, paged: boolean) {
   const begin = useRef(start);
   useLayoutEffect(() => { begin.current = start; });
   useEffect(() => {
+    // A Space taken for the voice: its keyup must not then press the focused button.
+    let tookSpace = false;
     const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
-      // A focused control keeps its own keys; so do editors and open overlays.
-      if (e.target instanceof Element && e.target.closest("input,textarea,select,button,a,summary,[contenteditable=true]")) return;
+      if (e.defaultPrevented) return;
+      const el = e.target instanceof Element ? e.target : null;
       const ui = useStore.getState();
-      if (ui.activeGloss || ui.pending || ui.notebookOpen || ui.shortcutsOpen || document.querySelector("dialog[open],[role=dialog],.lens")) return;
-      const idle = useListen.getState().status === "idle";
-      if (e.key === " " && !e.shiftKey) {
-        if (!idle) toggleListening();
-        else if (paged && ui.settings.listen) begin.current();
-        else return;
-      } else if (idle) return;
-      else if (e.shiftKey && e.key === "ArrowLeft") skipSentence(-1);
-      else if (e.shiftKey && e.key === "ArrowRight") skipSentence(1);
-      else if (e.key === "-") nudgeRate(-1);
-      else if (e.key === "=" || e.key === "+") nudgeRate(1);
-      else return;
+      const action = listenKeyAction(
+        { key: e.key, shiftKey: e.shiftKey, repeat: e.repeat, mod: e.metaKey || e.ctrlKey || e.altKey },
+        {
+          typing: Boolean(el?.closest("input,textarea,select,[contenteditable=true]")),
+          onControl: Boolean(el?.closest("button,a,summary")),
+          overlay: Boolean(ui.activeGloss || ui.pending || ui.notebookOpen || ui.shortcutsOpen || document.querySelector("dialog[open],[role=dialog],.lens")),
+          idle: useListen.getState().status === "idle",
+          canStart: paged && ui.settings.listen,
+        },
+      );
+      if (!action) return;
+      if (action === "toggle") toggleListening();
+      else if (action === "start") begin.current();
+      else if (action === "back") skipSentence(-1);
+      else if (action === "next") skipSentence(1);
+      else if (action === "slower") nudgeRate(-1);
+      else if (action === "faster") nudgeRate(1);
+      if (e.key === " ") tookSpace = true;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key !== " " || !tookSpace) return;
+      tookSpace = false;
       e.preventDefault();
       e.stopPropagation();
     };
     window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
+    window.addEventListener("keyup", onKeyUp, true);
+    return () => { window.removeEventListener("keydown", onKey, true); window.removeEventListener("keyup", onKeyUp, true); };
   }, [paged]);
 }
 
@@ -214,10 +229,12 @@ export function ListenBar({ from }: { from: () => string | null }) {
  */
 export function BookPlayer({ title, from }: { title: string; from: () => string | null }) {
   const { jumpToBlock, goToPoint, chooseListeningStart } = useReader();
-  const { status, block, rate, error, needKey, follow, cache } = useListen();
+  const { status, block, rate, error, needKey, follow, cache, wantsPause } = useListen();
   useListenLifecycle();
   const { explain, startHere } = useListenStart(from);
   useListenKeys(startHere, true);
+  // Paused before the passage is ready: show Play at once rather than a spinner that ignores the pause.
+  const preparing = status === "loading" && !wantsPause;
   const active = status !== "idle";
   const ready = status === "playing" || status === "paused";
   return <div className="book-bar-middle">
@@ -226,9 +243,9 @@ export function BookPlayer({ title, from }: { title: string; from: () => string 
       {cache === "unavailable" && <div role="status" className="study-player-error">Audio could not be saved. Replaying later may use credits.</div>}
       {error && <div role="alert" className="study-player-error"><p>{error}</p><button type="button" onClick={openVoiceSettings}>{needKey ? "Connect voice" : "Voice settings"}</button></div>}
       <button type="button" className="study-icon" disabled={!ready} aria-label="Previous sentence" aria-keyshortcuts="Shift+ArrowLeft" data-tip="Previous sentence" data-tip-kbd="⇧←" onClick={() => skipSentence(-1)}><SkipBack size={16} strokeWidth={1.75} /></button>
-      <button type="button" className="book-player-play" aria-label={status === "loading" ? "Preparing audio" : status === "playing" ? "Pause" : status === "error" ? "Try again" : "Play"} aria-keyshortcuts="Space" data-tip={status === "playing" ? "Pause" : status === "error" ? "Try again" : "Play"} data-tip-kbd="Space"
+      <button type="button" className="book-player-play" aria-label={preparing ? "Preparing audio" : status === "playing" ? "Pause" : status === "error" ? "Try again" : "Play"} aria-keyshortcuts="Space" data-tip={status === "playing" ? "Pause" : status === "error" ? "Try again" : "Play"} data-tip-kbd="Space"
         onClick={e => { dropFocus(e); toggleListening(); }}>
-        {status === "loading" ? <LoaderCircle size={15} className="animate-spin" aria-hidden /> : status === "playing" ? <Pause size={15} fill="currentColor" strokeWidth={0} aria-hidden /> : status === "error" ? <RotateCcw size={15} aria-hidden /> : <Play size={15} fill="currentColor" strokeWidth={0} aria-hidden />}
+        {preparing ? <LoaderCircle size={15} className="animate-spin" aria-hidden /> : status === "playing" ? <Pause size={15} fill="currentColor" strokeWidth={0} aria-hidden /> : status === "error" ? <RotateCcw size={15} aria-hidden /> : <Play size={15} fill="currentColor" strokeWidth={0} aria-hidden />}
       </button>
       <button type="button" className="study-icon" disabled={!ready} aria-label="Next sentence" aria-keyshortcuts="Shift+ArrowRight" data-tip="Next sentence" data-tip-kbd="⇧→" onClick={() => skipSentence(1)}><SkipForward size={16} strokeWidth={1.75} /></button>
       <button type="button" className="book-player-rate" aria-label={`Speed ${rate}×, faster`} data-tip="Speed" data-tip-kbd="− +" onClick={e => { dropFocus(e); cycleRate(); }}>{rate}×</button>
