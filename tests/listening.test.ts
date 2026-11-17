@@ -141,6 +141,27 @@ test("study interruptions preserve audio and cannot revive an obsolete session",
     stopListening();
   });
 
+  await t.test("a new chapter's titles do not use up the look-ahead, so its first paragraph is ready when they end", async () => {
+    const requested: string[] = [];
+    t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
+      requested.push(JSON.parse(init?.body as string).text);
+      return new Response("test audio");
+    });
+    const book = indexArticle({ id: "chapter-seam", title: "Book", blocks: [
+      { id: "end", type: "p", runs: [{ text: "The last words of a chapter." }] },
+      { id: "number", type: "h2", runs: [{ text: "2" }] },
+      { id: "title", type: "h2", runs: [{ text: "Closer to Reality" }] },
+      { id: "first", type: "p", runs: [{ text: "The first paragraph." }] },
+      { id: "second", type: "p", runs: [{ text: "The second paragraph." }] },
+      { id: "third", type: "p", runs: [{ text: "The third paragraph." }] },
+    ] });
+    startListening(book, "end"); await settle();
+    a.currentTime = .3;
+    (a as unknown as { ontimeupdate: () => void }).ontimeupdate(); await settle();
+    assert.deepEqual(requested, ["The last words of a chapter.", "2", "Closer to Reality", "The first paragraph.", "The second paragraph."]);
+    stopListening();
+  });
+
   await t.test("back and next move by sentence, across passages, from the word being spoken", async () => {
     const timings: Record<string, { start: number; end: number; from: number; to: number }[]> = {
       "First one. First two.": [{ start: 0, end: 5, from: 0, to: .4 }, { start: 6, end: 10, from: .5, to: .9 }, { start: 11, end: 16, from: 1, to: 1.4 }, { start: 17, end: 21, from: 1.5, to: 1.9 }],

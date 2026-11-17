@@ -687,7 +687,7 @@ export function BookReader({ article }: { article: Article }) {
               onClick={() => setUI({ activeGloss: d.id, activeHighlight: null })} />)}
           </div>
           {recap !== null && chapters[recap] && <ChapterRecap key={recap} articleId={article.id} book={article.title}
-            chapter={chapters[recap]} saved={chapterRecap(glosses, chapters[recap])} onDone={finishRecap} />}
+            chapter={chapters[recap]} saved={chapterRecap(glosses, chapters[recap])} byVoice={held !== null} onDone={finishRecap} />}
         </main>
         {root && viewport.current && <BookPagination chapters={chapters} lang={lang} viewport={viewport.current} layoutKey={JSON.stringify(settings)} onCounts={setPageCounts} />}
         {noteTarget && <BookFootnote blocks={noteBlocks} onClose={closeNote} onLink={key=>{

@@ -12,12 +12,14 @@ import { uid, useStore, type Gloss } from "@/lib/store";
  * that comes back for recall; "Copy for Codex" hands the chapter and the
  * recap over to be checked. Skipping is always fine.
  */
-export function ChapterRecap({ articleId, book, chapter, saved, onDone }: {
+export function ChapterRecap({ articleId, book, chapter, saved, byVoice = false, onDone }: {
   articleId: string;
   book: string;
   chapter: BookChapter;
   /** The recap written before, if this chapter has one. */
   saved?: Gloss;
+  /** Reached by the voice: Space keeps listening, so the field waits for a click. */
+  byVoice?: boolean;
   onDone: () => void;
 }) {
   const draftKey = `gloss:recap-draft:${articleId}:${chapter.blocks[0]?.id}`;
@@ -31,7 +33,7 @@ export function ChapterRecap({ articleId, book, chapter, saved, onDone }: {
   const filled = text.trim().length > 0;
   const handoff = recapHandoff({ book, chapter, recap: text });
 
-  useEffect(() => { field.current?.focus({ preventScroll: true }); }, []);
+  useEffect(() => { if (!byVoice) field.current?.focus({ preventScroll: true }); }, [byVoice]);
   // The writing area grows with the recap, up to the page.
   useLayoutEffect(() => {
     const el = field.current;
@@ -90,7 +92,7 @@ export function ChapterRecap({ articleId, book, chapter, saved, onDone }: {
           </button>
         </div>
         <p role="status" className="book-recap-status">
-          {copy === "done" ? "Paste it into Codex: it will check you and ask a few questions." : saved ? "Your recap is saved. It comes back for recall in the library." : "Saved recaps come back for recall in the library."}
+          {copy === "done" ? "Paste it into Codex: it will check you and ask a few questions." : saved ? "Your recap is saved. It comes back for recall in the library." : byVoice ? "Space keeps listening. Saved recaps come back for recall in the library." : "Saved recaps come back for recall in the library."}
         </p>
         {copy === "failed" && <div className="book-recap-packet">
           <p>Couldn’t copy. Select the message below.</p>

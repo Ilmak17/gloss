@@ -58,7 +58,8 @@ function silence(): string {
 
 /* ---------------- the engine: one voice at a time ---------------- */
 
-let items: { block: string; text: string; start: number }[] = [];
+/** `title`: a heading, a moment long; it does not count toward the look-ahead. */
+let items: { block: string; text: string; start: number; title: boolean }[] = [];
 let activeWords: TimedWord[] = [];
 let activeSentences: number[] = [];
 let wantedPaused = false;
@@ -82,7 +83,9 @@ const prefetched = new Set<number>();
 function prepareNext() {
   if (!audio || audio.paused || wantedPaused || useListen.getState().status !== "playing") return;
   if (audio.currentTime < .25 || !audio.src.startsWith("blob:")) return;
-  for (let next = idx + 1; next <= idx + AHEAD && next < items.length; next++) {
+  // Titles pass in a moment, so a new chapter's first paragraph is prepared along with them.
+  for (let next = idx + 1, ahead = 0; ahead < AHEAD && next < items.length; next++) {
+    if (!items[next].title) ahead++;
     if (prefetched.has(next)) continue;
     prefetched.add(next);
     // Errors are retried normally when this passage becomes current; they must not stop today's audio.
@@ -190,7 +193,7 @@ export function startListening(ix: DocIndex, fromBlock: string | null, fromOffse
     const chunks = opening ? openingChunks(t, from, OPENING_CHARS, PASSAGE_CHARS) : speechChunks(t, PASSAGE_CHARS);
     for (const c of chunks) {
       if (b.id === fromBlock && c.end <= initialOffset) continue;
-      items.push({ block: b.id, text: c.text, start: c.start });
+      items.push({ block: b.id, text: c.text, start: c.start, title: b.type === "h2" || b.type === "h3" });
     }
     // Headings pass by; the first stretch of prose long enough to wait for opens short.
     if (chunks[0] && t.length - chunks[0].start > OPENING_CHARS) opening = false;
