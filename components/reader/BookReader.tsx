@@ -41,6 +41,7 @@ import { studyBlock } from "@/lib/study";
 import { useListen, startListening, pauseListening, resumeAfterStudy, listeningSessionId, holdListening } from "@/lib/listening";
 import { chapterRecap, recapChapters } from "@/lib/recap";
 import { SettingsMenu } from "@/components/ui/SettingsMenu";
+import { VoiceMenu } from "./VoiceMenu";
 import { barBtn } from "@/components/ui/Popover";
 import { Block, type Mark } from "./Block";
 import { BookNavigation, type BookMark } from "./BookNavigation";
@@ -574,6 +575,7 @@ export function BookReader({ article }: { article: Article }) {
           <BookPlayer title={article.title} from={() => point.current.b} />
           <nav aria-label="Reading tools">
             <ListenButton from={() => point.current.b} />
+            <VoiceMenu />
             <SettingsMenu readingOnly book />
             <button type="button" className={barBtn} aria-label="Notebook" aria-pressed={notebookOpen} aria-keyshortcuts="N" data-tip="Notebook" data-tip-kbd="N"
               onClick={() => setUI({ notebookOpen: !notebookOpen })}>
