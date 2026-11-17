@@ -83,8 +83,12 @@ const prefetched = new Set<number>();
 function prepareNext() {
   if (!audio || audio.paused || wantedPaused || useListen.getState().status !== "playing") return;
   if (audio.currentTime < .25 || !audio.src.startsWith("blob:")) return;
-  // Titles pass in a moment, so a new chapter's first paragraph is prepared along with them.
-  for (let next = idx + 1, ahead = 0; ahead < AHEAD && next < items.length; next++) {
+  prepareAfter(idx, AHEAD);
+}
+
+/** Asks for the passages after `i` until `count` of them are prose. Titles pass in a moment, so they come along without counting. */
+function prepareAfter(i: number, count: number) {
+  for (let next = i + 1, ahead = 0; ahead < count && next < items.length; next++) {
     if (!items[next].title) ahead++;
     if (prefetched.has(next)) continue;
     prefetched.add(next);
@@ -241,6 +245,8 @@ function beginPlayback(ix: DocIndex) {
     navigator.mediaSession.setActionHandler("nexttrack", () => skipSentence(1));
   }
   void playAt(0, s);
+  // Making any passage takes seconds, often longer than a short opening one lasts, so the next is made alongside it.
+  prepareAfter(0, 1);
 }
 
 /**

@@ -61,7 +61,7 @@ test("study interruptions preserve audio and cannot revive an obsolete session",
     stopListening();
   });
 
-  await t.test("starting and pausing do not pre-generate unread passages", async () => {
+  await t.test("starting and pausing prepare only the passage after the first", async () => {
     const requested: string[] = [];
     t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
       requested.push(JSON.parse(init?.body as string).text);
@@ -69,7 +69,24 @@ test("study interruptions preserve audio and cannot revive an obsolete session",
     });
     const book = indexArticle({ id: "budget-test", title: "Budget", blocks: ["First.", "Second.", "Third."].map((text, i) => ({ id: `p${i}`, type: "p" as const, runs: [{ text }] })) });
     startListening(book, "p0"); await settle(); pauseListening(); await settle();
-    assert.deepEqual(requested, ["First."]);
+    assert.deepEqual(requested, ["First.", "Second."]);
+    stopListening();
+  });
+
+  await t.test("the passage after the first is asked for at once, since making one takes longer than a short opening lasts", async () => {
+    const requested: string[] = [];
+    t.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
+      requested.push(JSON.parse(init?.body as string).text);
+      return new Promise<Response>(() => {});
+    });
+    const book = indexArticle({ id: "start-test", title: "Book", blocks: [
+      { id: "number", type: "h2", runs: [{ text: "3" }] },
+      { id: "title", type: "h2", runs: [{ text: "The Spark" }] },
+      { id: "first", type: "p", runs: [{ text: "The first paragraph." }] },
+      { id: "second", type: "p", runs: [{ text: "The second paragraph." }] },
+    ] });
+    startListening(book, "number"); await settle();
+    assert.deepEqual(requested, ["3", "The Spark", "The first paragraph."], "titles pass in a moment, so the first prose is asked for too");
     stopListening();
   });
 
