@@ -63,7 +63,6 @@ let studySession: number | null = null;
 let holdBetween: ((from: string, to: string) => boolean) | null = null;
 let highlightFrame = 0;
 let lastHighlight = "";
-let lastSentence = "";
 let idx = 0;
 let initialOffset = 0;
 let pendingSeek: number | null = null;
@@ -373,8 +372,7 @@ export function skipSentence(direction: 1 | -1) {
 /** CSS highlights leave annotation spans and text selection untouched. */
 function clearSpeechHighlight() {
   lastHighlight = "";
-  lastSentence = "";
-  if (typeof CSS !== "undefined" && "highlights" in CSS) { CSS.highlights.delete("speech"); CSS.highlights.delete("speech-sentence"); }
+  if (typeof CSS !== "undefined" && "highlights" in CSS) CSS.highlights.delete("speech");
 }
 function followSpeech() {
   highlightSpeech();
@@ -393,11 +391,6 @@ function highlightSpeech() {
   if (key === lastHighlight) return;
   const range = anchorToRange({ start: point, end: { b: item.block, o: item.start + word.end } });
   if (range) { CSS.highlights.set("speech", new Highlight(range)); lastHighlight = key; }
-  const from = activeSentences.findLast(s => s <= word.start) ?? 0;
-  if (`${idx}:${from}` === lastSentence) return;
-  const to = item.text.slice(0, activeSentences.find(s => s > word.start) ?? item.text.length).trimEnd().length;
-  const sentence = anchorToRange({ start: { b: item.block, o: item.start + from }, end: { b: item.block, o: item.start + to } });
-  if (sentence) { CSS.highlights.set("speech-sentence", new Highlight(sentence)); lastSentence = `${idx}:${from}`; }
 }
 
 

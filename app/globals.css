@@ -30,6 +30,7 @@
   --good: #3f7d4e;
   --rubric: var(--pen-l);
   --rubric-text: var(--pen-l-text);
+  --speech: color-mix(in oklab, var(--rubric) 22%, transparent);
   color-scheme: light;
 }
 
@@ -101,6 +102,7 @@
   --grain-opacity: 0.035;
   --good: #79b98a;
   --rubric: var(--pen-d);
+  --speech: color-mix(in oklab, var(--rubric) 38%, transparent);
   --rubric-text: var(--pen-d-text);
   color-scheme: dark;
 }
@@ -130,6 +132,7 @@
   --grain-opacity: 0.03;
   --good: #7fbf95;
   --rubric: var(--pen-d);
+  --speech: color-mix(in oklab, var(--rubric) 38%, transparent);
   --rubric-text: var(--pen-d-text);
   color-scheme: dark;
 }
@@ -1997,17 +2000,10 @@ a.desk-tile:focus-visible {
 /* Timed narration, independent of saved annotations. */
 /* Offset belongs to the originating text; custom highlights inherit it. */
 .prose-read .blk-text { text-underline-offset: .18em; }
-/* Read-along: a soft wash on the sentence being spoken, easy to find again after
-   a glance away, and an underline on the word, which stays until the next begins. */
-::highlight(speech-sentence) {
-  background-color: color-mix(in oklab, var(--ink) 8%, transparent);
-}
+/* Read-along: the word being spoken carries a wash of the pen colour, which stays
+   until the next begins. Nothing else is marked, so the eye has one place to go. */
 ::highlight(speech) {
-  background-color: transparent;
-  text-decoration-line: underline;
-  text-decoration-style: solid;
-  text-decoration-color: var(--ink-2);
-  text-decoration-thickness: .085em;
+  background-color: var(--speech);
 }
 
 /* Study room: the page keeps its reading measure as discussion opens beside it. */
