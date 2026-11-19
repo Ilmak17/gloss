@@ -92,7 +92,8 @@ export type LibraryItem = {
   addedVia?: string;
 };
 
-export type Progress = { block: string; offset?: number; pct: number; at: number };
+/** `from`: where this sitting began. After a break, what was read since then is offered for recall (lib/sitting.ts). */
+export type Progress = { block: string; offset?: number; pct: number; at: number; from?: { block: string; offset?: number } };
 
 /** A row from the account, as the sync route sends it. `data` is null on a tombstone. */
 export type RemoteRow<T> = { id: string; articleId: string; data: T | null; deleted: boolean };

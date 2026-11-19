@@ -3,6 +3,7 @@
 import { ACTION_QUESTIONS, ACTIONS } from "./actions";
 import { numberBlocks, slugify, tidyTitle, undash } from "./article";
 import { isRecap } from "./recap";
+import { isRecall } from "./sitting";
 import { SAMPLES } from "./samples";
 import { loadDoc, useStore, type Gloss, type Highlight, type Point, type Turn } from "./store";
 import { zip } from "./zip";
@@ -75,8 +76,8 @@ export function notesMarkdown(meta: NotesMeta, glosses: Gloss[], highlights: Hig
       continue;
     }
     const g = e.g;
-    if (isRecap(g)) {
-      lines.push(`## Recap: ${g.reflection?.claim ?? "Chapter"}`, "", g.reflection?.takeaway?.trim() ?? "", "");
+    if (isRecap(g) || isRecall(g)) {
+      lines.push(`## ${isRecap(g) ? "Recap" : "Last time"}: ${g.reflection?.claim ?? "Chapter"}`, "", g.reflection?.takeaway?.trim() ?? "", "");
       continue;
     }
     const n = num(g.anchor?.start.b ?? g.at);

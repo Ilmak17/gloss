@@ -12,6 +12,7 @@ import { discussionQuestion } from "@/lib/discussion-options";
 import { ACTIONS } from "@/lib/actions";
 import { notesMarkdown, pairsOf } from "@/lib/export";
 import { isRecap } from "@/lib/recap";
+import { isRecall } from "@/lib/sitting";
 import { Answer, Sources } from "./Answer";
 import { Writing } from "./Writing";
 import { useReader } from "./context";
@@ -154,7 +155,7 @@ export function Notebook() {
           <ol className="space-y-2.5">
             {shown.map((e, i) => (
               <li key={e.key} className="rise" style={{ animationDuration: "0.45s", animationDelay: `${Math.min(i, 8) * 35}ms` }}>
-                {e.kind === "hl" ? <HighlightEntry h={e.h} /> : isRecap(e.g) ? <RecapEntry g={e.g} /> : <GlossEntry g={e.g} />}
+                {e.kind === "hl" ? <HighlightEntry h={e.h} /> : isRecap(e.g) || isRecall(e.g) ? <RecapEntry g={e.g} /> : <GlossEntry g={e.g} />}
               </li>
             ))}
           </ol>
@@ -209,7 +210,9 @@ function Meta({ n, label, at }: { n?: number; label?: string; at: number }) {
 }
 
 /** A chapter recap: recall it before you read it again, like any thought in review. */
+/** A chapter recap, or a recall of last time's reading: both are recalled before they are revealed. */
 function RecapEntry({ g }: { g: Gloss }) {
+  const chapter = isRecap(g);
   const { jumpToBlock } = useReader();
   const setUI = useStore((s) => s.setUI);
   const removeGloss = useStore((s) => s.removeGloss);
@@ -220,13 +223,13 @@ function RecapEntry({ g }: { g: Gloss }) {
   return (
     <article className="group relative rounded-[14px] border border-rule bg-bg px-4 pb-4 pt-3.5 transition-colors hover:border-rule-strong">
       <button type="button" onClick={go} className="block w-full pr-7 text-left">
-        <Meta label="Chapter recap" at={g.createdAt} />
+        <Meta label={chapter ? "Chapter recap" : "Last time"} at={g.createdAt} />
         <span className="mt-2.5 block font-serif text-[16.5px] leading-[1.35] text-ink [font-variation-settings:'opsz'_24]">{g.reflection?.claim || "A chapter"}</span>
       </button>
       <div className="thinking-note">
         <details>
-          <summary>Recall first · then reveal your recap</summary>
-          <p className="thinking-hint">What was the chapter’s main idea? Say it before you look.</p>
+          <summary>Recall first · then reveal {chapter ? "your recap" : "what you remembered"}</summary>
+          <p className="thinking-hint">{chapter ? "What was the chapter’s main idea?" : "What happened in this part?"} Say it before you look.</p>
           <p>{g.reflection?.takeaway}</p>
         </details>
         {g.review && !g.review.off && <p className="thinking-hint">Next recall · {new Date(g.review.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>}
